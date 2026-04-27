@@ -88,7 +88,9 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({
         onDeactivate(material.id);
       } else {
         await apiService.activateClassroomMaterial(classroomId, material.id);
-        onActivate(material);
+  onActivate(material);
+  // Close the material manager modal so teacher immediately sees the PDF on the whiteboard
+  onClose();
       }
       fetchMaterials();
     } catch (err) {

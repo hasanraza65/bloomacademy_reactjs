@@ -756,7 +756,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                     uid={String(user.id)}
                     userName={user.firstName}
                     isTeacher={user.role === 2}
-                    pdfUrl={activeMaterial?.file_url}
+                    pdfUrl={activeMaterial ? (activeMaterial.file_path ? `/backend/public/classroom_materials/${activeMaterial.file_path}` : activeMaterial.file_url?.replace('https://academy.bloom-buddies.fr', '')) : undefined}
                     currentPage={currentPage}
                     onPageChange={(page) => {
                       if (user.role === 2) {

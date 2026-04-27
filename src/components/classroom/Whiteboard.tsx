@@ -184,6 +184,12 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
         </div>
       )}
 
+      {error && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-red-500/90 text-white px-6 py-3 rounded-xl z-50 font-bold shadow-xl border border-red-400 backdrop-blur-md max-w-lg text-center">
+          {error}
+        </div>
+      )}
+
       {/* PDF Background Rendering */}
       {pdfUrl && (
         <div className="absolute inset-0 flex items-center justify-center p-8 bg-slate-200 overflow-hidden">
@@ -292,7 +298,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
       <div 
         ref={containerRef} 
         className={cn(
-          "w-full h-full touch-none relative z-10",
+          "netless-container w-full h-full touch-none relative z-10",
           pdfUrl ? "bg-transparent" : "bg-white"
         )}
         style={{ cursor: currentTool === 'pencil' ? 'crosshair' : 'default' }}
