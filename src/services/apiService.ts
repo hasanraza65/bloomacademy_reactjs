@@ -1,0 +1,132 @@
+import { LoginResponse } from '../types';
+
+const BASE_URL = 'https://academy.bloom-buddies.fr/backend/public/api/';
+
+export const apiService = {
+  async login(payload: any): Promise<LoginResponse> {
+    const response = await fetch(`${BASE_URL}login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+    return response.json();
+  },
+
+  async signupParent(payload: any): Promise<LoginResponse> {
+    const response = await fetch(`${BASE_URL}signup/parent`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+    return response.json();
+  },
+
+  async signupTeacher(payload: any): Promise<LoginResponse> {
+    const response = await fetch(`${BASE_URL}signup/teacher`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+    return response.json();
+  },
+
+  async startClass(): Promise<{ success: boolean; data: any; message?: string }> {
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(`${BASE_URL}classrooms/start`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+    });
+    return response.json();
+  },
+
+  async joinClass(channelName?: string): Promise<{ success: boolean; data?: any; error?: string }> {
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(`${BASE_URL}classrooms/join`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ channel_name: channelName }),
+    });
+    return response.json();
+  },
+
+  async endClass(id: number): Promise<{ success: boolean }> {
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(`${BASE_URL}classrooms/${id}/end`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+    });
+    return response.json();
+  },
+
+  async getClassroomMaterials(classroomId: number): Promise<{ success: boolean; data: any[] }> {
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(`${BASE_URL}classrooms/${classroomId}/materials`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+    });
+    return response.json();
+  },
+
+  async uploadClassroomMaterial(classroomId: number, formData: FormData): Promise<{ success: boolean; data: any }> {
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(`${BASE_URL}classrooms/${classroomId}/materials/upload`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData,
+    });
+    return response.json();
+  },
+
+  async activateClassroomMaterial(classroomId: number, materialId: number): Promise<{ success: boolean; data: any }> {
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(`${BASE_URL}classrooms/${classroomId}/materials/${materialId}/activate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+    });
+    return response.json();
+  },
+
+  async deactivateClassroomMaterial(classroomId: number, materialId: number): Promise<{ success: boolean }> {
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(`${BASE_URL}classrooms/${classroomId}/materials/${materialId}/deactivate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+    });
+    return response.json();
+  }
+};

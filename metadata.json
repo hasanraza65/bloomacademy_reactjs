@@ -1,0 +1,9 @@
+{
+  "name": "Bloom Buddies Academy",
+  "description": "A modern, kid-friendly SaaS platform for fun and interactive online education.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": []
+}
