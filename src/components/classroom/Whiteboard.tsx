@@ -130,7 +130,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
         currentRoom.disconnect();
       }
     };
-  }, [appId, roomUUID, roomToken, uid, userName]);
+  }, [appId, roomUUID, roomToken, uid, userName, pdfUrl]); // Added pdfUrl to re-bind ref when layout shifts
 
   const setTool = (tool: string) => {
     if (!room) return;
@@ -192,9 +192,10 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
 
       {/* PDF Background Rendering */}
       {pdfUrl && (
-        <div className="absolute inset-0 flex items-center justify-center p-8 bg-slate-200 overflow-hidden">
-          <div className="shadow-2xl bg-white max-w-full max-h-full overflow-hidden">
-            <Document
+        <div className="absolute inset-0 bg-slate-200 overflow-y-auto custom-scrollbar z-0">
+          <div className="min-h-full flex flex-col items-center p-4 sm:p-12">
+            <div className="m-auto shadow-2xl bg-white flex-shrink-0 relative">
+              <Document
               file={pdfUrl}
               onLoadSuccess={onDocumentLoadSuccess}
               onLoadError={(err) => {
@@ -208,34 +209,41 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
                 pageNumber={currentPage} 
                 renderTextLayer={false}
                 renderAnnotationLayer={false}
-                scale={1.5}
+                scale={1.2}
                 className="max-w-full h-auto"
               />
             </Document>
+            {/* Whiteboard Overlay for PDF */}
+            <div 
+              ref={containerRef} 
+              className="absolute inset-0 z-10 bg-transparent touch-none netless-container"
+              style={{ cursor: currentTool === 'pencil' ? 'crosshair' : 'default' }}
+            />
           </div>
+        </div>
+      </div>
+      )}
 
-          {/* Page Controls for Teacher */}
-          {isTeacher && numPages > 0 && (
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-slate-900/80 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/10 z-30 shadow-2xl">
-              <button
-                disabled={currentPage <= 1}
-                onClick={() => onPageChange?.(currentPage - 1)}
-                className="p-2 text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-colors"
-              >
-                <ChevronLeft size={20} />
-              </button>
-              <span className="text-white font-black text-[10px] uppercase tracking-widest min-w-[100px] text-center">
-                Page {currentPage} / {numPages}
-              </span>
-              <button
-                disabled={currentPage >= numPages}
-                onClick={() => onPageChange?.(currentPage + 1)}
-                className="p-2 text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-colors"
-              >
-                <ChevronRight size={20} />
-              </button>
-            </div>
-          )}
+      {/* Page Controls for Teacher (Fixed Position) */}
+      {pdfUrl && isTeacher && numPages > 0 && (
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-slate-900/80 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/10 z-30 shadow-2xl">
+          <button
+            disabled={currentPage <= 1}
+            onClick={() => onPageChange?.(currentPage - 1)}
+            className="p-2 text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-colors"
+          >
+            <ChevronLeft size={20} />
+          </button>
+          <span className="text-white font-black text-[10px] uppercase tracking-widest min-w-[100px] text-center">
+            Page {currentPage} / {numPages}
+          </span>
+          <button
+            disabled={currentPage >= numPages}
+            onClick={() => onPageChange?.(currentPage + 1)}
+            className="p-2 text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-colors"
+          >
+            <ChevronRight size={20} />
+          </button>
         </div>
       )}
 
@@ -294,15 +302,14 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
         </div>
       )}
 
-      {/* Board Container - Overlay */}
-      <div 
-        ref={containerRef} 
-        className={cn(
-          "netless-container w-full h-full touch-none relative z-10",
-          pdfUrl ? "bg-transparent" : "bg-white"
-        )}
-        style={{ cursor: currentTool === 'pencil' ? 'crosshair' : 'default' }}
-      />
+      {/* Board Container - Overlay (Only if NO PDF) */}
+      {!pdfUrl && (
+        <div 
+          ref={containerRef} 
+          className="netless-container w-full h-full touch-none relative z-10 bg-white"
+          style={{ cursor: currentTool === 'pencil' ? 'crosshair' : 'default' }}
+        />
+      )}
     </div>
   );
 };

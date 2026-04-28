@@ -737,8 +737,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       {/* Main Classroom Area */}
       <div className="flex-1 p-6 flex flex-col md:flex-row gap-6 relative overflow-hidden">
         
-        {/* Main Stage: Teacher or Whiteboard */}
-        <div className="flex-[1.8] relative min-h-[300px]">
+        {/* Left Side: Big Screen (Whiteboard or PDF) */}
+        <div className="flex-[3] relative min-h-[300px]">
           <AnimatePresence mode="wait">
             {showWhiteboard ? (
               <motion.div
@@ -778,88 +778,74 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                   </div>
                 )}
               </motion.div>
-            ) : user.role === 2 ? (
-              // Teacher always occupies their own stage
-              <VideoTile 
-                key={isSharingScreen ? "local-screen" : "local-teacher"}
-                uid={connectionData?.uid || 'host'}
-                videoTrack={isSharingScreen ? screenTrackRef.current : localTracks.video}
-                audioTrack={localTracks.audio}
-                isLocal={true}
-                name={user.firstName}
-                hasVideo={!isCamOff || isSharingScreen}
-                hasAudio={!isMuted}
-                isLarge={true}
-                role="host"
-                isScreen={isSharingScreen}
-                onToggleMic={toggleMic}
-                onToggleCam={toggleCam}
-                isMuted={isMuted}
-                isCamOff={isCamOff}
-              />
             ) : (
-              // Students see the Teacher (first remote user) on stage
-              remoteUsers.length > 0 ? (
-                <VideoTile 
-                  key={remoteUsers[0].uid}
-                  uid={remoteUsers[0].uid}
-                  videoTrack={remoteUsers[0].videoTrack}
-                  audioTrack={remoteUsers[0].audioTrack}
-                  name="Teacher"
-                  hasVideo={!!remoteUsers[0].videoTrack}
-                  hasAudio={!!remoteUsers[0].audioTrack}
-                  isLarge={true}
-                  role="host"
-                />
-              ) : (
-                <div className="w-full h-full rounded-[3rem] bg-slate-900 border-4 border-dashed border-white/5 flex flex-col items-center justify-center">
-                  <div className="w-20 h-20 rounded-full bg-slate-800 flex items-center justify-center text-slate-500 mb-6 animate-pulse">
-                    <Sparkles size={40} />
-                  </div>
-                  <h4 className="text-lg font-black text-white uppercase tracking-widest mb-2 text-center">Connecting to Class</h4>
-                  <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Waiting for session to start...</p>
+              <motion.div
+                key="no-content-stage"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="w-full h-full rounded-[3rem] bg-slate-900/50 border-4 border-dashed border-white/5 flex flex-col items-center justify-center p-12 text-center"
+              >
+                <div className="w-20 h-20 rounded-full bg-brand-indigo/10 flex items-center justify-center text-brand-indigo mb-6">
+                  <Monitor size={40} />
                 </div>
-              )
+                <h4 className="text-xl font-black text-white uppercase tracking-widest mb-4">Classroom Content Area</h4>
+                <p className="text-slate-500 text-sm max-w-sm font-medium">
+                  {user.role === 2 
+                    ? "Click 'Whiteboard' or 'Resources' to start sharing materials with your student."
+                    : "Waiting for the teacher to share learning materials or activate the whiteboard..."}
+                </p>
+              </motion.div>
             )}
           </AnimatePresence>
         </div>
 
-        {/* Sidebar: Participants Grid (Increased size proportion) */}
-        <div className="flex-[1.2] flex flex-col gap-4 overflow-y-auto pr-2 custom-scrollbar">
-          {/* If I am Teacher, show my Students */}
-          {user.role === 2 && remoteUsers.map(remoteUser => (
+        {/* Right Side: Cameras Stack */}
+        <div className="flex-1 max-w-sm flex flex-col gap-4 overflow-y-auto pr-2 custom-scrollbar">
+          {/* TEACHER CAMERA (ALWAYS TOP) */}
+          {user.role === 2 ? (
             <VideoTile 
-              key={remoteUser.uid}
-              uid={remoteUser.uid}
-              videoTrack={remoteUser.videoTrack}
-              audioTrack={remoteUser.audioTrack}
-              hasVideo={!!remoteUser.videoTrack}
-              hasAudio={!!remoteUser.audioTrack}
-              role="audience"
+              key="local-teacher"
+              uid={connectionData?.uid || 'host'}
+              videoTrack={isSharingScreen ? screenTrackRef.current : localTracks.video}
+              audioTrack={localTracks.audio}
+              isLocal={true}
+              name={user.firstName}
+              hasVideo={!isCamOff || isSharingScreen}
+              hasAudio={!isMuted}
+              role="host"
+              isScreen={isSharingScreen}
+              onToggleMic={toggleMic}
+              onToggleCam={toggleCam}
+              isMuted={isMuted}
+              isCamOff={isCamOff}
             />
-          ))}
-
-          {/* If I am Student, show Me and other Students */}
-          {user.role !== 2 && (
-            <>
-              {/* My own camera in sidebar */}
+          ) : (
+            remoteUsers.length > 0 ? (
               <VideoTile 
-                key="local-student"
-                uid={connectionData?.uid || 'me'}
-                videoTrack={localTracks.video}
-                audioTrack={localTracks.audio}
-                isLocal={true}
-                name={`${user.firstName}`}
-                hasVideo={!isCamOff}
-                hasAudio={!isMuted}
-                role="audience"
-                onToggleMic={toggleMic}
-                onToggleCam={toggleCam}
-                isMuted={isMuted}
-                isCamOff={isCamOff}
+                key={remoteUsers[0].uid}
+                uid={remoteUsers[0].uid}
+                videoTrack={remoteUsers[0].videoTrack}
+                audioTrack={remoteUsers[0].audioTrack}
+                name="Teacher"
+                hasVideo={!!remoteUsers[0].videoTrack}
+                hasAudio={!!remoteUsers[0].audioTrack}
+                role="host"
               />
-              {/* Other students (skip first remoteUser if they are the Teacher on stage) */}
-              {remoteUsers.slice(1).map(remoteUser => (
+            ) : (
+              <div className="aspect-video bg-slate-900 rounded-3xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-500">
+                  <VideoOff size={20} />
+                </div>
+                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Waiting for Teacher</p>
+              </div>
+            )
+          )}
+
+          {/* STUDENT CAMERA(S) (BOTTOM) */}
+          {user.role === 2 ? (
+            remoteUsers.length > 0 ? (
+              remoteUsers.map(remoteUser => (
                 <VideoTile 
                   key={remoteUser.uid}
                   uid={remoteUser.uid}
@@ -868,16 +854,33 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                   hasVideo={!!remoteUser.videoTrack}
                   hasAudio={!!remoteUser.audioTrack}
                   role="audience"
+                  name="Student"
                 />
-              ))}
-            </>
-          )}
-
-          {/* Empty State Sidebar Hint */}
-          {user.role === 2 && remoteUsers.length === 0 && (
-            <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-white/5 rounded-3xl p-6 text-center">
-              <p className="text-slate-600 text-[10px] font-black uppercase tracking-[0.2em] leading-relaxed">No students have joined the classroom yet</p>
-            </div>
+              ))
+            ) : (
+              <div className="aspect-video bg-slate-900 rounded-3xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-500">
+                  <VideoOff size={20} />
+                </div>
+                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Waiting for Student</p>
+              </div>
+            )
+          ) : (
+            <VideoTile 
+              key="local-student"
+              uid={connectionData?.uid || 'me'}
+              videoTrack={localTracks.video}
+              audioTrack={localTracks.audio}
+              isLocal={true}
+              name={user.firstName}
+              hasVideo={!isCamOff}
+              hasAudio={!isMuted}
+              role="audience"
+              onToggleMic={toggleMic}
+              onToggleCam={toggleCam}
+              isMuted={isMuted}
+              isCamOff={isCamOff}
+            />
           )}
         </div>
       </div>
