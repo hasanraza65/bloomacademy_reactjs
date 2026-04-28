@@ -117,6 +117,19 @@ export const apiService = {
     return response.json();
   },
 
+  async startWhiteboardSession(): Promise<{ uuid: string; roomToken: string }> {
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(`${BASE_URL}classrooms/start-whiteboard`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+    });
+    return response.json();
+  },
+
   async deactivateClassroomMaterial(classroomId: number, materialId: number): Promise<{ success: boolean }> {
     const token = localStorage.getItem('auth_token');
     const response = await fetch(`${BASE_URL}classrooms/${classroomId}/materials/${materialId}/deactivate`, {

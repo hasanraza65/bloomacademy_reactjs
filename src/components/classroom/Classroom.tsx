@@ -160,16 +160,18 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
         try {
           const decoder = new TextDecoder();
           const text = decoder.decode(data as Uint8Array);
+          console.log(`Agora: Received stream message from ${uid}:`, text);
           const msg = JSON.parse(text);
           
           if (msg.type === 'whiteboard_sync' || msg.type === 'whiteboard_info') {
-            console.log("Agora: Received whiteboard sync message", msg.visible, msg.roomUUID);
+            console.log("Agora: Whiteboard sync data:", msg.roomUUID, "visible:", msg.visible);
             
             if (msg.roomUUID && msg.roomToken) {
               setWhiteboardData(prev => {
                 if (prev?.roomUUID === msg.roomUUID && prev?.roomToken === msg.roomToken) {
                   return prev;
                 }
+                console.log("Agora: Updating whiteboard data for student");
                 return {
                   roomUUID: msg.roomUUID,
                   roomToken: msg.roomToken,
@@ -180,12 +182,13 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
 
             // Sync visibility for non-teachers
             if (msg.visible !== undefined && user.role !== 2) {
+              console.log("Agora: Setting whiteboard visibility to", msg.visible);
               setShowWhiteboard(msg.visible);
             }
           }
 
           if (msg.type === 'pdf_sync' && user.role !== 2) {
-            console.log("Agora: Received PDF sync message", msg);
+            console.log("Agora: PDF sync data:", msg.activeMaterial?.id, "page:", msg.currentPage);
             if (msg.activeMaterial) {
               setActiveMaterial(msg.activeMaterial);
               setCurrentPage(msg.currentPage || 1);
@@ -262,47 +265,37 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
     let interval: any;
     
     const setupWhiteboard = async () => {
-      if (isInClass && user.role === 2 && !whiteboardData) {
-        const sdkToken = (import.meta as any).env.VITE_WHITEBOARD_SDK_TOKEN;
-        if (!sdkToken) {
-          console.error("Whiteboard: SDK Token missing in environment");
-          return;
-        }
-
+      // Trigger API only when teacher opens the whiteboard AND we don't have data yet
+      if (isInClass && user.role === 2 && showWhiteboard && !whiteboardData) {
         try {
-          console.log("Whiteboard: Creating new room...");
-          const response = await fetch('https://api.netless.link/v5/rooms', {
-            method: 'POST',
-            headers: {
-              'token': sdkToken,
-              'Content-Type': 'application/json',
-              'region': 'us-sv'
-            },
-            body: JSON.stringify({ isRecord: false })
-          });
+          console.log("Whiteboard: Requesting session from backend...");
+          const res = await apiService.startWhiteboardSession();
+          console.log("Whiteboard: Backend response:", res);
           
-          const roomData = await response.json();
-          if (roomData.uuid) {
-            const tokenResponse = await fetch(`https://api.netless.link/v5/tokens/rooms/${roomData.uuid}`, {
-              method: 'POST',
-              headers: {
-                'token': sdkToken,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ lifespan: 3600000, role: 'admin' })
+          const data = (res as any).data || res;
+          // Use the specific keys provided by the user while keeping fallbacks
+          const uuid = data.uuid || data.whiteboard_room_uuid;
+          const roomToken = data.room_token || data.roomToken || data.whiteboard_room_token;
+
+          if (uuid && roomToken) {
+            console.log("Whiteboard: Received credentials from backend. UUID:", uuid);
+            setWhiteboardData({ 
+              roomUUID: uuid, 
+              roomToken: roomToken 
             });
-            
-            const roomToken = await tokenResponse.json();
-            setWhiteboardData({ roomUUID: roomData.uuid, roomToken });
+          } else {
+            console.error("Whiteboard: Backend returned invalid room data. Raw response:", res);
           }
         } catch (err) {
-          console.error("Failed to create whiteboard room:", err);
+          console.error("Failed to create whiteboard room via backend:", err);
         }
       }
     };
 
     if (isInClass && user.role === 2) {
-      setupWhiteboard();
+      if (showWhiteboard) {
+        setupWhiteboard();
+      }
 
       // Periodic broadcast of whiteboard and PDF data to students
       interval = setInterval(() => {
@@ -333,7 +326,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
             console.warn("Agora: Failed to send pdf broadcast", e);
           });
         }
-      }, 3000);
+      }, 2000); // Increased frequency to 2s
     }
 
     return () => {
@@ -341,10 +334,26 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
     };
   }, [isInClass, user.role, whiteboardData, streamId, showWhiteboard, activeMaterial, currentPage]);
 
-  // Teacher: Immediate broadcast when PDF or Page changes
+  // Teacher: Immediate broadcast when PDF, Page or Whiteboard visibility changes
   useEffect(() => {
     if (isInClass && user.role === 2 && clientRef.current && streamId !== null) {
       const encoder = new TextEncoder();
+      
+      // Sync Whiteboard State
+      if (whiteboardData) {
+        const wbMsg = JSON.stringify({ 
+          type: 'whiteboard_sync', 
+          appId: (import.meta as any).env.VITE_WHITEBOARD_APP_ID,
+          roomUUID: whiteboardData.roomUUID,
+          roomToken: whiteboardData.roomToken,
+          visible: showWhiteboard
+        });
+        clientRef.current.sendStreamMessage(streamId, encoder.encode(wbMsg)).catch((e: any) => {
+          console.warn("Agora: Failed to send immediate wb broadcast", e);
+        });
+      }
+
+      // Sync PDF State
       const pdfMsg = JSON.stringify({
         type: 'pdf_sync',
         activeMaterial,
@@ -354,7 +363,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
         console.warn("Agora: Failed to send immediate pdf broadcast", e);
       });
     }
-  }, [activeMaterial, currentPage, isInClass, user.role, streamId]);
+  }, [activeMaterial, currentPage, showWhiteboard, isInClass, user.role, streamId, whiteboardData]);
 
   const handleJoinClass = async () => {
     setIsLoading(true);

@@ -34,6 +34,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [room, setRoom] = useState<Room | null>(null);
+  const roomRef = useRef<Room | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentTool, setCurrentTool] = useState<string>('pencil');
@@ -60,7 +61,8 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   }, [room, pdfUrl, currentPage]);
 
   useEffect(() => {
-    if (!containerRef.current || !roomUUID || !roomToken) return;
+    if (!roomUUID || !roomToken) return;
+    console.log("Whiteboard: Joining room", roomUUID);
 
     let isCancelled = false;
     const sdk = new WhiteWebSdk({
@@ -68,8 +70,6 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
       deviceType: DeviceType.Surface,
       region: 'us-sv',
     });
-
-    let currentRoom: Room | null = null;
 
     const joinRoom = async () => {
       try {
@@ -79,7 +79,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
           roomToken: roomToken,
           uid: uid,
           region: 'us-sv',
-          cursorAdapter: undefined, // Let it use default or false
+          cursorAdapter: undefined,
           disableNewPencil: true,
           userPayload: {
             cursorName: userName,
@@ -91,20 +91,16 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
           return;
         }
 
-        currentRoom = joinedRoom;
-        setRoom(currentRoom);
-        currentRoom.bindHtmlElement(containerRef.current!);
+        roomRef.current = joinedRoom;
+        setRoom(joinedRoom);
         
         if (isTeacher) {
-          currentRoom.setViewMode(ViewMode.Broadcaster);
+          joinedRoom.setViewMode(ViewMode.Broadcaster);
         } else {
-          currentRoom.setViewMode(ViewMode.Follower);
+          joinedRoom.setViewMode(ViewMode.Follower);
         }
         
-        // Ensure transparency if needed (note: Netless might use setBackgroundColor)
-        // Some versions use: currentRoom.setBackgroundColor(0, 0, 0, 0)
-        
-        currentRoom.setMemberState({
+        joinedRoom.setMemberState({
           currentApplianceName: ApplianceNames.pencil,
           strokeColor: [139, 92, 246],
           strokeWidth: 4,
@@ -125,12 +121,23 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
 
     return () => {
       isCancelled = true;
-      if (currentRoom) {
-        currentRoom.bindHtmlElement(null);
-        currentRoom.disconnect();
+      if (roomRef.current) {
+        roomRef.current.disconnect();
+        roomRef.current = null;
       }
     };
-  }, [appId, roomUUID, roomToken, uid, userName, pdfUrl]); // Added pdfUrl to re-bind ref when layout shifts
+  }, [appId, roomUUID, roomToken, uid, userName]);
+
+  // Handle Container Binding
+  useEffect(() => {
+    if (room && containerRef.current) {
+      console.log("Whiteboard: Binding HTML element to new container. PDF?", !!pdfUrl);
+      room.bindHtmlElement(containerRef.current);
+      return () => {
+        room.bindHtmlElement(null);
+      };
+    }
+  }, [room, pdfUrl]); // Re-bind when room is ready or pdfUrl changes (since container shifts)
 
   const setTool = (tool: string) => {
     if (!room) return;
