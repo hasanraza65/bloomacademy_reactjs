@@ -51,19 +51,57 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [currentTool, setCurrentTool] = useState<string>('pencil');
   const [numPages, setNumPages] = useState<number>(0);
-  const [bindingKey, setBindingKey] = useState(0);
 
+  const prevPdfUrlRef = useRef<string | null>(null);
+  const pdfUrlRef = useRef(pdfUrl);
+  pdfUrlRef.current = pdfUrl;
+  const [pdfSessionId, setPdfSessionId] = useState(0);
+  const activeSessionRef = useRef(0);
+
+  // Track PDF changes → bump session ID for unique scene paths
   useEffect(() => {
-    if (pdfUrl) setError(null);
-    if (!room || !pdfUrl || !isTeacher) return;
-    const scenePath = `/pdf/${currentPage}`;
+    if (pdfUrl) {
+      setError(null);
+      if (pdfUrl !== prevPdfUrlRef.current) {
+        setPdfSessionId(prev => {
+          const next = prev + 1;
+          activeSessionRef.current = next;
+          return next;
+        });
+        prevPdfUrlRef.current = pdfUrl;
+      }
+    } else {
+      prevPdfUrlRef.current = null;
+    }
+  }, [pdfUrl]);
+
+  // Set up scene when session or page changes (NO rebind, just switch scenes)
+  useEffect(() => {
+    if (!room || !pdfUrlRef.current || !isTeacher || pdfSessionId === 0) return;
+
+    const sessionId = pdfSessionId;
+    const sceneDir = `/pdf-${sessionId}`;
+    const scenePath = `${sceneDir}/${currentPage}`;
     const scenes = room.entireScenes();
-    const pdfScenes = scenes['/pdf/'] || [];
+    const pdfScenes = scenes[`${sceneDir}/`] || [];
     if (!pdfScenes.find((s: any) => s.name === String(currentPage))) {
-      room.putScenes('/pdf', [{ name: String(currentPage) }]);
+      room.putScenes(sceneDir, [{ name: String(currentPage) }]);
     }
     room.setScenePath(scenePath);
-  }, [room, pdfUrl, currentPage, isTeacher]);
+
+    // Force re-apply writable + tool after scene switch (with stale guard)
+    room.setWritable(true).then(() => {
+      if (activeSessionRef.current !== sessionId) return;
+      room.disableDeviceInputs = false;
+      (room as any).disableOperations = false;
+      room.setMemberState({
+        currentApplianceName: ApplianceNames.pencil,
+        strokeColor: [139, 92, 246],
+        strokeWidth: 4,
+      });
+      (room as any).refreshViewSize?.();
+    }).catch(() => {});
+  }, [room, currentPage, isTeacher, pdfSessionId]);
 
   useEffect(() => {
     if (!pdfContainerRef.current) return;
@@ -77,8 +115,6 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   }, [pdfUrl]);
 
   useEffect(() => { setPageSize(null); }, [pdfUrl, currentPage]);
-
-  useEffect(() => { setBindingKey(prev => prev + 1); }, [pdfUrl]);
 
   useEffect(() => {
     if (!roomUUID || !roomToken) return;
@@ -126,21 +162,23 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     };
   }, [appId, roomUUID, roomToken, uid, userName]);
 
+  // Bind whiteboard to DOM — only once when room connects (NO rebinding on PDF change)
   useEffect(() => {
     if (!room || !containerRef.current) return;
-    room.bindHtmlElement(null);
 
     const timer = setTimeout(async () => {
       if (!containerRef.current || !room) return;
       try {
         room.bindHtmlElement(containerRef.current);
         (room as any).refreshViewSize?.();
+
         if (isTeacher) {
           await room.setWritable(true);
           room.disableDeviceInputs = false;
           (room as any).disableOperations = false;
           room.setViewMode(ViewMode.Broadcaster);
           room.setMemberState({ currentApplianceName: ApplianceNames.pencil, strokeColor: [139, 92, 246], strokeWidth: 4, textSize: 24 });
+
           setTimeout(() => {
             if (room && containerRef.current) {
               (room as any).refreshViewSize?.();
@@ -157,7 +195,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     }, 500);
 
     return () => { clearTimeout(timer); room.bindHtmlElement(null); };
-  }, [room, bindingKey, isTeacher]);
+  }, [room, isTeacher]);
 
 // Add a ref to track the last tool we explicitly set
 const lastToolRef = useRef<string | null>(null);
