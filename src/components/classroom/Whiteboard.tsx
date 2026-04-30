@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { WhiteWebSdk, Room, DeviceType, ViewMode, ApplianceNames } from 'white-web-sdk';
-import { Loader2, Pencil, Eraser, Square, Circle, Type, MousePointer2, ChevronLeft, ChevronRight, Highlighter, MousePointerClick, BookOpen, X, MonitorPlay } from 'lucide-react';
+import { Loader2, Pencil, Eraser, Square, Circle, Type, MousePointer2, ChevronLeft, ChevronRight, Highlighter, MousePointerClick, BookOpen, X, Monitor } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -21,6 +21,8 @@ interface WhiteboardProps {
   onModeChange?: (mode: 'whiteboard' | 'pdf' | 'none') => void;
   currentMode?: 'whiteboard' | 'pdf' | 'none';
   onOpenMaterials?: () => void;
+  onScreenShare?: () => void;
+  isSharingScreen?: boolean;
 }
 
 export const Whiteboard: React.FC<WhiteboardProps> = ({
@@ -36,6 +38,8 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   onModeChange,
   currentMode = 'whiteboard',
   onOpenMaterials,
+  onScreenShare,
+  isSharingScreen = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [room, setRoom] = useState<Room | null>(null);
@@ -404,15 +408,15 @@ useEffect(() => {
       {isTeacher && (
         <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-2 p-2 bg-slate-900/80 backdrop-blur-md rounded-2xl border border-white/10 z-20">
 
-          {/* Whiteboard mode button */}
+          {/* Screen Share button */}
           <button
-            onClick={() => onModeChange?.('whiteboard')}
-            title="Whiteboard"
+            onClick={() => onScreenShare?.()}
+            title={isSharingScreen ? 'Stop Sharing' : 'Share Screen'}
             className={cn("p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95",
-              currentMode === 'whiteboard' ? "bg-brand-purple text-white shadow-lg shadow-purple-500/30" : "text-slate-400 hover:text-white hover:bg-white/10"
+              isSharingScreen ? "bg-amber-500 text-white shadow-lg shadow-amber-500/30" : "text-slate-400 hover:text-white hover:bg-white/10"
             )}
           >
-            <MonitorPlay size={20} />
+            <Monitor size={20} />
           </button>
 
           {/* PDF / Resources button */}

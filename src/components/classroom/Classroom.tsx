@@ -5,7 +5,7 @@ import AgoraRTC, {
   ILocalAudioTrack, 
   IAgoraRTCRemoteUser 
 } from 'agora-rtc-sdk-ng';
-import { Sparkles, Loader2, AlertCircle, Mic, MicOff, Video, VideoOff, Monitor, Pencil, BookOpen, X } from 'lucide-react';
+import { Sparkles, Loader2, AlertCircle, Mic, MicOff, Video, VideoOff, Monitor, MonitorPlay, Pencil, BookOpen, X } from 'lucide-react';
 import { ClassroomConnection, AgoraParticipant, User } from '@/src/types';
 import { apiService } from '@/src/services/apiService';
 import { BASE_URL, SITE_ROOT, getFileUrl } from '@/src/lib/config';
@@ -734,26 +734,17 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
           
           {user.role === 2 && (
             <>
-              {classroomMode === 'none' && (
-                <button
-                  onClick={() => setClassroomMode('whiteboard')}
-                  className="px-6 py-2 bg-brand-purple/20 text-brand-purple border border-brand-purple/30 font-black text-[10px] uppercase tracking-[0.2em] rounded-full hover:bg-brand-purple hover:text-white transition-all flex items-center gap-2"
-                >
-                  <Pencil size={14} />
-                  Open Board
-                </button>
-              )}
-              <button 
-                onClick={toggleScreenShare}
+              <button
+                onClick={() => setClassroomMode(classroomMode === 'none' ? 'whiteboard' : 'none')}
                 className={cn(
                   "px-6 py-2 font-black text-[10px] uppercase tracking-[0.2em] rounded-full transition-all shadow-lg active:scale-95 flex items-center gap-2",
-                  isSharingScreen 
-                    ? "bg-amber-500 text-white" 
+                  classroomMode !== 'none'
+                    ? "bg-brand-purple text-white"
                     : "bg-white/10 text-white hover:bg-white/20 border border-white/10"
                 )}
               >
-                <Monitor size={14} />
-                {isSharingScreen ? 'Stop Sharing' : 'Share Screen'}
+                <MonitorPlay size={14} />
+                {classroomMode !== 'none' ? 'Close Board' : 'Open Board'}
               </button>
               <button 
                 onClick={handleEndClass}
@@ -936,6 +927,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                         setClassroomMode('pdf');
                         setShowMaterialManager(true);
                       }}
+                      onScreenShare={toggleScreenShare}
+                      isSharingScreen={isSharingScreen}
                     />
                   ) : (
                     <div className="w-full h-full rounded-[3rem] bg-slate-900 border-4 border-dashed border-white/5 flex flex-col items-center justify-center p-12 text-center">
