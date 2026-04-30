@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { WhiteWebSdk, Room, DeviceType, ViewMode, ApplianceNames } from 'white-web-sdk';
-import { Loader2, Pencil, Eraser, Square, Circle, Minus, Type, MousePointer2, ChevronLeft, ChevronRight, Highlighter, MousePointerClick } from 'lucide-react';
+import { Loader2, Pencil, Eraser, Square, Circle, Minus, Type, MousePointer2, ChevronLeft, ChevronRight, Highlighter, MousePointerClick, BookOpen, X, MonitorPlay } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -19,6 +19,9 @@ interface WhiteboardProps {
   pdfUrl?: string | null;
   currentPage?: number;
   onPageChange?: (page: number) => void;
+  onModeChange?: (mode: 'whiteboard' | 'pdf' | 'none') => void;
+  currentMode?: 'whiteboard' | 'pdf' | 'none';
+  onOpenMaterials?: () => void;
 }
 
 export const Whiteboard: React.FC<WhiteboardProps> = ({
@@ -31,34 +34,67 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   pdfUrl,
   currentPage = 1,
   onPageChange,
+  onModeChange,
+  currentMode = 'whiteboard',
+  onOpenMaterials,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [room, setRoom] = useState<Room | null>(null);
   const roomRef = useRef<Room | null>(null);
+  const pdfContainerRef = useRef<HTMLDivElement>(null);
+  const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
+  const [pageSize, setPageSize] = useState<{ width: number; height: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentTool, setCurrentTool] = useState<string>('pencil');
   const [numPages, setNumPages] = useState<number>(0);
+  const [bindingKey, setBindingKey] = useState(0);
 
   // Sync Whiteboard Scene with PDF Page
   useEffect(() => {
-    if (pdfUrl) {
-      console.log("Whiteboard: PDF URL changed", pdfUrl);
-      setError(null);
-    }
-    if (!room || !pdfUrl) return;
+    if (pdfUrl) setError(null);
+
+    // CRITICAL: Only teacher manages scenes
+    // Student is reader-only and must never touch scene paths
+    if (!room || !pdfUrl || !isTeacher) return;
 
     const scenePath = `/pdf/${currentPage}`;
-    console.log("Whiteboard: Setting scene path to", scenePath);
-    
-    // Check if scene exists, if not create it
+
     const scenes = room.entireScenes();
-    if (!scenes['/pdf/']?.find(s => s.name === String(currentPage))) {
+    const pdfScenes = scenes['/pdf/'] || [];
+
+    if (!pdfScenes.find(s => s.name === String(currentPage))) {
       room.putScenes('/pdf', [{ name: String(currentPage) }]);
     }
-    
+
     room.setScenePath(scenePath);
-  }, [room, pdfUrl, currentPage]);
+  }, [room, pdfUrl, currentPage, isTeacher]);
+
+  // Track container size for PDF fitting
+  useEffect(() => {
+    if (!pdfContainerRef.current) return;
+    
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerSize({
+          width: entry.contentRect.width,
+          height: entry.contentRect.height,
+        });
+      }
+    });
+    
+    observer.observe(pdfContainerRef.current);
+    return () => observer.disconnect();
+  }, [pdfUrl]);
+
+  // Reset page size when PDF or page changes
+  useEffect(() => {
+    setPageSize(null);
+  }, [pdfUrl, currentPage]);
+
+  useEffect(() => {
+    setBindingKey(prev => prev + 1);
+  }, [pdfUrl]);
 
   useEffect(() => {
     if (!roomUUID || !roomToken) return;
@@ -81,11 +117,13 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
           region: 'us-sv',
           cursorAdapter: undefined,
           disableNewPencil: true,
+          isWritable: isTeacher,
+          disableDeviceInputs: !isTeacher,
           userPayload: {
             cursorName: userName,
           },
-        });
-        
+        } as any);
+
         if (isCancelled) {
           joinedRoom.disconnect();
           return;
@@ -93,19 +131,22 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
 
         roomRef.current = joinedRoom;
         setRoom(joinedRoom);
-        
+
         if (isTeacher) {
+          // Teacher has full control
           joinedRoom.setViewMode(ViewMode.Broadcaster);
+          (joinedRoom as any).disableOperations = false;
+          joinedRoom.setMemberState({
+            currentApplianceName: ApplianceNames.pencil,
+            strokeColor: [139, 92, 246],
+            strokeWidth: 4,
+            textSize: 24,
+          });
         } else {
+          // Student is pure viewer — no input, no scene control
           joinedRoom.setViewMode(ViewMode.Follower);
+          (joinedRoom as any).disableOperations = true;
         }
-        
-        joinedRoom.setMemberState({
-          currentApplianceName: ApplianceNames.pencil,
-          strokeColor: [139, 92, 246],
-          strokeWidth: 4,
-          textSize: 24,
-        });
 
         setLoading(false);
       } catch (err: any) {
@@ -130,19 +171,78 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
 
   // Handle Container Binding
   useEffect(() => {
-    if (room && containerRef.current) {
-      console.log("Whiteboard: Binding HTML element to new container. PDF?", !!pdfUrl);
-      room.bindHtmlElement(containerRef.current);
-      return () => {
-        room.bindHtmlElement(null);
-      };
-    }
-  }, [room, pdfUrl]); // Re-bind when room is ready or pdfUrl changes (since container shifts)
+    if (!room || !containerRef.current) return;
+
+    console.log("Whiteboard: Re-binding, bindingKey:", bindingKey, "PDF?", !!pdfUrl);
+
+    // Step 1: Unbind from current (potentially gone) element
+    room.bindHtmlElement(null);
+
+    const timer = setTimeout(async () => {
+      if (!containerRef.current || !room) return;
+
+      // Step 2: Re-bind to the element in its new DOM position
+      try {
+        console.log("Whiteboard: Binding to element...");
+        room.bindHtmlElement(containerRef.current);
+        
+        // Essential call to fix coordinate mapping after DOM shift
+        (room as any).refreshViewSize?.();
+        
+        if (isTeacher) {
+          // Step 3: Explicitly re-enable writable state
+          await room.setWritable(true);
+          
+          room.disableDeviceInputs = false;
+          (room as any).disableOperations = false;
+          room.setViewMode(ViewMode.Broadcaster);
+
+          // Step 4: Re-apply tools to force input handler registration
+          room.setMemberState({
+            currentApplianceName: ApplianceNames.pencil,
+            strokeColor: [139, 92, 246],
+            strokeWidth: 4,
+            textSize: 24,
+          });
+
+          // Step 5: Final safety refresh
+          setTimeout(() => {
+            if (room && containerRef.current) {
+              (room as any).refreshViewSize?.();
+              room.disableDeviceInputs = false;
+              (room as any).disableOperations = false;
+              room.setMemberState({ strokeWidth: 4 });
+              console.log("Whiteboard: Final binding refresh complete");
+            }
+          }, 300);
+        } else {
+          room.disableDeviceInputs = true;
+          (room as any).disableOperations = true;
+          room.setViewMode(ViewMode.Follower);
+        }
+      } catch (e) {
+        console.error("Whiteboard binding error:", e);
+      }
+    }, 500); // Increased delay significantly to avoid race conditions with React DOM updates
+
+    return () => {
+      clearTimeout(timer);
+      room.bindHtmlElement(null);
+    };
+  }, [room, bindingKey, isTeacher]);
 
   const setTool = (tool: string) => {
     if (!room) return;
     setCurrentTool(tool);
-    
+
+    if (isTeacher) {
+      // Re-activate writing mode every time a tool is selected to avoid state getting stuck
+      room.setWritable(true).catch(e => console.warn("Failed to set writable:", e));
+      room.disableDeviceInputs = false;
+      (room as any).disableOperations = false;
+      (room as any).refreshViewSize?.();
+    }
+
     switch (tool) {
       case 'selector':
         room.setMemberState({ currentApplianceName: ApplianceNames.selector });
@@ -151,11 +251,10 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
         room.setMemberState({ currentApplianceName: ApplianceNames.pencil, strokeColor: [139, 92, 246], strokeWidth: 4 });
         break;
       case 'highlighter':
-        // Netless highlighter is just a semi-transparent pencil
-        room.setMemberState({ 
-          currentApplianceName: ApplianceNames.pencil, 
-          strokeColor: [251, 191, 36, 128], // Gold with transparency
-          strokeWidth: 20 
+        room.setMemberState({
+          currentApplianceName: ApplianceNames.pencil,
+          strokeColor: [251, 191, 36, 128],
+          strokeWidth: 20
         });
         break;
       case 'laser':
@@ -182,6 +281,13 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     setNumPages(numPages);
   };
 
+  const pdfOptions = React.useMemo(() => ({
+    cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
+    cMapPacked: true,
+    disableRange: true,
+    disableStream: true
+  }), []);
+
   return (
     <div className="relative w-full h-full bg-slate-100 rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
       {loading && (
@@ -199,36 +305,52 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
 
       {/* PDF Background Rendering */}
       {pdfUrl && (
-        <div className="absolute inset-0 bg-slate-200 overflow-y-auto custom-scrollbar z-0">
-          <div className="min-h-full flex flex-col items-center p-4 sm:p-12">
-            <div className="m-auto shadow-2xl bg-white flex-shrink-0 relative">
+        <div
+          ref={pdfContainerRef}
+          className="absolute inset-0 bg-slate-200 overflow-hidden z-0 flex items-center justify-center"
+        >
+          <div className="relative w-full h-full flex items-center justify-center">
+            {containerSize.width > 0 && containerSize.height > 0 && (
               <Document
-              file={pdfUrl}
-              onLoadSuccess={onDocumentLoadSuccess}
-              onLoadError={(err) => {
-                console.error("PDF Load Error:", err);
-                const isCors = err.message.includes("Failed to fetch") || err.name === "SecurityError";
-                setError(`Failed to load PDF: ${err.message}${isCors ? " (Possible CORS issue on the server. Please ensure the backend allows requests from this domain.)" : ""}`);
-              }}
-              loading={<Loader2 className="animate-spin text-brand-purple" />}
-            >
-              <Page 
-                pageNumber={currentPage} 
-                renderTextLayer={false}
-                renderAnnotationLayer={false}
-                scale={1.2}
-                className="max-w-full h-auto"
-              />
-            </Document>
-            {/* Whiteboard Overlay for PDF */}
-            <div 
-              ref={containerRef} 
+                file={pdfUrl}
+                options={pdfOptions}
+                onLoadSuccess={onDocumentLoadSuccess}
+                onLoadError={(err) => {
+                  console.error("PDF Load Error:", err);
+                  const isCors = err.message.includes("Failed to fetch") || err.name === "SecurityError";
+                  setError(`Failed to load PDF: ${err.message}${isCors ? " (Possible CORS issue on the server. Please ensure the backend allows requests from this domain.)" : ""}`);
+                }}
+                loading={<Loader2 className="animate-spin text-brand-purple" />}
+              >
+                <Page
+                  pageNumber={currentPage}
+                  renderTextLayer={false}
+                  renderAnnotationLayer={false}
+                  width={(() => {
+                    if (!pageSize || !containerSize.width || !containerSize.height) return containerSize.width - 48;
+                    const scaleByWidth = (containerSize.width - 48) / pageSize.width;
+                    const scaleByHeight = (containerSize.height - 48) / pageSize.height;
+                    const scale = Math.min(scaleByWidth, scaleByHeight);
+                    return pageSize.width * scale;
+                  })()}
+                  onLoadSuccess={(page) => {
+                    setPageSize({ width: page.originalWidth, height: page.originalHeight });
+                  }}
+                  className="shadow-2xl"
+                />
+              </Document>
+            )}
+            {/* Whiteboard Overlay for PDF - Stable position overlaying the centered PDF content */}
+            <div
+              ref={containerRef}
               className="absolute inset-0 z-10 bg-transparent touch-none netless-container"
-              style={{ cursor: currentTool === 'pencil' ? 'crosshair' : 'default' }}
+              style={{
+                pointerEvents: isTeacher ? 'all' : 'none',
+                cursor: isTeacher ? (currentTool === 'pencil' ? 'crosshair' : 'default') : 'default',
+              }}
             />
           </div>
         </div>
-      </div>
       )}
 
       {/* Page Controls for Teacher (Fixed Position) */}
@@ -257,88 +379,176 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
       {/* Toolbar - Only visible to Teacher */}
       {isTeacher && (
         <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-2 p-2 bg-slate-900/80 backdrop-blur-md rounded-2xl border border-white/10 z-20">
-          <ToolButton 
-            icon={<MousePointer2 size={20} />} 
-            active={currentTool === 'selector'} 
-            onClick={() => setTool('selector')} 
-            title="Select"
-          />
-          <ToolButton 
-            icon={<Pencil size={20} />} 
-            active={currentTool === 'pencil'} 
-            onClick={() => setTool('pencil')} 
-            title="Pencil"
-          />
-          <ToolButton 
-            icon={<Highlighter size={20} />} 
-            active={currentTool === 'highlighter'} 
-            onClick={() => setTool('highlighter')} 
-            title="Highlight"
-          />
-          <ToolButton 
-            icon={<MousePointerClick size={20} />} 
-            active={currentTool === 'laser'} 
-            onClick={() => setTool('laser')} 
-            title="Laser Pointer"
-          />
-          <ToolButton 
-            icon={<Eraser size={20} />} 
-            active={currentTool === 'eraser'} 
-            onClick={() => setTool('eraser')} 
-            title="Eraser"
-          />
+
+          {/* Mode Switcher - always rendered */}
+          <button
+            onClick={() => onModeChange?.('whiteboard')}
+            title="Whiteboard"
+            className={cn(
+              "p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95",
+              currentMode === 'whiteboard'
+                ? "bg-brand-purple text-white shadow-lg shadow-purple-500/30"
+                : "text-slate-400 hover:text-white hover:bg-white/10"
+            )}
+          >
+            <MonitorPlay size={20} />
+          </button>
+
+          <button
+            onClick={() => onOpenMaterials?.()}
+            title="PDF Resources"
+            className={cn(
+              "p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95",
+              currentMode === 'pdf'
+                ? "bg-brand-purple text-white shadow-lg shadow-purple-500/30"
+                : "text-slate-400 hover:text-white hover:bg-white/10"
+            )}
+          >
+            <BookOpen size={20} />
+          </button>
+
           <div className="h-px bg-white/10 my-1" />
-          <ToolButton 
-            icon={<Square size={20} />} 
-            active={currentTool === 'rectangle'} 
-            onClick={() => setTool('rectangle')} 
-            title="Rectangle"
-          />
-          <ToolButton 
-            icon={<Circle size={20} />} 
-            active={currentTool === 'ellipse'} 
-            onClick={() => setTool('ellipse')} 
-            title="Ellipse"
-          />
-          <ToolButton 
-            icon={<Type size={20} />} 
-            active={currentTool === 'text'} 
-            onClick={() => setTool('text')} 
-            title="Text"
-          />
+
+          {/* Drawing Tools - always rendered, hidden via CSS only */}
+          <div
+            style={{
+              display: (currentMode === 'whiteboard' || currentMode === 'pdf') ? 'flex' : 'none',
+              flexDirection: 'column',
+              gap: '0.5rem',
+            }}
+          >
+            <button
+              onClick={() => setTool('selector')}
+              title="Select"
+              className={cn(
+                "p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95",
+                currentTool === 'selector'
+                  ? "bg-brand-purple text-white shadow-lg shadow-purple-500/30"
+                  : "text-slate-400 hover:text-white hover:bg-white/10"
+              )}
+            >
+              <MousePointer2 size={20} />
+            </button>
+
+            <button
+              onClick={() => setTool('pencil')}
+              title="Pencil"
+              className={cn(
+                "p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95",
+                currentTool === 'pencil'
+                  ? "bg-brand-purple text-white shadow-lg shadow-purple-500/30"
+                  : "text-slate-400 hover:text-white hover:bg-white/10"
+              )}
+            >
+              <Pencil size={20} />
+            </button>
+
+            <button
+              onClick={() => setTool('highlighter')}
+              title="Highlight"
+              className={cn(
+                "p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95",
+                currentTool === 'highlighter'
+                  ? "bg-brand-purple text-white shadow-lg shadow-purple-500/30"
+                  : "text-slate-400 hover:text-white hover:bg-white/10"
+              )}
+            >
+              <Highlighter size={20} />
+            </button>
+
+            <button
+              onClick={() => setTool('laser')}
+              title="Laser Pointer"
+              className={cn(
+                "p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95",
+                currentTool === 'laser'
+                  ? "bg-brand-purple text-white shadow-lg shadow-purple-500/30"
+                  : "text-slate-400 hover:text-white hover:bg-white/10"
+              )}
+            >
+              <MousePointerClick size={20} />
+            </button>
+
+            <button
+              onClick={() => setTool('eraser')}
+              title="Eraser"
+              className={cn(
+                "p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95",
+                currentTool === 'eraser'
+                  ? "bg-brand-purple text-white shadow-lg shadow-purple-500/30"
+                  : "text-slate-400 hover:text-white hover:bg-white/10"
+              )}
+            >
+              <Eraser size={20} />
+            </button>
+
+            <div className="h-px bg-white/10 my-1" />
+
+            <button
+              onClick={() => setTool('rectangle')}
+              title="Rectangle"
+              className={cn(
+                "p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95",
+                currentTool === 'rectangle'
+                  ? "bg-brand-purple text-white shadow-lg shadow-purple-500/30"
+                  : "text-slate-400 hover:text-white hover:bg-white/10"
+              )}
+            >
+              <Square size={20} />
+            </button>
+
+            <button
+              onClick={() => setTool('ellipse')}
+              title="Ellipse"
+              className={cn(
+                "p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95",
+                currentTool === 'ellipse'
+                  ? "bg-brand-purple text-white shadow-lg shadow-purple-500/30"
+                  : "text-slate-400 hover:text-white hover:bg-white/10"
+              )}
+            >
+              <Circle size={20} />
+            </button>
+
+            <button
+              onClick={() => setTool('text')}
+              title="Text"
+              className={cn(
+                "p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95",
+                currentTool === 'text'
+                  ? "bg-brand-purple text-white shadow-lg shadow-purple-500/30"
+                  : "text-slate-400 hover:text-white hover:bg-white/10"
+              )}
+            >
+              <Type size={20} />
+            </button>
+          </div>
+
+          {/* Close Button - always rendered */}
+          <div className="h-px bg-white/10 my-1" />
+          <button
+            onClick={() => onModeChange?.('none')}
+            title="Hide Board"
+            className="p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95 text-slate-400 hover:text-white hover:bg-white/10"
+          >
+            <X size={20} />
+          </button>
+
         </div>
       )}
 
       {/* Board Container - Overlay (Only if NO PDF) */}
       {!pdfUrl && (
-        <div 
-          ref={containerRef} 
+        <div
+          ref={containerRef}
           className="netless-container w-full h-full touch-none relative z-10 bg-white"
-          style={{ cursor: currentTool === 'pencil' ? 'crosshair' : 'default' }}
+          style={{
+            pointerEvents: isTeacher ? 'all' : 'none',
+            cursor: isTeacher ? (currentTool === 'pencil' ? 'crosshair' : 'default') : 'default',
+          }}
         />
       )}
     </div>
   );
 };
 
-interface ToolButtonProps {
-  icon: React.ReactNode;
-  active: boolean;
-  onClick: () => void;
-  title: string;
-}
-
-const ToolButton: React.FC<ToolButtonProps> = ({ icon, active, onClick, title }) => (
-  <button
-    onClick={onClick}
-    title={title}
-    className={cn(
-      "p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95",
-      active 
-        ? "bg-brand-purple text-white shadow-lg shadow-purple-500/30" 
-        : "text-slate-400 hover:text-white hover:bg-white/10"
-    )}
-  >
-    {icon}
-  </button>
-);

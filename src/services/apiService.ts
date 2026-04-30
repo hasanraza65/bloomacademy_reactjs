@@ -1,6 +1,5 @@
 import { LoginResponse } from '../types';
-
-const BASE_URL = 'https://academy.bloom-buddies.fr/backend/public/api/';
+import { BASE_URL } from '../lib/config';
 
 export const apiService = {
   async login(payload: any): Promise<LoginResponse> {

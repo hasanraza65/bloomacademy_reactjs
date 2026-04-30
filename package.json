@@ -15,6 +15,7 @@
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
     "agora-rtc-sdk-ng": "^4.24.3",
+    "agora-rtm-sdk": "^1.5.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",

@@ -5,9 +5,10 @@ import AgoraRTC, {
   ILocalAudioTrack, 
   IAgoraRTCRemoteUser 
 } from 'agora-rtc-sdk-ng';
-import { Sparkles, Loader2, AlertCircle, Mic, MicOff, Video, VideoOff, Monitor, Pencil } from 'lucide-react';
+import { Sparkles, Loader2, AlertCircle, Mic, MicOff, Video, VideoOff, Monitor, Pencil, BookOpen, X } from 'lucide-react';
 import { ClassroomConnection, AgoraParticipant, User } from '@/src/types';
 import { apiService } from '@/src/services/apiService';
+import { BASE_URL, SITE_ROOT, getFileUrl } from '@/src/lib/config';
 import { VideoTile } from './VideoTile';
 import { Whiteboard } from './Whiteboard';
 import { MaterialManager } from './MaterialManager';
@@ -20,13 +21,15 @@ interface ClassroomProps {
   onExit: () => void;
 }
 
-const BASE_URL = 'https://academy.bloom-buddies.fr/backend/public/api/';
-const SITE_ROOT = 'https://academy.bloom-buddies.fr/backend/public';
+export type ClassroomMode = 'whiteboard' | 'pdf' | 'none';
 
 export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
   const [isInClass, setIsInClass] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Classroom Mode
+  const [classroomMode, setClassroomMode] = useState<ClassroomMode>('whiteboard');
   
   // Agora State
   const clientRef = useRef<IAgoraRTCClient | null>(null);
@@ -42,14 +45,30 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
   const [isCamOff, setIsCamOff] = useState(false);
   const [isSharingScreen, setIsSharingScreen] = useState(false);
   const [showWhiteboard, setShowWhiteboard] = useState(false);
-  const [whiteboardData, setWhiteboardData] = useState<{ roomUUID: string; roomToken: string } | null>(null);
+  const [whiteboardData, setWhiteboardData] = useState<any>(null);
   const [audioLevel, setAudioLevel] = useState(0);
-  const [streamId, setStreamId] = useState<number | null>(null);
+
+  const whiteboardDataRef = useRef<any>(null);
+  const showWhiteboardRef = useRef(false);
+
+  const updateWhiteboardData = (data: any) => {
+    whiteboardDataRef.current = data;
+    setWhiteboardData(data);
+  };
+
+  const updateShowWhiteboard = (val: boolean) => {
+    showWhiteboardRef.current = val;
+    setShowWhiteboard(val);
+  };
+
   const [activeMaterial, setActiveMaterial] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [showMaterialManager, setShowMaterialManager] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
   const screenTrackRef = useRef<any>(null);
+  const [isRTMReady, setIsRTMReady] = useState(false);
+  const rtmClientRef = useRef<any>(null);
+  const rtmChannelRef = useRef<any>(null);
 
   // Pre-meeting Track Initialization
   useEffect(() => {
@@ -154,54 +173,6 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
         setRemoteUsers([...remoteUsersRef.current]);
       });
 
-      // Handle stream messages for whiteboard and PDF synchronization
-      client.off('stream-message');
-      client.on('stream-message', (uid, data) => {
-        try {
-          const decoder = new TextDecoder();
-          const text = decoder.decode(data as Uint8Array);
-          console.log(`Agora: Received stream message from ${uid}:`, text);
-          const msg = JSON.parse(text);
-          
-          if (msg.type === 'whiteboard_sync' || msg.type === 'whiteboard_info') {
-            console.log("Agora: Whiteboard sync data:", msg.roomUUID, "visible:", msg.visible);
-            
-            if (msg.roomUUID && msg.roomToken) {
-              setWhiteboardData(prev => {
-                if (prev?.roomUUID === msg.roomUUID && prev?.roomToken === msg.roomToken) {
-                  return prev;
-                }
-                console.log("Agora: Updating whiteboard data for student");
-                return {
-                  roomUUID: msg.roomUUID,
-                  roomToken: msg.roomToken,
-                  appId: msg.appId
-                };
-              });
-            }
-
-            // Sync visibility for non-teachers
-            if (msg.visible !== undefined && user.role !== 2) {
-              console.log("Agora: Setting whiteboard visibility to", msg.visible);
-              setShowWhiteboard(msg.visible);
-            }
-          }
-
-          if (msg.type === 'pdf_sync' && user.role !== 2) {
-            console.log("Agora: PDF sync data:", msg.activeMaterial?.id, "page:", msg.currentPage);
-            if (msg.activeMaterial) {
-              setActiveMaterial(msg.activeMaterial);
-              setCurrentPage(msg.currentPage || 1);
-              setShowWhiteboard(true);
-            } else {
-              setActiveMaterial(null);
-            }
-          }
-        } catch (e) {
-          console.error("Agora: Failed to parse stream message", e);
-        }
-      });
-
       await client.join(appId, channelName, token, uid);
 
       // Reuse or Publish local tracks
@@ -229,27 +200,13 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
         console.error("Agora: Failed to get local media", mediaErr);
       }
 
+      await initRTM(channelName);
       setIsInClass(true);
       setConnectionData(payload);
 
-      // Create data stream for broadcasting whiteboard info if teacher
-      if (user.role === 2) {
-        try {
-          if (client && typeof (client as any).createDataStream === 'function') {
-            const sId = await (client as any).createDataStream({ reliable: true, ordered: true });
-            setStreamId(sId);
-            console.log("Agora: Data stream created with ID", sId);
-          } else {
-            console.warn("Agora: createDataStream method not found on client", client);
-          }
-        } catch (e) {
-          console.error("Agora: Failed to create data stream", e);
-        }
-      }
-
       // Check for whiteboard data in response
       if (payload.whiteboard_room_uuid && payload.whiteboard_room_token) {
-        setWhiteboardData({
+        updateWhiteboardData({
           roomUUID: payload.whiteboard_room_uuid,
           roomToken: payload.whiteboard_room_token
         });
@@ -260,13 +217,179 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
     }
   };
 
+  const initRTM = async (channelName: string) => {
+    try {
+      setIsRTMReady(false);
+      const AgoraRTM = (await import('agora-rtm-sdk')).default;
+      const appId = '754aa406b558496dbb87044f1550de44';
+
+      // Workaround for some environments where libraries try to overwrite read-only fetch
+      try {
+        if (typeof window !== 'undefined' && !Object.getOwnPropertyDescriptor(window, 'fetch')?.writable) {
+          console.log("Agora: window.fetch is read-only, ensuring SDK doesn't crash");
+        }
+      } catch (e) {}
+      
+      const res = await fetch(`${BASE_URL}classroom/rtm-token`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Accept': 'application/json'
+        }
+      });
+      const { token, uid: rtmUid } = await res.json();
+
+      const rtmClient = AgoraRTM.createInstance(appId);
+      await rtmClient.login({ uid: String(rtmUid), token });
+
+      const channel = rtmClient.createChannel(channelName + '_sync');
+      await channel.join();
+
+      rtmClientRef.current = rtmClient;
+      rtmChannelRef.current = channel;
+      setIsRTMReady(true);
+
+      // Student only: listen for incoming sync messages
+      if (user.role !== 2) {
+        channel.on('ChannelMessage', ({ text }: { text: string }) => {
+          try {
+            const msg = JSON.parse(text);
+            if (msg.type === 'sync') {
+              if (msg.page !== undefined) setCurrentPage(msg.page);
+              if (msg.mode !== undefined) setClassroomMode(msg.mode);
+              if (msg.material !== undefined) {
+                setActiveMaterial(msg.material);
+                if (msg.material) updateShowWhiteboard(true);
+              }
+            }
+          } catch(e) {}
+        });
+      }
+    } catch (e) {
+      console.warn("RTM Init failed", e);
+    }
+  };
+
+  // Student polling: auto-detect when teacher starts whiteboard
+  useEffect(() => {
+    if (user.role === 2 || !isInClass) return;
+
+    const poll = async () => {
+      try {
+        const token = localStorage.getItem('auth_token') || '';
+        const res = await fetch(`${BASE_URL}classroom/whiteboard-status`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+          }
+        });
+
+        if (!res.ok) return;
+        const data = await res.json();
+        console.log('📡 Whiteboard poll:', data);
+
+        if (data.active && data.uuid && data.room_token) {
+
+          // Only update whiteboard credentials if uuid actually changed
+          // This prevents the Whiteboard component from unmounting and remounting
+          setWhiteboardData((prev: any) => {
+            if (prev?.roomUUID === data.uuid) return prev;
+            return {
+              roomUUID: data.uuid,
+              roomToken: data.room_token,
+              appId: (import.meta as any).env.VITE_WHITEBOARD_APP_ID,
+            };
+          });
+
+          // Sync mode and material
+          if (data.active_material) {
+            setActiveMaterial((prev: any) => {
+              if (prev?.id === data.active_material.id) return prev;
+              return data.active_material;
+            });
+            setClassroomMode('pdf');
+          } else {
+            setActiveMaterial(null);
+            setClassroomMode('whiteboard');
+          }
+
+          setShowWhiteboard(true);
+
+          // Sync the current page teacher is on
+          if (data.current_page) {
+            setCurrentPage((prev: any) => {
+              if (prev === data.current_page) return prev;
+              return data.current_page;
+            });
+          }
+
+        } else {
+          // Whiteboard not active
+          setShowWhiteboard(false);
+          setActiveMaterial(null);
+          setClassroomMode('none');
+        }
+
+      } catch(e) {
+        console.warn('Poll error:', e);
+      }
+    };
+
+    poll(); // run immediately when student joins
+    const interval = setInterval(poll, 3000);
+    return () => clearInterval(interval);
+
+  }, [isInClass, user.role]);
+
+  // Teacher side: sync active material and page to backend for student polling
+  useEffect(() => {
+    if (user.role !== 2 || !isInClass || !connectionData?.channel_name) return;
+
+    const token = localStorage.getItem('auth_token') || '';
+
+    fetch(`${BASE_URL}classroom/sync-material`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({
+        channel_name: connectionData.channel_name,
+        material_id: activeMaterial?.id ?? null,
+        current_page: currentPage,
+        is_whiteboard_active: classroomMode !== 'none'
+      })
+    }).catch(e => console.warn('Sync material failed:', e));
+
+    if (isRTMReady && rtmChannelRef.current) {
+      rtmChannelRef.current.sendMessage({
+        text: JSON.stringify({ type: 'sync', mode: classroomMode, material: activeMaterial, page: currentPage })
+      }).catch((e: any) => console.warn("RTM sync failed", e));
+    }
+
+  }, [activeMaterial, currentPage, classroomMode, isInClass, user.role, connectionData?.channel_name, isRTMReady]);
+
+  // Handle classroom mode changes
+  useEffect(() => {
+    if (classroomMode === 'whiteboard') {
+      updateShowWhiteboard(true);
+    } else if (classroomMode === 'pdf') {
+      updateShowWhiteboard(true);
+      if (!activeMaterial) {
+        setShowMaterialManager(true);
+      }
+    } else {
+      updateShowWhiteboard(false);
+    }
+  }, [classroomMode, activeMaterial]);
+
   // Teacher: Whiteboard Auto-Creation and Broadcasting
   useEffect(() => {
     let interval: any;
     
     const setupWhiteboard = async () => {
       // Trigger API only when teacher opens the whiteboard AND we don't have data yet
-      if (isInClass && user.role === 2 && showWhiteboard && !whiteboardData) {
+      if (isInClass && user.role === 2 && showWhiteboardRef.current && !whiteboardDataRef.current) {
         try {
           console.log("Whiteboard: Requesting session from backend...");
           const res = await apiService.startWhiteboardSession();
@@ -279,7 +402,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
 
           if (uuid && roomToken) {
             console.log("Whiteboard: Received credentials from backend. UUID:", uuid);
-            setWhiteboardData({ 
+            updateWhiteboardData({ 
               roomUUID: uuid, 
               roomToken: roomToken 
             });
@@ -296,74 +419,11 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       if (showWhiteboard) {
         setupWhiteboard();
       }
-
-      // Periodic broadcast of whiteboard and PDF data to students
-      interval = setInterval(() => {
-        if (clientRef.current && streamId !== null) {
-          const encoder = new TextEncoder();
-          
-          // Whiteboard Sync
-          if (whiteboardData) {
-            const wbMsg = JSON.stringify({ 
-              type: 'whiteboard_sync', 
-              appId: (import.meta as any).env.VITE_WHITEBOARD_APP_ID,
-              roomUUID: whiteboardData.roomUUID,
-              roomToken: whiteboardData.roomToken,
-              visible: showWhiteboard
-            });
-            clientRef.current.sendStreamMessage(streamId, encoder.encode(wbMsg)).catch((e: any) => {
-              console.warn("Agora: Failed to send wb broadcast", e);
-            });
-          }
-
-          // PDF Sync
-          const pdfMsg = JSON.stringify({
-            type: 'pdf_sync',
-            activeMaterial,
-            currentPage
-          });
-          clientRef.current.sendStreamMessage(streamId, encoder.encode(pdfMsg)).catch((e: any) => {
-            console.warn("Agora: Failed to send pdf broadcast", e);
-          });
-        }
-      }, 2000); // Increased frequency to 2s
     }
 
     return () => {
-      if (interval) clearInterval(interval);
     };
-  }, [isInClass, user.role, whiteboardData, streamId, showWhiteboard, activeMaterial, currentPage]);
-
-  // Teacher: Immediate broadcast when PDF, Page or Whiteboard visibility changes
-  useEffect(() => {
-    if (isInClass && user.role === 2 && clientRef.current && streamId !== null) {
-      const encoder = new TextEncoder();
-      
-      // Sync Whiteboard State
-      if (whiteboardData) {
-        const wbMsg = JSON.stringify({ 
-          type: 'whiteboard_sync', 
-          appId: (import.meta as any).env.VITE_WHITEBOARD_APP_ID,
-          roomUUID: whiteboardData.roomUUID,
-          roomToken: whiteboardData.roomToken,
-          visible: showWhiteboard
-        });
-        clientRef.current.sendStreamMessage(streamId, encoder.encode(wbMsg)).catch((e: any) => {
-          console.warn("Agora: Failed to send immediate wb broadcast", e);
-        });
-      }
-
-      // Sync PDF State
-      const pdfMsg = JSON.stringify({
-        type: 'pdf_sync',
-        activeMaterial,
-        currentPage
-      });
-      clientRef.current.sendStreamMessage(streamId, encoder.encode(pdfMsg)).catch((e: any) => {
-        console.warn("Agora: Failed to send immediate pdf broadcast", e);
-      });
-    }
-  }, [activeMaterial, currentPage, showWhiteboard, isInClass, user.role, streamId, whiteboardData]);
+  }, [isInClass, user.role, activeMaterial, currentPage, showWhiteboard, whiteboardData]);
 
   const handleJoinClass = async () => {
     setIsLoading(true);
@@ -395,6 +455,16 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
 
   const handleLeave = async () => {
     try {
+      setIsRTMReady(false);
+      if (rtmChannelRef.current) {
+        await rtmChannelRef.current.leave().catch(() => {});
+      }
+      if (rtmClientRef.current) {
+        await rtmClientRef.current.logout().catch(() => {});
+      }
+      rtmChannelRef.current = null;
+      rtmClientRef.current = null;
+      
       localTracks.audio?.close();
       localTracks.video?.close();
       if (screenTrackRef.current) {
@@ -405,9 +475,9 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       await clientRef.current?.leave();
       setIsInClass(false);
       setIsSharingScreen(false);
-      setWhiteboardData(null);
+      updateWhiteboardData(null);
       setActiveMaterial(null);
-      setShowWhiteboard(false);
+      updateShowWhiteboard(false);
       onExit();
     } catch (err) {
       console.error(err);
@@ -657,18 +727,22 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
         <div className="flex items-center gap-4">
           <div className="hidden lg:flex items-center gap-3 px-4 py-1.5 bg-white/5 rounded-full border border-white/5 mr-2">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-            <span className="text-[10px] font-black text-white uppercase tracking-widest">Live Session</span>
+            <span className="text-[10px] font-black text-white uppercase tracking-widest">
+              {classroomMode === 'none' ? 'In Meeting' : `Sharing ${classroomMode === 'whiteboard' ? 'Board' : 'PDF'}`}
+            </span>
           </div>
           
           {user.role === 2 && (
             <>
-              <button 
-                onClick={() => setShowMaterialManager(true)}
-                className="px-6 py-2 bg-brand-indigo text-white font-black text-[10px] uppercase tracking-[0.2em] rounded-full hover:bg-brand-indigo-dark transition-all shadow-lg active:scale-95 flex items-center gap-2"
-              >
-                <Monitor size={14} />
-                Resources
-              </button>
+              {classroomMode === 'none' && (
+                <button
+                  onClick={() => setClassroomMode('whiteboard')}
+                  className="px-6 py-2 bg-brand-purple/20 text-brand-purple border border-brand-purple/30 font-black text-[10px] uppercase tracking-[0.2em] rounded-full hover:bg-brand-purple hover:text-white transition-all flex items-center gap-2"
+                >
+                  <Pencil size={14} />
+                  Open Board
+                </button>
+              )}
               <button 
                 onClick={toggleScreenShare}
                 className={cn(
@@ -680,18 +754,6 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
               >
                 <Monitor size={14} />
                 {isSharingScreen ? 'Stop Sharing' : 'Share Screen'}
-              </button>
-              <button 
-                onClick={() => setShowWhiteboard(prev => !prev)}
-                className={cn(
-                  "px-6 py-2 font-black text-[10px] uppercase tracking-[0.2em] rounded-full transition-all shadow-lg active:scale-95 flex items-center gap-2",
-                  showWhiteboard 
-                    ? "bg-brand-purple text-white" 
-                    : "bg-white/10 text-white hover:bg-white/20 border border-white/10"
-                )}
-              >
-                <Pencil size={14} />
-                {showWhiteboard ? 'Hide Board' : 'Whiteboard'}
               </button>
               <button 
                 onClick={handleEndClass}
@@ -731,11 +793,20 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                 onActivate={(material) => {
                   setActiveMaterial(material);
                   setCurrentPage(1);
-                  setShowWhiteboard(true);
-                  // Message will be broadcast in next interval
+                  updateShowWhiteboard(true);
+                  if (isRTMReady && rtmChannelRef.current) {
+                    rtmChannelRef.current.sendMessage({
+                      text: JSON.stringify({ type: 'sync', page: 1, material })
+                    }).catch((e: any) => console.warn("RTM send failed", e));
+                  }
                 }}
                 onDeactivate={() => {
                   setActiveMaterial(null);
+                  if (isRTMReady && rtmChannelRef.current) {
+                    rtmChannelRef.current.sendMessage({
+                      text: JSON.stringify({ type: 'sync', material: null })
+                    }).catch((e: any) => console.warn("RTM send failed", e));
+                  }
                 }}
               />
             </motion.div>
@@ -744,155 +815,255 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       </AnimatePresence>
 
       {/* Main Classroom Area */}
-      <div className="flex-1 p-6 flex flex-col md:flex-row gap-6 relative overflow-hidden">
-        
-        {/* Left Side: Big Screen (Whiteboard or PDF) */}
-        <div className="flex-[3] relative min-h-[300px]">
-          <AnimatePresence mode="wait">
-            {showWhiteboard ? (
-              <motion.div
-                key="whiteboard-stage"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="w-full h-full"
-              >
-                {whiteboardData ? (
-                  <Whiteboard 
-                    appId={whiteboardData.appId || (import.meta as any).env.VITE_WHITEBOARD_APP_ID}
-                    roomUUID={whiteboardData.roomUUID}
-                    roomToken={whiteboardData.roomToken}
-                    uid={String(user.id)}
-                    userName={user.firstName}
-                    isTeacher={user.role === 2}
-                    pdfUrl={activeMaterial ? (activeMaterial.file_path ? `/backend/public/classroom_materials/${activeMaterial.file_path}` : activeMaterial.file_url?.replace('https://academy.bloom-buddies.fr', '')) : undefined}
-                    currentPage={currentPage}
-                    onPageChange={(page) => {
-                      if (user.role === 2) {
-                        setCurrentPage(page);
-                      }
-                    }}
-                  />
-                ) : (
-                  <div className="w-full h-full rounded-[3rem] bg-slate-900 border-4 border-dashed border-white/5 flex flex-col items-center justify-center p-12 text-center">
-                    <div className="w-20 h-20 rounded-full bg-brand-purple/10 flex items-center justify-center text-brand-purple mb-6">
-                      <Pencil size={40} />
-                    </div>
-                    <h4 className="text-xl font-black text-white uppercase tracking-widest mb-4">Whiteboard Not Ready</h4>
-                    <p className="text-slate-500 text-sm max-w-sm">
-                      {user.role === 2 
-                        ? "The classroom service didn't provide whiteboard credentials. Please ensure Whiteboard is enabled in your Agora dashboard."
-                        : "Waiting for the teacher to activate the whiteboard..."}
-                    </p>
-                  </div>
-                )}
-              </motion.div>
-            ) : (
-              <motion.div
-                key="no-content-stage"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="w-full h-full rounded-[3rem] bg-slate-900/50 border-4 border-dashed border-white/5 flex flex-col items-center justify-center p-12 text-center"
-              >
-                <div className="w-20 h-20 rounded-full bg-brand-indigo/10 flex items-center justify-center text-brand-indigo mb-6">
-                  <Monitor size={40} />
-                </div>
-                <h4 className="text-xl font-black text-white uppercase tracking-widest mb-4">Classroom Content Area</h4>
-                <p className="text-slate-500 text-sm max-w-sm font-medium">
-                  {user.role === 2 
-                    ? "Click 'Whiteboard' or 'Resources' to start sharing materials with your student."
-                    : "Waiting for the teacher to share learning materials or activate the whiteboard..."}
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Right Side: Cameras Stack */}
-        <div className="flex-1 max-w-sm flex flex-col gap-4 overflow-y-auto pr-2 custom-scrollbar">
-          {/* TEACHER CAMERA (ALWAYS TOP) */}
-          {user.role === 2 ? (
-            <VideoTile 
-              key="local-teacher"
-              uid={connectionData?.uid || 'host'}
-              videoTrack={isSharingScreen ? screenTrackRef.current : localTracks.video}
-              audioTrack={localTracks.audio}
-              isLocal={true}
-              name={user.firstName}
-              hasVideo={!isCamOff || isSharingScreen}
-              hasAudio={!isMuted}
-              role="host"
-              isScreen={isSharingScreen}
-              onToggleMic={toggleMic}
-              onToggleCam={toggleCam}
-              isMuted={isMuted}
-              isCamOff={isCamOff}
-            />
-          ) : (
-            remoteUsers.length > 0 ? (
+      {classroomMode === 'none' ? (
+        <div className="flex-1 flex flex-col md:flex-row items-center justify-center gap-8 p-12">
+          <div className="w-full max-w-xl aspect-video rounded-[3rem] overflow-hidden shadow-2xl border border-white/10 relative">
+            {user.role === 2 ? (
               <VideoTile 
-                key={remoteUsers[0].uid}
-                uid={remoteUsers[0].uid}
-                videoTrack={remoteUsers[0].videoTrack}
-                audioTrack={remoteUsers[0].audioTrack}
-                name="Teacher"
-                hasVideo={!!remoteUsers[0].videoTrack}
-                hasAudio={!!remoteUsers[0].audioTrack}
+                key="local-teacher-centered"
+                uid={connectionData?.uid || 'host'}
+                videoTrack={isSharingScreen ? screenTrackRef.current : localTracks.video}
+                audioTrack={localTracks.audio}
+                isLocal={true}
+                name={user.firstName}
+                hasVideo={!isCamOff || isSharingScreen}
+                hasAudio={!isMuted}
                 role="host"
+                isScreen={isSharingScreen}
+                onToggleMic={toggleMic}
+                onToggleCam={toggleCam}
+                isMuted={isMuted}
+                isCamOff={isCamOff}
+                isLarge={true}
               />
             ) : (
-              <div className="aspect-video bg-slate-900 rounded-3xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-500">
-                  <VideoOff size={20} />
-                </div>
-                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Waiting for Teacher</p>
-              </div>
-            )
-          )}
-
-          {/* STUDENT CAMERA(S) (BOTTOM) */}
-          {user.role === 2 ? (
-            remoteUsers.length > 0 ? (
-              remoteUsers.map(remoteUser => (
+              remoteUsers.length > 0 ? (
                 <VideoTile 
-                  key={remoteUser.uid}
-                  uid={remoteUser.uid}
-                  videoTrack={remoteUser.videoTrack}
-                  audioTrack={remoteUser.audioTrack}
-                  hasVideo={!!remoteUser.videoTrack}
-                  hasAudio={!!remoteUser.audioTrack}
+                  key={remoteUsers[0].uid}
+                  uid={remoteUsers[0].uid}
+                  videoTrack={remoteUsers[0].videoTrack}
+                  audioTrack={remoteUsers[0].audioTrack}
+                  name="Teacher"
+                  hasVideo={!!remoteUsers[0].videoTrack}
+                  hasAudio={!!remoteUsers[0].audioTrack}
+                  role="host"
+                  isLarge={true}
+                />
+              ) : (
+                <div className="w-full h-full bg-slate-900 flex flex-col items-center justify-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-slate-500">
+                    <VideoOff size={24} />
+                  </div>
+                  <p className="text-slate-500 text-xs font-black uppercase tracking-widest">Waiting for Teacher</p>
+                </div>
+              )
+            )}
+          </div>
+          <div className="w-full max-w-xl aspect-video rounded-[3rem] overflow-hidden shadow-2xl border border-white/10 relative">
+            {user.role === 2 ? (
+              remoteUsers.length > 0 ? (
+                <VideoTile 
+                  key={remoteUsers[0].uid}
+                  uid={remoteUsers[0].uid}
+                  videoTrack={remoteUsers[0].videoTrack}
+                  audioTrack={remoteUsers[0].audioTrack}
+                  hasVideo={!!remoteUsers[0].videoTrack}
+                  hasAudio={!!remoteUsers[0].audioTrack}
                   role="audience"
                   name="Student"
+                  isLarge={true}
                 />
-              ))
-            ) : (
-              <div className="aspect-video bg-slate-900 rounded-3xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-500">
-                  <VideoOff size={20} />
+              ) : (
+                <div className="w-full h-full bg-slate-900 flex flex-col items-center justify-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-slate-500">
+                    <VideoOff size={24} />
+                  </div>
+                  <p className="text-slate-500 text-xs font-black uppercase tracking-widest">Waiting for Student</p>
                 </div>
-                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Waiting for Student</p>
-              </div>
-            )
-          ) : (
-            <VideoTile 
-              key="local-student"
-              uid={connectionData?.uid || 'me'}
-              videoTrack={localTracks.video}
-              audioTrack={localTracks.audio}
-              isLocal={true}
-              name={user.firstName}
-              hasVideo={!isCamOff}
-              hasAudio={!isMuted}
-              role="audience"
-              onToggleMic={toggleMic}
-              onToggleCam={toggleCam}
-              isMuted={isMuted}
-              isCamOff={isCamOff}
-            />
-          )}
+              )
+            ) : (
+              <VideoTile 
+                key="local-student-centered"
+                uid={connectionData?.uid || 'me'}
+                videoTrack={localTracks.video}
+                audioTrack={localTracks.audio}
+                isLocal={true}
+                name={user.firstName}
+                hasVideo={!isCamOff}
+                hasAudio={!isMuted}
+                role="audience"
+                onToggleMic={toggleMic}
+                onToggleCam={toggleCam}
+                isMuted={isMuted}
+                isCamOff={isCamOff}
+                isLarge={true}
+              />
+            )}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="flex-1 p-6 flex flex-col md:flex-row gap-6 relative overflow-hidden">
+          
+          {/* Left Side: Big Screen (Whiteboard or PDF) */}
+          <div className="flex-[3] relative min-h-[300px]">
+            <AnimatePresence mode="wait">
+              {showWhiteboard ? (
+                <motion.div
+                  key="whiteboard-stage"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="w-full h-full"
+                >
+                  {whiteboardData ? (
+                    <Whiteboard 
+                      appId={whiteboardData.appId || (import.meta as any).env.VITE_WHITEBOARD_APP_ID}
+                      roomUUID={whiteboardData.roomUUID}
+                      roomToken={whiteboardData.roomToken}
+                      uid={String(user.id)}
+                      userName={user.firstName}
+                      isTeacher={user.role === 2}
+                      pdfUrl={classroomMode === 'pdf' ? getFileUrl(activeMaterial) : null}
+                      currentPage={currentPage}
+                      onPageChange={(page) => {
+                        if (user.role === 2) {
+                          setCurrentPage(page);
+                        }
+                      }}
+                      currentMode={classroomMode}
+                      onModeChange={(mode) => setClassroomMode(mode)}
+                      onOpenMaterials={() => {
+                        setClassroomMode('pdf');
+                        setShowMaterialManager(true);
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full rounded-[3rem] bg-slate-900 border-4 border-dashed border-white/5 flex flex-col items-center justify-center p-12 text-center">
+                      <div className="w-20 h-20 rounded-full bg-brand-purple/10 flex items-center justify-center text-brand-purple mb-6">
+                        <Pencil size={40} />
+                      </div>
+                      <h4 className="text-xl font-black text-white uppercase tracking-widest mb-4">Whiteboard Not Ready</h4>
+                      <p className="text-slate-500 text-sm max-w-sm">
+                        {user.role === 2 
+                          ? "The classroom service didn't provide whiteboard credentials. Please ensure Whiteboard is enabled in your Agora dashboard."
+                          : "Waiting for the teacher to activate the whiteboard..."}
+                      </p>
+                    </div>
+                  )}
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="no-content-stage"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="w-full h-full rounded-[3rem] bg-slate-900/50 border-4 border-dashed border-white/5 flex flex-col items-center justify-center p-12 text-center"
+                >
+                  <div className="w-20 h-20 rounded-full bg-brand-indigo/10 flex items-center justify-center text-brand-indigo mb-6">
+                    <Monitor size={40} />
+                  </div>
+                  <h4 className="text-xl font-black text-white uppercase tracking-widest mb-4">Classroom Content Area</h4>
+                  <p className="text-slate-500 text-sm max-w-sm font-medium">
+                    {user.role === 2 
+                      ? "Click 'Whiteboard' or 'Resources' to start sharing materials with your student."
+                      : "Waiting for the teacher to share learning materials or activate the whiteboard..."}
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Right Side: Cameras Stack */}
+          <div className="max-w-sm w-full flex flex-col gap-4 overflow-hidden pr-2">
+            {/* TEACHER CAMERA (ALWAYS TOP) */}
+            <div className="flex-1 min-h-0">
+              {user.role === 2 ? (
+                <VideoTile 
+                  key="local-teacher"
+                  uid={connectionData?.uid || 'host'}
+                  videoTrack={isSharingScreen ? screenTrackRef.current : localTracks.video}
+                  audioTrack={localTracks.audio}
+                  isLocal={true}
+                  name={user.firstName}
+                  hasVideo={!isCamOff || isSharingScreen}
+                  hasAudio={!isMuted}
+                  role="host"
+                  isScreen={isSharingScreen}
+                  onToggleMic={toggleMic}
+                  onToggleCam={toggleCam}
+                  isMuted={isMuted}
+                  isCamOff={isCamOff}
+                  isLarge={true}
+                />
+              ) : (
+                remoteUsers.length > 0 ? (
+                  <VideoTile 
+                    key={remoteUsers[0].uid}
+                    uid={remoteUsers[0].uid}
+                    videoTrack={remoteUsers[0].videoTrack}
+                    audioTrack={remoteUsers[0].audioTrack}
+                    name="Teacher"
+                    hasVideo={!!remoteUsers[0].videoTrack}
+                    hasAudio={!!remoteUsers[0].audioTrack}
+                    role="host"
+                    isLarge={true}
+                  />
+                ) : (
+                  <div className="w-full h-full bg-slate-900 rounded-3xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-500">
+                      <VideoOff size={20} />
+                    </div>
+                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Waiting for Teacher</p>
+                  </div>
+                )
+              )}
+            </div>
+
+            {/* STUDENT CAMERA(S) (BOTTOM) */}
+            <div className="flex-1 min-h-0">
+              {user.role === 2 ? (
+                remoteUsers.length > 0 ? (
+                  <VideoTile 
+                    key={remoteUsers[0].uid}
+                    uid={remoteUsers[0].uid}
+                    videoTrack={remoteUsers[0].videoTrack}
+                    audioTrack={remoteUsers[0].audioTrack}
+                    hasVideo={!!remoteUsers[0].videoTrack}
+                    hasAudio={!!remoteUsers[0].audioTrack}
+                    role="audience"
+                    name="Student"
+                    isLarge={true}
+                  />
+                ) : (
+                  <div className="w-full h-full bg-slate-900 rounded-3xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-500">
+                      <VideoOff size={20} />
+                    </div>
+                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Waiting for Student</p>
+                  </div>
+                )
+              ) : (
+                <VideoTile 
+                  key="local-student"
+                  uid={connectionData?.uid || 'me'}
+                  videoTrack={localTracks.video}
+                  audioTrack={localTracks.audio}
+                  isLocal={true}
+                  name={user.firstName}
+                  hasVideo={!isCamOff}
+                  hasAudio={!isMuted}
+                  role="audience"
+                  onToggleMic={toggleMic}
+                  onToggleCam={toggleCam}
+                  isMuted={isMuted}
+                  isCamOff={isCamOff}
+                  isLarge={true}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
