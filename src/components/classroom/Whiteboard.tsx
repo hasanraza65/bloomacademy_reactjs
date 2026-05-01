@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { WhiteWebSdk, Room, DeviceType, ViewMode, ApplianceNames } from 'white-web-sdk';
-import { Loader2, Pencil, Eraser, Square, Circle, Type, MousePointer2, ChevronLeft, ChevronRight, Highlighter, MousePointerClick, BookOpen, X, Monitor } from 'lucide-react';
+import { Loader2, Pencil, Eraser, Square, Circle, Type, MousePointer2, ChevronLeft, ChevronRight, Highlighter, MousePointerClick, BookOpen, X, Monitor, Plus, Minus } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -23,6 +23,10 @@ interface WhiteboardProps {
   onOpenMaterials?: () => void;
   onScreenShare?: () => void;
   isSharingScreen?: boolean;
+  zoom?: number;
+  onZoomChange?: (zoom: number) => void;
+  scrollPosition?: { x: number; y: number };
+  onScrollChange?: (pos: { x: number; y: number }) => void;
 }
 
 export const Whiteboard: React.FC<WhiteboardProps> = ({
@@ -40,6 +44,10 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   onOpenMaterials,
   onScreenShare,
   isSharingScreen = false,
+  zoom = 1,
+  onZoomChange,
+  scrollPosition = { x: 0, y: 0 },
+  onScrollChange,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [room, setRoom] = useState<Room | null>(null);
@@ -49,49 +57,58 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   const [pageSize, setPageSize] = useState<{ width: number; height: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentTool, setCurrentTool] = useState<string>('pencil');
+  const [currentTool, setCurrentTool] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('whiteboard_tool');
+      return saved || 'pencil';
+    }
+    return 'pencil';
+  });
+
+  useEffect(() => {
+    if (isTeacher && currentTool) {
+      localStorage.setItem('whiteboard_tool', currentTool);
+    }
+  }, [currentTool, isTeacher]);
   const [numPages, setNumPages] = useState<number>(0);
 
   const prevPdfUrlRef = useRef<string | null>(null);
   const pdfUrlRef = useRef(pdfUrl);
   pdfUrlRef.current = pdfUrl;
-  const [pdfSessionId, setPdfSessionId] = useState(0);
-  const activeSessionRef = useRef(0);
+  
+  // Create a stable ID for the PDF based on its URL
+  const pdfStableId = React.useMemo(() => {
+    if (!pdfUrl) return null;
+    let hash = 0;
+    for (let i = 0; i < pdfUrl.length; i++) {
+      const char = pdfUrl.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    return Math.abs(hash).toString(36).slice(0, 8);
+  }, [pdfUrl]);
 
-  // Track PDF changes → bump session ID for unique scene paths
+  // Track PDF changes
   useEffect(() => {
     if (pdfUrl) {
       setError(null);
-      if (pdfUrl !== prevPdfUrlRef.current) {
-        setPdfSessionId(prev => {
-          const next = prev + 1;
-          activeSessionRef.current = next;
-          return next;
-        });
-        prevPdfUrlRef.current = pdfUrl;
-      }
+      prevPdfUrlRef.current = pdfUrl;
     } else {
       prevPdfUrlRef.current = null;
     }
   }, [pdfUrl]);
 
-  // Set up scene when session or page changes (NO rebind, just switch scenes)
+  // Whiteboard scene:
   useEffect(() => {
-    if (!room || !pdfUrlRef.current || !isTeacher || pdfSessionId === 0) return;
+    if (!room || !isTeacher || pdfUrl) return;
 
-    const sessionId = pdfSessionId;
-    const sceneDir = `/pdf-${sessionId}`;
-    const scenePath = `${sceneDir}/${currentPage}`;
     const scenes = room.entireScenes();
-    const pdfScenes = scenes[`${sceneDir}/`] || [];
-    if (!pdfScenes.find((s: any) => s.name === String(currentPage))) {
-      room.putScenes(sceneDir, [{ name: String(currentPage) }]);
+    if (!scenes['/whiteboard/']) {
+      room.putScenes('/whiteboard', [{ name: 'main' }]);
     }
-    room.setScenePath(scenePath);
+    room.setScenePath('/whiteboard/main');
 
-    // Force re-apply writable + tool after scene switch (with stale guard)
     room.setWritable(true).then(() => {
-      if (activeSessionRef.current !== sessionId) return;
       room.disableDeviceInputs = false;
       (room as any).disableOperations = false;
       room.setMemberState({
@@ -101,7 +118,36 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
       });
       (room as any).refreshViewSize?.();
     }).catch(() => {});
-  }, [room, currentPage, isTeacher, pdfSessionId]);
+  }, [room, isTeacher, pdfUrl]);
+
+  // PDF scene:
+  useEffect(() => {
+    if (!room || !isTeacher || !pdfUrl || !pdfStableId) return;
+
+    const sceneDir = `/pdf-${pdfStableId}`;
+    const scenePath = `${sceneDir}/${currentPage}`;
+
+    const scenes = room.entireScenes();
+    const existing = scenes[`${sceneDir}/`] || [];
+    if (!existing.find((s: any) => s.name === String(currentPage))) {
+      room.putScenes(sceneDir, [{ name: String(currentPage) }]);
+    }
+    room.setScenePath(scenePath);
+
+    room.setWritable(true).then(() => {
+      // Small guard to ensure we are still on the same PDF
+      if (pdfUrlRef.current !== pdfUrl) return;
+      
+      room.disableDeviceInputs = false;
+      (room as any).disableOperations = false;
+      room.setMemberState({
+        currentApplianceName: ApplianceNames.pencil,
+        strokeColor: [139, 92, 246],
+        strokeWidth: 4,
+      });
+      (room as any).refreshViewSize?.();
+    }).catch(() => {});
+  }, [room, isTeacher, pdfUrl, pdfStableId, currentPage]);
 
   useEffect(() => {
     if (!pdfContainerRef.current) return;
@@ -115,6 +161,32 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   }, [pdfUrl]);
 
   useEffect(() => { setPageSize(null); }, [pdfUrl, currentPage]);
+
+  // Sync scroll position from props (for student)
+  useEffect(() => {
+    if (!isTeacher && pdfContainerRef.current && scrollPosition) {
+      const target = pdfContainerRef.current;
+      const maxScrollX = target.scrollWidth - target.clientWidth;
+      const maxScrollY = target.scrollHeight - target.clientHeight;
+      
+      target.scrollLeft = scrollPosition.x * maxScrollX;
+      target.scrollTop = scrollPosition.y * maxScrollY;
+    }
+  }, [scrollPosition, isTeacher]);
+
+  // Handle scroll events (for teacher)
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (isTeacher) {
+      const target = e.currentTarget;
+      const maxScrollX = target.scrollWidth - target.clientWidth;
+      const maxScrollY = target.scrollHeight - target.clientHeight;
+      
+      onScrollChange?.({ 
+        x: maxScrollX > 0 ? target.scrollLeft / maxScrollX : 0, 
+        y: maxScrollY > 0 ? target.scrollTop / maxScrollY : 0 
+      });
+    }
+  };
 
   useEffect(() => {
     if (!roomUUID || !roomToken) return;
@@ -344,10 +416,15 @@ useEffect(() => {
   }), []);
 
   const computedPdfWidth = (() => {
-    if (!pageSize || !containerSize.width || !containerSize.height) return (containerSize.width || 800) - 48;
+    if (!pageSize || !containerSize.width || !containerSize.height) return (containerSize.width || 800) - (pdfUrl ? 48 : 0);
     const scaleByWidth = (containerSize.width - 48) / pageSize.width;
     const scaleByHeight = (containerSize.height - 48) / pageSize.height;
-    return pageSize.width * Math.min(scaleByWidth, scaleByHeight);
+    return pageSize.width * Math.min(scaleByWidth, scaleByHeight) * zoom;
+  })();
+
+  const computedPdfHeight = (() => {
+    if (!pageSize || !pdfUrl) return '100%';
+    return computedPdfWidth * (pageSize.height / pageSize.width);
   })();
 
   // Tool definitions — order here is the ONLY thing that controls render order
@@ -381,49 +458,79 @@ useEffect(() => {
       )}
 
       {/* 
-        SINGLE permanent whiteboard overlay div — never conditionally rendered.
-        It is always in the DOM so containerRef never changes.
-        We position it absolutely over the full container always.
-        When PDF is active, the PDF renders behind it (z-0), overlay sits on top (z-10).
-        When no PDF, the overlay IS the whiteboard (white background).
+        The main content area — Handles scrolling and containment of PDF/Whiteboard.
+        Placing Whiteboard INSIDE the content div ensures it doesn't block parent scrollbars.
       */}
       <div
-        ref={containerRef}
-        className="netless-container absolute inset-0 z-10 touch-none"
-        style={{
-          pointerEvents: isTeacher ? 'all' : 'none',
-          cursor: isTeacher ? (currentTool === 'pencil' ? 'crosshair' : 'default') : 'default',
-          background: pdfUrl ? 'transparent' : 'white',
-        }}
-      />
-
-      {/* PDF renders behind the whiteboard overlay */}
-      {pdfUrl && (
-        <div
-          ref={pdfContainerRef}
-          className="absolute inset-0 bg-slate-200 z-0 flex items-center justify-center overflow-hidden"
+        ref={pdfContainerRef}
+        onScroll={handleScroll}
+        className="absolute inset-0 bg-slate-200 z-0 overflow-auto flex items-start p-12"
+      >
+        <div 
+          className="relative flex-shrink-0 bg-white shadow-2xl mx-auto"
+          style={{ 
+            width: pdfUrl ? computedPdfWidth : '100%', 
+            height: pdfUrl ? computedPdfHeight : '100%',
+            minHeight: !pdfUrl ? '100%' : 'auto'
+          }}
         >
-          {containerSize.width > 0 && containerSize.height > 0 && (
-            <Document
-              file={pdfUrl}
-              options={pdfOptions}
-              onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-              onLoadError={(err) => {
-                const isCors = err.message.includes("Failed to fetch") || err.name === "SecurityError";
-                setError(`Failed to load PDF: ${err.message}${isCors ? ' (CORS issue — ensure backend allows this domain)' : ''}`);
-              }}
-              loading={<Loader2 className="animate-spin text-brand-purple" />}
-            >
-              <Page
-                pageNumber={currentPage}
-                renderTextLayer={false}
-                renderAnnotationLayer={false}
-                width={computedPdfWidth}
-                onLoadSuccess={(page) => setPageSize({ width: page.originalWidth, height: page.originalHeight })}
-                className="shadow-2xl"
-              />
-            </Document>
+          {/* PDF Page Layer (Z-0) */}
+          {pdfUrl && containerSize.width > 0 && (
+            <div className="absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none">
+              <Document
+                file={pdfUrl}
+                options={pdfOptions}
+                onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+                onLoadError={(err) => {
+                  const isCors = err.message.includes("Failed to fetch") || err.name === "SecurityError";
+                  setError(`Failed to load PDF: ${err.message}${isCors ? ' (CORS issue — ensure backend allows this domain)' : ''}`);
+                }}
+                loading={<Loader2 className="animate-spin text-brand-purple" />}
+              >
+                <Page
+                  pageNumber={currentPage}
+                  renderTextLayer={false}
+                  renderAnnotationLayer={false}
+                  width={computedPdfWidth}
+                  onLoadSuccess={(page) => setPageSize({ width: page.originalWidth, height: page.originalHeight })}
+                />
+              </Document>
+            </div>
           )}
+
+          {/* Whiteboard Overlay Layer (Z-10) */}
+          <div
+            ref={containerRef}
+            className="netless-container absolute inset-0 z-10 touch-none"
+            style={{
+              pointerEvents: isTeacher ? 'all' : 'none',
+              cursor: isTeacher ? (currentTool === 'pencil' ? 'crosshair' : 'default') : 'default',
+              background: pdfUrl ? 'transparent' : 'white',
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Zoom controls for PDF */}
+      {pdfUrl && isTeacher && (
+        <div className="absolute right-8 top-1/2 -translate-y-1/2 flex flex-col gap-2 p-2 bg-slate-900/80 backdrop-blur-md rounded-2xl border border-white/10 z-30 shadow-2xl">
+          <button 
+            onClick={() => onZoomChange?.(Math.min(zoom + 0.25, 3))}
+            className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all"
+            title="Zoom In"
+          >
+            <Plus size={20} />
+          </button>
+          <div className="px-2 py-1 flex items-center justify-center">
+            <span className="text-[10px] font-black text-white/50 uppercase tracking-widest">{Math.round(zoom * 100)}%</span>
+          </div>
+          <button 
+            onClick={() => onZoomChange?.(Math.max(zoom - 0.25, 0.5))}
+            className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all"
+            title="Zoom Out"
+          >
+            <Minus size={20} />
+          </button>
         </div>
       )}
 

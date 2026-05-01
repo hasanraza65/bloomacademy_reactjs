@@ -5,7 +5,7 @@ import AgoraRTC, {
   ILocalAudioTrack, 
   IAgoraRTCRemoteUser 
 } from 'agora-rtc-sdk-ng';
-import { Sparkles, Loader2, AlertCircle, Mic, MicOff, Video, VideoOff, Monitor, MonitorPlay, Pencil, BookOpen, X } from 'lucide-react';
+import { Sparkles, Loader2, AlertCircle, Mic, MicOff, Video, VideoOff, Monitor, MonitorPlay, Pencil, BookOpen, X, RefreshCw } from 'lucide-react';
 import { ClassroomConnection, AgoraParticipant, User } from '@/src/types';
 import { apiService } from '@/src/services/apiService';
 import { BASE_URL, SITE_ROOT, getFileUrl } from '@/src/lib/config';
@@ -45,15 +45,30 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
   const [isCamOff, setIsCamOff] = useState(false);
   const [isSharingScreen, setIsSharingScreen] = useState(false);
   const [showWhiteboard, setShowWhiteboard] = useState(false);
-  const [whiteboardData, setWhiteboardData] = useState<any>(null);
+  const [whiteboardData, setWhiteboardData] = useState<any>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('whiteboard_data');
+      try {
+        return saved ? JSON.parse(saved) : null;
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  });
   const [audioLevel, setAudioLevel] = useState(0);
 
-  const whiteboardDataRef = useRef<any>(null);
+  const whiteboardDataRef = useRef<any>(whiteboardData);
   const showWhiteboardRef = useRef(false);
 
   const updateWhiteboardData = (data: any) => {
     whiteboardDataRef.current = data;
     setWhiteboardData(data);
+    if (data && typeof window !== 'undefined') {
+      localStorage.setItem('whiteboard_data', JSON.stringify(data));
+    } else if (!data && typeof window !== 'undefined') {
+      localStorage.removeItem('whiteboard_data');
+    }
   };
 
   const updateShowWhiteboard = (val: boolean) => {
@@ -61,8 +76,73 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
     setShowWhiteboard(val);
   };
 
-  const [activeMaterial, setActiveMaterial] = useState<any>(null);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [activeMaterial, setActiveMaterial] = useState<any>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('active_material');
+      try {
+        return saved ? JSON.parse(saved) : null;
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  });
+
+  // Sync activeMaterial to localStorage for teacher
+  useEffect(() => {
+    if (user.role === 2) {
+      if (activeMaterial) {
+        localStorage.setItem('active_material', JSON.stringify(activeMaterial));
+      } else {
+        localStorage.removeItem('active_material');
+      }
+    }
+  }, [activeMaterial, user.role]);
+  const [currentPage, setCurrentPage] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('current_page');
+      return saved ? parseInt(saved, 10) : 1;
+    }
+    return 1;
+  });
+
+  useEffect(() => {
+    if (user.role === 2) {
+      localStorage.setItem('current_page', String(currentPage));
+    }
+  }, [currentPage, user.role]);
+
+  const [zoom, setZoom] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('zoom_level');
+      return saved ? parseFloat(saved) : 1;
+    }
+    return 1;
+  });
+
+  useEffect(() => {
+    if (user.role === 2) {
+      localStorage.setItem('zoom_level', String(zoom));
+    }
+  }, [zoom, user.role]);
+
+  const [scrollPosition, setScrollPosition] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('scroll_position');
+      try {
+        return saved ? JSON.parse(saved) : { x: 0, y: 0 };
+      } catch (e) {
+        return { x: 0, y: 0 };
+      }
+    }
+    return { x: 0, y: 0 };
+  });
+
+  useEffect(() => {
+    if (user.role === 2) {
+      localStorage.setItem('scroll_position', JSON.stringify(scrollPosition));
+    }
+  }, [scrollPosition, user.role]);
   const [showMaterialManager, setShowMaterialManager] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
   const screenTrackRef = useRef<any>(null);
@@ -255,6 +335,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
             const msg = JSON.parse(text);
             if (msg.type === 'sync') {
               if (msg.page !== undefined) setCurrentPage(msg.page);
+              if (msg.zoom !== undefined) setZoom(msg.zoom);
+              if (msg.scrollPosition !== undefined) setScrollPosition(msg.scrollPosition);
               if (msg.mode !== undefined) setClassroomMode(msg.mode);
               if (msg.material !== undefined) {
                 setActiveMaterial(msg.material);
@@ -355,7 +437,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       },
       body: JSON.stringify({
         channel_name: connectionData.channel_name,
-        material_id: activeMaterial?.id ?? null,
+        material_id: classroomMode === 'pdf' ? (activeMaterial?.id ?? null) : null,
         current_page: currentPage,
         is_whiteboard_active: classroomMode !== 'none'
       })
@@ -363,25 +445,36 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
 
     if (isRTMReady && rtmChannelRef.current) {
       rtmChannelRef.current.sendMessage({
-        text: JSON.stringify({ type: 'sync', mode: classroomMode, material: activeMaterial, page: currentPage })
+        text: JSON.stringify({ 
+          type: 'sync', 
+          mode: classroomMode, 
+          material: classroomMode === 'pdf' ? activeMaterial : null, 
+          page: currentPage,
+          zoom: zoom,
+          scrollPosition: scrollPosition
+        })
       }).catch((e: any) => console.warn("RTM sync failed", e));
     }
 
-  }, [activeMaterial, currentPage, classroomMode, isInClass, user.role, connectionData?.channel_name, isRTMReady]);
+  }, [activeMaterial, currentPage, zoom, scrollPosition, classroomMode, isInClass, user.role, connectionData?.channel_name, isRTMReady]);
 
   // Handle classroom mode changes
   useEffect(() => {
     if (classroomMode === 'whiteboard') {
       updateShowWhiteboard(true);
+      // We keep activeMaterial in state so it persists when switching back to PDF
     } else if (classroomMode === 'pdf') {
       updateShowWhiteboard(true);
-      if (!activeMaterial) {
+      // Only open manager if no material is active
+      if (!activeMaterial && user.role === 2) {
         setShowMaterialManager(true);
       }
     } else {
       updateShowWhiteboard(false);
+      // When mode is set to 'none', we might want to keep the material as well 
+      // so it's there when they re-open boards.
     }
-  }, [classroomMode, activeMaterial]);
+  }, [classroomMode]);
 
   // Teacher: Whiteboard Auto-Creation and Broadcasting
   useEffect(() => {
@@ -735,18 +828,91 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
           {user.role === 2 && (
             <>
               <button
-                onClick={() => setClassroomMode(classroomMode === 'none' ? 'whiteboard' : 'none')}
+                onClick={() => setClassroomMode('whiteboard')}
                 className={cn(
                   "px-6 py-2 font-black text-[10px] uppercase tracking-[0.2em] rounded-full transition-all shadow-lg active:scale-95 flex items-center gap-2",
-                  classroomMode !== 'none'
+                  classroomMode === 'whiteboard'
                     ? "bg-brand-purple text-white"
                     : "bg-white/10 text-white hover:bg-white/20 border border-white/10"
                 )}
               >
                 <MonitorPlay size={14} />
-                {classroomMode !== 'none' ? 'Close Board' : 'Open Board'}
+                Whiteboard
               </button>
-              <button 
+
+              <button
+                onClick={() => {
+                  if (classroomMode === 'pdf' && activeMaterial) {
+                    // Already in PDF mode with a book — do nothing, already showing
+                    return;
+                  }
+                  setClassroomMode('pdf');
+                  if (!activeMaterial) {
+                    // No book selected yet — open picker
+                    setShowMaterialManager(true);
+                  }
+                  // If activeMaterial exists, just switch to pdf mode — book loads automatically
+                }}
+                className={cn(
+                  "px-6 py-2 font-black text-[10px] uppercase tracking-[0.2em] rounded-full transition-all shadow-lg active:scale-95 flex items-center gap-2",
+                  classroomMode === 'pdf'
+                    ? "bg-brand-indigo text-white"
+                    : "bg-white/10 text-white hover:bg-white/20 border border-white/10"
+                )}
+              >
+                <BookOpen size={14} />
+                Resources
+              </button>
+
+              {classroomMode === 'pdf' && activeMaterial && (
+                <>
+                  <button
+                    onClick={() => setShowMaterialManager(true)}
+                    className="px-4 py-2 bg-white/10 text-slate-300 border border-white/10 font-black text-[10px] uppercase tracking-[0.2em] rounded-full hover:bg-white/20 hover:text-white transition-all shadow-lg active:scale-95 flex items-center gap-2"
+                    title="Change Book"
+                  >
+                    <RefreshCw size={12} />
+                    Change
+                  </button>
+
+                  <button
+                  onClick={() => {
+                    setActiveMaterial(null);
+                    setClassroomMode('whiteboard');
+                    localStorage.removeItem('active_material');
+                    if (isRTMReady && rtmChannelRef.current) {
+                      rtmChannelRef.current.sendMessage({
+                        text: JSON.stringify({ type: 'sync', mode: 'whiteboard', material: null })
+                      }).catch(() => {});
+                    }
+                  }}
+                    className="px-4 py-2 bg-white/10 text-slate-300 border border-white/10 font-black text-[10px] uppercase tracking-[0.2em] rounded-full hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/30 transition-all shadow-lg active:scale-95 flex items-center gap-2"
+                    title="Close Book"
+                  >
+                    <X size={12} />
+                    Close Book
+                  </button>
+                </>
+              )}
+
+              {classroomMode !== 'none' && classroomMode !== 'pdf' && (
+                  <button
+                    onClick={() => {
+                      setClassroomMode('none');
+                      if (isRTMReady && rtmChannelRef.current) {
+                        rtmChannelRef.current.sendMessage({
+                          text: JSON.stringify({ type: 'sync', mode: 'none', material: null })
+                        }).catch(() => {});
+                      }
+                    }}
+                    className="px-6 py-2 bg-slate-700/50 text-slate-300 border border-white/10 font-black text-[10px] uppercase tracking-[0.2em] rounded-full hover:bg-slate-600 hover:text-white transition-all shadow-lg active:scale-95 flex items-center gap-2"
+                  >
+                  <X size={14} />
+                  Hide Boards
+                </button>
+              )}
+
+              <button
                 onClick={handleEndClass}
                 className="px-6 py-2 bg-red-600/20 text-red-500 border border-red-500/30 font-black text-[10px] uppercase tracking-[0.2em] rounded-full hover:bg-red-600 hover:text-white transition-all shadow-lg active:scale-95"
               >
@@ -784,10 +950,11 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                 onActivate={(material) => {
                   setActiveMaterial(material);
                   setCurrentPage(1);
-                  updateShowWhiteboard(true);
+                  setClassroomMode('pdf');
+                  setShowMaterialManager(false);
                   if (isRTMReady && rtmChannelRef.current) {
                     rtmChannelRef.current.sendMessage({
-                      text: JSON.stringify({ type: 'sync', page: 1, material })
+                      text: JSON.stringify({ type: 'sync', page: 1, material, mode: 'pdf' })
                     }).catch((e: any) => console.warn("RTM send failed", e));
                   }
                 }}
@@ -926,6 +1093,18 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                       onOpenMaterials={() => {
                         setClassroomMode('pdf');
                         setShowMaterialManager(true);
+                      }}
+                      zoom={zoom}
+                      onZoomChange={(newZoom) => {
+                        if (user.role === 2) {
+                          setZoom(newZoom);
+                        }
+                      }}
+                      scrollPosition={scrollPosition}
+                      onScrollChange={(pos) => {
+                        if (user.role === 2) {
+                          setScrollPosition(pos);
+                        }
                       }}
                       onScreenShare={toggleScreenShare}
                       isSharingScreen={isSharingScreen}
