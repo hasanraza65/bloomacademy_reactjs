@@ -145,6 +145,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
   }, [scrollPosition, user.role]);
   const [showMaterialManager, setShowMaterialManager] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
+  // Holds the clearAllAnnotationsForMaterial callback registered by <Whiteboard>
+  const clearAnnotationsRef = useRef<((mId: number | string) => void) | null>(null);
   const screenTrackRef = useRef<any>(null);
   const [isRTMReady, setIsRTMReady] = useState(false);
   const rtmClientRef = useRef<any>(null);
@@ -877,6 +879,10 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
 
                   <button
                   onClick={() => {
+                    // Clear all saved annotation snapshots for this material
+                    if (activeMaterial?.id) {
+                      clearAnnotationsRef.current?.(activeMaterial.id);
+                    }
                     setActiveMaterial(null);
                     setClassroomMode('whiteboard');
                     localStorage.removeItem('active_material');
@@ -1083,6 +1089,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                       isTeacher={user.role === 2}
                       pdfUrl={classroomMode === 'pdf' ? getFileUrl(activeMaterial) : null}
                       materialId={classroomMode === 'pdf' ? activeMaterial?.id : undefined}
+                      onCloseBook={(clearFn) => { clearAnnotationsRef.current = clearFn; }}
                       currentPage={currentPage}
                       onPageChange={(page) => {
                         if (user.role === 2) {

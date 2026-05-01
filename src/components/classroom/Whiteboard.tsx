@@ -28,6 +28,8 @@ interface WhiteboardProps {
   scrollPosition?: { x: number; y: number };
   onScrollChange?: (pos: { x: number; y: number }) => void;
   materialId?: number | string;
+  /** Called with the clearAllAnnotations function so the parent can trigger a clear */
+  onCloseBook?: (clearFn: (mId: number | string) => void) => void;
 }
 
 export const Whiteboard: React.FC<WhiteboardProps> = ({
@@ -50,6 +52,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   scrollPosition = { x: 0, y: 0 },
   onScrollChange,
   materialId,
+  onCloseBook,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [room, setRoom] = useState<Room | null>(null);
@@ -89,6 +92,15 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   const getAnnoKey = (mId: number | string, page: number) =>
     `pdf_anno_${mId}_${page}`;
 
+  // Removes every saved annotation snapshot for this material from localStorage.
+  const clearAllAnnotationsForMaterial = (mId: number | string) => {
+    const prefix = `pdf_anno_${mId}_`;
+    Object.keys(localStorage)
+      .filter(k => k.startsWith(prefix))
+      .forEach(k => localStorage.removeItem(k));
+    setGhostSnapshot(null);
+  };
+
   const captureAnnotationsToStorage = (key: string) => {
     if (!containerRef.current) return;
     const w = containerRef.current.offsetWidth;
@@ -97,7 +109,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     // Only include canvases that fill the container (≥80% in both dimensions).
     // This excludes the Netless SDK's cursor-trail and tool-preview overlay canvases,
     // which are smaller and are the source of the blurred artifact line.
-    const canvases = Array.from(
+    const canvases = Array.from<HTMLCanvasElement>(
       containerRef.current.querySelectorAll<HTMLCanvasElement>('canvas')
     ).filter(c => c.offsetWidth >= w * 0.8 && c.offsetHeight >= h * 0.8);
     if (!canvases.length) return;
@@ -106,7 +118,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     composite.height = h;
     const ctx = composite.getContext('2d', { willReadFrequently: true });
     if (!ctx) return;
-    canvases.forEach(c => { try { ctx.drawImage(c, 0, 0, w, h); } catch (_) {} });
+    canvases.forEach(c => { try { ctx.drawImage(c as CanvasImageSource, 0, 0, w, h); } catch (_) {} });
     const imgData = ctx.getImageData(0, 0, w, h);
     const hasContent = imgData.data.some((v, i) => i % 4 === 3 && v > 10);
     if (!hasContent) return;
@@ -129,6 +141,12 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     return Math.abs(hash).toString(36).slice(0, 8);
   }, [pdfUrl]);
 
+  // Register the clear function with the parent as soon as it's available
+  useEffect(() => {
+    onCloseBook?.(clearAllAnnotationsForMaterial);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onCloseBook]);
+
   // Track PDF changes
   useEffect(() => {
     if (pdfUrl) {
@@ -140,17 +158,22 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   }, [pdfUrl]);
 
   // Capture annotations before navigating away; restore ghost snapshot on arrival.
+  // Works for both PDF pages and the plain whiteboard.
   useEffect(() => {
-    if (isTeacher && materialId && pdfUrl) {
-      const key = getAnnoKey(materialId, currentPage);
-      currentAnnoKeyRef.current = key;
-      // Load any stored snapshot for this PDF page
-      const stored = localStorage.getItem(key);
-      setGhostSnapshot(stored || null);
-    } else {
+    if (!isTeacher) {
       currentAnnoKeyRef.current = null;
       setGhostSnapshot(null);
+      return;
     }
+    let key: string | null = null;
+    if (materialId && pdfUrl) {
+      key = getAnnoKey(materialId, currentPage);
+    } else if (!pdfUrl) {
+      key = 'whiteboard_anno';
+    }
+    currentAnnoKeyRef.current = key;
+    const stored = key ? localStorage.getItem(key) : null;
+    setGhostSnapshot(stored || null);
     return () => {
       // Runs just before deps change or unmount — capture current state
       if (currentAnnoKeyRef.current) {
@@ -164,11 +187,19 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   useEffect(() => {
     if (!room || !isTeacher || pdfUrl) return;
 
-    const scenes = room.entireScenes();
-    if (!scenes['/whiteboard/']) {
-      room.putScenes('/whiteboard', [{ name: 'main' }]);
+    const scenePath = '/whiteboard/main';
+
+    // Only call putScenes the very first time in this room session.
+    // Re-calling putScenes on a return visit overwrites the existing scene
+    // and wipes all annotations — this is the same guard used for PDF scenes.
+    if (!initializedScenesRef.current.has(scenePath)) {
+      initializedScenesRef.current.add(scenePath);
+      const scenes = room.entireScenes();
+      if (!scenes['/whiteboard/']) {
+        room.putScenes('/whiteboard', [{ name: 'main' }]);
+      }
     }
-    room.setScenePath('/whiteboard/main');
+    room.setScenePath(scenePath);
 
     room.setWritable(true).then(() => {
       room.disableDeviceInputs = false;
@@ -397,12 +428,12 @@ const applyTool = (tool: string) => {
     switch(tool) {
       case 'selector':
         console.log("Setting selector tool");
-        room.setMemberState({ currentApplianceName: 'selector' });
+        room.setMemberState({ currentApplianceName: ApplianceNames.selector });
         break;
       case 'pencil':
         console.log("Setting pencil tool");
         room.setMemberState({ 
-          currentApplianceName: 'pencil', 
+          currentApplianceName: ApplianceNames.pencil, 
           strokeColor: [139, 92, 246], 
           strokeWidth: 4 
         });
@@ -410,34 +441,34 @@ const applyTool = (tool: string) => {
       case 'highlighter':
         console.log("Setting highlighter tool");
         room.setMemberState({ 
-          currentApplianceName: 'pencil', 
+          currentApplianceName: ApplianceNames.pencil, 
           strokeColor: [251, 191, 36], 
           strokeWidth: 20 
         });
         break;
       case 'laser':
         console.log("Setting laser pointer");
-        room.setMemberState({ currentApplianceName: 'laserPointer' });
+        room.setMemberState({ currentApplianceName: ApplianceNames.laserPointer });
         break;
       case 'eraser':
         console.log("Setting eraser tool");
-        room.setMemberState({ currentApplianceName: 'eraser' });
+        room.setMemberState({ currentApplianceName: ApplianceNames.eraser });
         break;
       case 'rectangle':
         console.log("Setting rectangle tool");
-        room.setMemberState({ currentApplianceName: 'rectangle' });
+        room.setMemberState({ currentApplianceName: ApplianceNames.rectangle });
         break;
       case 'ellipse':
         console.log("Setting ellipse tool");
-        room.setMemberState({ currentApplianceName: 'ellipse' });
+        room.setMemberState({ currentApplianceName: ApplianceNames.ellipse });
         break;
       case 'text':
         console.log("Setting text tool");
-        room.setMemberState({ currentApplianceName: 'text' });
+        room.setMemberState({ currentApplianceName: ApplianceNames.text });
         break;
       default:
         console.log("Defaulting to pencil");
-        room.setMemberState({ currentApplianceName: 'pencil' });
+        room.setMemberState({ currentApplianceName: ApplianceNames.pencil });
     }
     
     // Reset flag after setting tool
@@ -596,7 +627,7 @@ useEffect(() => {
           )}
 
           {/* Ghost Annotation Layer (Z-5) — shows previous-session annotations as a translucent guide */}
-          {ghostSnapshot && pdfUrl && isTeacher && (
+          {ghostSnapshot && isTeacher && (
             <img
               src={ghostSnapshot}
               alt=""
@@ -702,12 +733,14 @@ useEffect(() => {
 
           <div className="h-px bg-white/10 my-1" />
 
-          {/* Clear saved annotation snapshot for this PDF page */}
-          {currentMode === 'pdf' && ghostSnapshot && (
+          {/* Clear saved annotation snapshot for current mode */}
+          {ghostSnapshot && (currentMode === 'pdf' || currentMode === 'whiteboard') && (
             <button
               onClick={() => {
-                if (materialId) {
+                if (pdfUrl && materialId) {
                   localStorage.removeItem(getAnnoKey(materialId, currentPage));
+                } else {
+                  localStorage.removeItem('whiteboard_anno');
                 }
                 setGhostSnapshot(null);
               }}
