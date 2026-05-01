@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { WhiteWebSdk, Room, DeviceType, ViewMode, ApplianceNames } from 'white-web-sdk';
-import { Loader2, Pencil, Eraser, Square, Circle, Type, MousePointer2, ChevronLeft, ChevronRight, Highlighter, MousePointerClick, BookOpen, X, Monitor, Plus, Minus } from 'lucide-react';
+import { Loader2, Pencil, Eraser, Square, Circle, Type, MousePointer2, ChevronLeft, ChevronRight, Highlighter, MousePointerClick, BookOpen, X, Monitor, Plus, Minus, Trash2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -27,6 +27,7 @@ interface WhiteboardProps {
   onZoomChange?: (zoom: number) => void;
   scrollPosition?: { x: number; y: number };
   onScrollChange?: (pos: { x: number; y: number }) => void;
+  materialId?: number | string;
 }
 
 export const Whiteboard: React.FC<WhiteboardProps> = ({
@@ -48,6 +49,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   onZoomChange,
   scrollPosition = { x: 0, y: 0 },
   onScrollChange,
+  materialId,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [room, setRoom] = useState<Room | null>(null);
@@ -75,6 +77,45 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   const prevPdfUrlRef = useRef<string | null>(null);
   const pdfUrlRef = useRef(pdfUrl);
   pdfUrlRef.current = pdfUrl;
+
+  // Tracks which scene paths have already been created in this room session.
+  // This prevents putScenes() from overwriting an existing annotated scene.
+  const initializedScenesRef = useRef<Set<string>>(new Set());
+
+  // Ghost snapshot: a translucent image of annotations from a previous session.
+  const [ghostSnapshot, setGhostSnapshot] = useState<string | null>(null);
+  const currentAnnoKeyRef = useRef<string | null>(null);
+
+  const getAnnoKey = (mId: number | string, page: number) =>
+    `pdf_anno_${mId}_${page}`;
+
+  const captureAnnotationsToStorage = (key: string) => {
+    if (!containerRef.current) return;
+    const w = containerRef.current.offsetWidth;
+    const h = containerRef.current.offsetHeight;
+    if (!w || !h) return;
+    // Only include canvases that fill the container (≥80% in both dimensions).
+    // This excludes the Netless SDK's cursor-trail and tool-preview overlay canvases,
+    // which are smaller and are the source of the blurred artifact line.
+    const canvases = Array.from(
+      containerRef.current.querySelectorAll<HTMLCanvasElement>('canvas')
+    ).filter(c => c.offsetWidth >= w * 0.8 && c.offsetHeight >= h * 0.8);
+    if (!canvases.length) return;
+    const composite = document.createElement('canvas');
+    composite.width = w;
+    composite.height = h;
+    const ctx = composite.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return;
+    canvases.forEach(c => { try { ctx.drawImage(c, 0, 0, w, h); } catch (_) {} });
+    const imgData = ctx.getImageData(0, 0, w, h);
+    const hasContent = imgData.data.some((v, i) => i % 4 === 3 && v > 10);
+    if (!hasContent) return;
+    try {
+      localStorage.setItem(key, composite.toDataURL('image/webp', 0.6));
+    } catch (_) {
+      console.warn('pdf_anno: localStorage quota exceeded, skipping snapshot save');
+    }
+  };
   
   // Create a stable ID for the PDF based on its URL
   const pdfStableId = React.useMemo(() => {
@@ -97,6 +138,27 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
       prevPdfUrlRef.current = null;
     }
   }, [pdfUrl]);
+
+  // Capture annotations before navigating away; restore ghost snapshot on arrival.
+  useEffect(() => {
+    if (isTeacher && materialId && pdfUrl) {
+      const key = getAnnoKey(materialId, currentPage);
+      currentAnnoKeyRef.current = key;
+      // Load any stored snapshot for this PDF page
+      const stored = localStorage.getItem(key);
+      setGhostSnapshot(stored || null);
+    } else {
+      currentAnnoKeyRef.current = null;
+      setGhostSnapshot(null);
+    }
+    return () => {
+      // Runs just before deps change or unmount — capture current state
+      if (currentAnnoKeyRef.current) {
+        captureAnnotationsToStorage(currentAnnoKeyRef.current);
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [materialId, currentPage, pdfUrl, isTeacher]);
 
   // Whiteboard scene:
   useEffect(() => {
@@ -127,10 +189,15 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     const sceneDir = `/pdf-${pdfStableId}`;
     const scenePath = `${sceneDir}/${currentPage}`;
 
-    const scenes = room.entireScenes();
-    const existing = scenes[`${sceneDir}/`] || [];
-    if (!existing.find((s: any) => s.name === String(currentPage))) {
-      room.putScenes(sceneDir, [{ name: String(currentPage) }]);
+    // Only call putScenes the very first time we visit this scene in this session.
+    // Re-calling putScenes on an existing scene would overwrite its annotations.
+    if (!initializedScenesRef.current.has(scenePath)) {
+      initializedScenesRef.current.add(scenePath);
+      const scenes = room.entireScenes();
+      const existing = scenes[`${sceneDir}/`] || [];
+      if (!existing.find((s: any) => s.name === String(currentPage))) {
+        room.putScenes(sceneDir, [{ name: String(currentPage) }]);
+      }
     }
     room.setScenePath(scenePath);
 
@@ -268,6 +335,36 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
 
     return () => { clearTimeout(timer); room.bindHtmlElement(null); };
   }, [room, isTeacher]);
+
+  // When a PDF is active, keep the whiteboard camera locked at scale:1.
+  // We do NOT block events or set disableCameraTransform (both break drawing).
+  // Instead we snap the camera back to neutral immediately after any change.
+  useEffect(() => {
+    if (!room || !pdfUrl) return;
+
+    const snap = () => {
+      try {
+        (room as any).moveCamera?.({
+          scale: 1,
+          centerX: 0,
+          centerY: 0,
+          animationMode: 'immediately',
+        });
+      } catch (_) {}
+    };
+
+    snap(); // lock immediately on PDF activation
+
+    const onStateChanged = (modifyState: any) => {
+      if (modifyState?.cameraState) snap();
+    };
+
+    try { (room as any).callbacks?.on('onRoomStateChanged', onStateChanged); } catch (_) {}
+
+    return () => {
+      try { (room as any).callbacks?.off('onRoomStateChanged', onStateChanged); } catch (_) {}
+    };
+  }, [room, pdfUrl]);
 
 // Add a ref to track the last tool we explicitly set
 const lastToolRef = useRef<string | null>(null);
@@ -498,6 +595,17 @@ useEffect(() => {
             </div>
           )}
 
+          {/* Ghost Annotation Layer (Z-5) — shows previous-session annotations as a translucent guide */}
+          {ghostSnapshot && pdfUrl && isTeacher && (
+            <img
+              src={ghostSnapshot}
+              alt=""
+              aria-hidden
+              className="absolute inset-0 w-full h-full z-5 pointer-events-none select-none"
+              style={{ opacity: 0.35, mixBlendMode: 'multiply' }}
+            />
+          )}
+
           {/* Whiteboard Overlay Layer (Z-10) */}
           <div
             ref={containerRef}
@@ -591,6 +699,24 @@ useEffect(() => {
               {tool.icon}
             </button>
           ))}
+
+          <div className="h-px bg-white/10 my-1" />
+
+          {/* Clear saved annotation snapshot for this PDF page */}
+          {currentMode === 'pdf' && ghostSnapshot && (
+            <button
+              onClick={() => {
+                if (materialId) {
+                  localStorage.removeItem(getAnnoKey(materialId, currentPage));
+                }
+                setGhostSnapshot(null);
+              }}
+              title="Clear saved annotations"
+              className="p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95 text-red-400 hover:text-red-300 hover:bg-white/10"
+            >
+              <Trash2 size={20} />
+            </button>
+          )}
 
           <div className="h-px bg-white/10 my-1" />
 

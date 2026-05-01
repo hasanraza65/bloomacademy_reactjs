@@ -1082,6 +1082,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                       userName={user.firstName}
                       isTeacher={user.role === 2}
                       pdfUrl={classroomMode === 'pdf' ? getFileUrl(activeMaterial) : null}
+                      materialId={classroomMode === 'pdf' ? activeMaterial?.id : undefined}
                       currentPage={currentPage}
                       onPageChange={(page) => {
                         if (user.role === 2) {
