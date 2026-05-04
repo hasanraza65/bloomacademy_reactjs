@@ -54,6 +54,8 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   materialId,
   onCloseBook,
 }) => {
+  // TODO: make dynamic in future — currently hardcoded until pair/session system is implemented
+  const PAIR_ID = 1;
   const containerRef = useRef<HTMLDivElement>(null);
   const [room, setRoom] = useState<Room | null>(null);
   const roomRef = useRef<Room | null>(null);
@@ -85,48 +87,29 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   // This prevents putScenes() from overwriting an existing annotated scene.
   const initializedScenesRef = useRef<Set<string>>(new Set());
 
-  // Ghost snapshot: a translucent image of annotations from a previous session.
-  const [ghostSnapshot, setGhostSnapshot] = useState<string | null>(null);
-  const currentAnnoKeyRef = useRef<string | null>(null);
+  // Keep a ref to pdfStableId so closures always see the latest value.
+  const pdfStableIdRef = useRef<string | null>(null);
 
-  const getAnnoKey = (mId: number | string, page: number) =>
-    `pdf_anno_${mId}_${page}`;
-
-  // Removes every saved annotation snapshot for this material from localStorage.
-  const clearAllAnnotationsForMaterial = (mId: number | string) => {
-    const prefix = `pdf_anno_${mId}_`;
-    Object.keys(localStorage)
-      .filter(k => k.startsWith(prefix))
-      .forEach(k => localStorage.removeItem(k));
-    setGhostSnapshot(null);
+  // Removes all Netless scenes for this material's PDF (called on Close Book).
+  const clearAllAnnotationsForMaterial = (_mId: number | string) => {
+    const stableId = pdfStableIdRef.current;
+    if (!roomRef.current || !stableId) return;
+    const sceneDir = `/pair-${PAIR_ID}/pdf-${stableId}`;
+    try {
+      roomRef.current.removeScenes(sceneDir);
+    } catch (_) {}
+    // Allow scenes to be recreated fresh after clearing
+    initializedScenesRef.current.forEach(k => {
+      if (k.startsWith(sceneDir)) initializedScenesRef.current.delete(k);
+    });
   };
 
-  const captureAnnotationsToStorage = (key: string) => {
-    if (!containerRef.current) return;
-    const w = containerRef.current.offsetWidth;
-    const h = containerRef.current.offsetHeight;
-    if (!w || !h) return;
-    // Only include canvases that fill the container (≥80% in both dimensions).
-    // This excludes the Netless SDK's cursor-trail and tool-preview overlay canvases,
-    // which are smaller and are the source of the blurred artifact line.
-    const canvases = Array.from<HTMLCanvasElement>(
-      containerRef.current.querySelectorAll<HTMLCanvasElement>('canvas')
-    ).filter(c => c.offsetWidth >= w * 0.8 && c.offsetHeight >= h * 0.8);
-    if (!canvases.length) return;
-    const composite = document.createElement('canvas');
-    composite.width = w;
-    composite.height = h;
-    const ctx = composite.getContext('2d', { willReadFrequently: true });
-    if (!ctx) return;
-    canvases.forEach(c => { try { ctx.drawImage(c as CanvasImageSource, 0, 0, w, h); } catch (_) {} });
-    const imgData = ctx.getImageData(0, 0, w, h);
-    const hasContent = imgData.data.some((v, i) => i % 4 === 3 && v > 10);
-    if (!hasContent) return;
+  // Clears only the current page's strokes (Trash2 button).
+  const clearCurrentScene = () => {
+    if (!roomRef.current) return;
     try {
-      localStorage.setItem(key, composite.toDataURL('image/webp', 0.6));
-    } catch (_) {
-      console.warn('pdf_anno: localStorage quota exceeded, skipping snapshot save');
-    }
+      roomRef.current.cleanCurrentScene();
+    } catch (_) {}
   };
   
   // Create a stable ID for the PDF based on its URL
@@ -157,37 +140,12 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     }
   }, [pdfUrl]);
 
-  // Capture annotations before navigating away; restore ghost snapshot on arrival.
-  // Works for both PDF pages and the plain whiteboard.
-  useEffect(() => {
-    if (!isTeacher) {
-      currentAnnoKeyRef.current = null;
-      setGhostSnapshot(null);
-      return;
-    }
-    let key: string | null = null;
-    if (materialId && pdfUrl) {
-      key = getAnnoKey(materialId, currentPage);
-    } else if (!pdfUrl) {
-      key = 'whiteboard_anno';
-    }
-    currentAnnoKeyRef.current = key;
-    const stored = key ? localStorage.getItem(key) : null;
-    setGhostSnapshot(stored || null);
-    return () => {
-      // Runs just before deps change or unmount — capture current state
-      if (currentAnnoKeyRef.current) {
-        captureAnnotationsToStorage(currentAnnoKeyRef.current);
-      }
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [materialId, currentPage, pdfUrl, isTeacher]);
-
   // Whiteboard scene:
   useEffect(() => {
     if (!room || !isTeacher || pdfUrl) return;
 
-    const scenePath = '/whiteboard/main';
+    const sceneDir = `/pair-${PAIR_ID}/whiteboard`;
+    const scenePath = `${sceneDir}/main`;
 
     // Only call putScenes the very first time in this room session.
     // Re-calling putScenes on a return visit overwrites the existing scene
@@ -195,8 +153,8 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     if (!initializedScenesRef.current.has(scenePath)) {
       initializedScenesRef.current.add(scenePath);
       const scenes = room.entireScenes();
-      if (!scenes['/whiteboard/']) {
-        room.putScenes('/whiteboard', [{ name: 'main' }]);
+      if (!scenes[`${sceneDir}/`]) {
+        room.putScenes(sceneDir, [{ name: 'main' }]);
       }
     }
     room.setScenePath(scenePath);
@@ -217,7 +175,10 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   useEffect(() => {
     if (!room || !isTeacher || !pdfUrl || !pdfStableId) return;
 
-    const sceneDir = `/pdf-${pdfStableId}`;
+    // Keep ref in sync so closures (clearAllAnnotationsForMaterial) always see current value.
+    pdfStableIdRef.current = pdfStableId;
+
+    const sceneDir = `/pair-${PAIR_ID}/pdf-${pdfStableId}`;
     const scenePath = `${sceneDir}/${currentPage}`;
 
     // Only call putScenes the very first time we visit this scene in this session.
@@ -626,17 +587,6 @@ useEffect(() => {
             </div>
           )}
 
-          {/* Ghost Annotation Layer (Z-5) — shows previous-session annotations as a translucent guide */}
-          {ghostSnapshot && isTeacher && (
-            <img
-              src={ghostSnapshot}
-              alt=""
-              aria-hidden
-              className="absolute inset-0 w-full h-full z-5 pointer-events-none select-none"
-              style={{ opacity: 0.35, mixBlendMode: 'multiply' }}
-            />
-          )}
-
           {/* Whiteboard Overlay Layer (Z-10) */}
           <div
             ref={containerRef}
@@ -733,18 +683,11 @@ useEffect(() => {
 
           <div className="h-px bg-white/10 my-1" />
 
-          {/* Clear saved annotation snapshot for current mode */}
-          {ghostSnapshot && (currentMode === 'pdf' || currentMode === 'whiteboard') && (
+          {/* Clear current page's annotation strokes */}
+          {isTeacher && (currentMode === 'pdf' || currentMode === 'whiteboard') && (
             <button
-              onClick={() => {
-                if (pdfUrl && materialId) {
-                  localStorage.removeItem(getAnnoKey(materialId, currentPage));
-                } else {
-                  localStorage.removeItem('whiteboard_anno');
-                }
-                setGhostSnapshot(null);
-              }}
-              title="Clear saved annotations"
+              onClick={clearCurrentScene}
+              title="Clear annotations on this page"
               className="p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95 text-red-400 hover:text-red-300 hover:bg-white/10"
             >
               <Trash2 size={20} />
