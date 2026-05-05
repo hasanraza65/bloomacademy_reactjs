@@ -879,10 +879,6 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
 
                   <button
                   onClick={() => {
-                    // Clear all saved annotation snapshots for this material
-                    if (activeMaterial?.id) {
-                      clearAnnotationsRef.current?.(activeMaterial.id);
-                    }
                     setActiveMaterial(null);
                     setClassroomMode('whiteboard');
                     localStorage.removeItem('active_material');
