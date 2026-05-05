@@ -184,17 +184,27 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     const sceneDir = `/pair-${PAIR_ID}/pdf-${pdfStableId}`;
     const scenePath = `${sceneDir}/${currentPage}`;
 
-    // Only call putScenes the very first time we visit this scene in this session.
-    // Re-calling putScenes on an existing scene would overwrite its annotations.
+    // Try navigating to the scene first. If the scene already exists in Netless
+    // cloud (previous session), setScenePath will succeed and annotations are intact.
+    // Only call putScenes if the scene genuinely doesn't exist yet.
     if (!initializedScenesRef.current.has(scenePath)) {
       initializedScenesRef.current.add(scenePath);
-      const scenes = room.entireScenes();
-      const existing = scenes[`${sceneDir}/`] || [];
-      if (!existing.find((s: any) => s.name === String(currentPage))) {
+      try {
+        room.setScenePath(scenePath);
+        // Verify the navigation actually landed on our scene.
+        // If not, the scene doesn't exist yet — create it.
+        const landed = (room as any).state?.sceneState?.scenePath;
+        if (landed !== scenePath) {
+          room.putScenes(sceneDir, [{ name: String(currentPage) }]);
+          room.setScenePath(scenePath);
+        }
+      } catch (_) {
         room.putScenes(sceneDir, [{ name: String(currentPage) }]);
+        room.setScenePath(scenePath);
       }
+    } else {
+      room.setScenePath(scenePath);
     }
-    room.setScenePath(scenePath);
 
     room.setWritable(true).then(() => {
       // Small guard to ensure we are still on the same PDF

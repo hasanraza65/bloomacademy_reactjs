@@ -286,12 +286,16 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       setIsInClass(true);
       setConnectionData(payload);
 
-      // Check for whiteboard data in response
+      // Check for whiteboard data in response.
+      // Only use backend's room if we don't already have a saved one —
+      // preserving the existing room keeps all Netless annotations intact.
       if (payload.whiteboard_room_uuid && payload.whiteboard_room_token) {
-        updateWhiteboardData({
-          roomUUID: payload.whiteboard_room_uuid,
-          roomToken: payload.whiteboard_room_token
-        });
+        if (!whiteboardDataRef.current) {
+          updateWhiteboardData({
+            roomUUID: payload.whiteboard_room_uuid,
+            roomToken: payload.whiteboard_room_token
+          });
+        }
       }
     } catch (err: any) {
       console.error("Agora Init Error:", err);
@@ -570,7 +574,10 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       await clientRef.current?.leave();
       setIsInClass(false);
       setIsSharingScreen(false);
-      updateWhiteboardData(null);
+      // Clear state only — localStorage.whiteboard_data is intentionally kept
+      // so the same Netless room is reused next class and annotations persist.
+      whiteboardDataRef.current = null;
+      setWhiteboardData(null);
       setActiveMaterial(null);
       updateShowWhiteboard(false);
       onExit();
