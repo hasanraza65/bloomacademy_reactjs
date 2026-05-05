@@ -64,6 +64,9 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   const [pageSize, setPageSize] = useState<{ width: number; height: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // True once bindHtmlElement has been called — scene effects wait for this
+  // so setScenePath is never called before the canvas is attached.
+  const [isBound, setIsBound] = useState(false);
   const [currentTool, setCurrentTool] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('whiteboard_tool');
@@ -142,7 +145,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
 
   // Whiteboard scene:
   useEffect(() => {
-    if (!room || !isTeacher || pdfUrl) return;
+    if (!room || !isTeacher || pdfUrl || !isBound) return;
 
     const sceneDir = `/pair-${PAIR_ID}/whiteboard`;
     const scenePath = `${sceneDir}/main`;
@@ -169,11 +172,11 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
       });
       (room as any).refreshViewSize?.();
     }).catch(() => {});
-  }, [room, isTeacher, pdfUrl]);
+  }, [room, isTeacher, pdfUrl, isBound]);
 
   // PDF scene:
   useEffect(() => {
-    if (!room || !isTeacher || !pdfUrl || !pdfStableId) return;
+    if (!room || !isTeacher || !pdfUrl || !pdfStableId || !isBound) return;
 
     // Keep ref in sync so closures (clearAllAnnotationsForMaterial) always see current value.
     pdfStableIdRef.current = pdfStableId;
@@ -206,7 +209,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
       });
       (room as any).refreshViewSize?.();
     }).catch(() => {});
-  }, [room, isTeacher, pdfUrl, pdfStableId, currentPage]);
+  }, [room, isTeacher, pdfUrl, pdfStableId, currentPage, isBound]);
 
   useEffect(() => {
     if (!pdfContainerRef.current) return;
@@ -218,6 +221,19 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     observer.observe(pdfContainerRef.current);
     return () => observer.disconnect();
   }, [pdfUrl]);
+
+  // Whenever the whiteboard canvas div resizes (PDF load, zoom change, window resize),
+  // notify the Netless SDK so it recalculates coordinate mapping.
+  useEffect(() => {
+    if (!containerRef.current || !roomRef.current) return;
+    const observer = new ResizeObserver(() => {
+      try {
+        (roomRef.current as any)?.refreshViewSize?.();
+      } catch (_) {}
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => { setPageSize(null); }, [pdfUrl, currentPage]);
 
@@ -301,6 +317,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
       if (!containerRef.current || !room) return;
       try {
         room.bindHtmlElement(containerRef.current);
+        setIsBound(true);
         (room as any).refreshViewSize?.();
 
         if (isTeacher) {
@@ -325,7 +342,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
       } catch (e) { console.error("Whiteboard binding error:", e); }
     }, 500);
 
-    return () => { clearTimeout(timer); room.bindHtmlElement(null); };
+    return () => { clearTimeout(timer); room.bindHtmlElement(null); setIsBound(false); };
   }, [room, isTeacher]);
 
   // When a PDF is active, keep the whiteboard camera locked at scale:1.
