@@ -891,28 +891,10 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                     <RefreshCw size={12} />
                     Change
                   </button>
-
-                  <button
-                  onClick={() => {
-                    setActiveMaterial(null);
-                    setClassroomMode('whiteboard');
-                    localStorage.removeItem('active_material');
-                    if (isRTMReady && rtmChannelRef.current) {
-                      rtmChannelRef.current.sendMessage({
-                        text: JSON.stringify({ type: 'sync', mode: 'whiteboard', material: null })
-                      }).catch(() => {});
-                    }
-                  }}
-                    className="px-4 py-2 bg-white/10 text-slate-300 border border-white/10 font-black text-[10px] uppercase tracking-[0.2em] rounded-full hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/30 transition-all shadow-lg active:scale-95 flex items-center gap-2"
-                    title="Close Book"
-                  >
-                    <X size={12} />
-                    Close Book
-                  </button>
                 </>
               )}
 
-              {classroomMode !== 'none' && classroomMode !== 'pdf' && (
+              {classroomMode !== 'none' && (
                   <button
                     onClick={() => {
                       setClassroomMode('none');
@@ -938,12 +920,6 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
             </>
           )}
 
-          <button 
-            onClick={handleLeave}
-            className="px-6 py-2 bg-slate-800 text-white font-black text-[10px] uppercase tracking-[0.2em] rounded-full hover:bg-slate-700 transition-all shadow-lg active:scale-95"
-          >
-            Exit
-          </button>
         </div>
       </nav>
 
