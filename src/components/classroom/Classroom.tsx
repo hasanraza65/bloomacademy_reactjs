@@ -287,14 +287,20 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       setConnectionData(payload);
 
       // Check for whiteboard data in response.
-      // Only use backend's room if we don't already have a saved one —
-      // preserving the existing room keeps all Netless annotations intact.
+      // Always prefer the saved roomUUID from localStorage — Netless annotations
+      // are keyed to that UUID. Use backend's fresh token for valid auth.
       if (payload.whiteboard_room_uuid && payload.whiteboard_room_token) {
-        if (!whiteboardDataRef.current) {
-          updateWhiteboardData({
-            roomUUID: payload.whiteboard_room_uuid,
-            roomToken: payload.whiteboard_room_token
-          });
+        const savedRaw = typeof window !== 'undefined' ? localStorage.getItem('whiteboard_data') : null;
+        if (savedRaw) {
+          try {
+            const saved = JSON.parse(savedRaw);
+            // Keep saved UUID (where annotations live), refresh token from backend
+            updateWhiteboardData({ roomUUID: saved.roomUUID, roomToken: payload.whiteboard_room_token });
+          } catch {
+            updateWhiteboardData({ roomUUID: payload.whiteboard_room_uuid, roomToken: payload.whiteboard_room_token });
+          }
+        } else {
+          updateWhiteboardData({ roomUUID: payload.whiteboard_room_uuid, roomToken: payload.whiteboard_room_token });
         }
       }
     } catch (err: any) {
@@ -487,30 +493,32 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
     let interval: any;
     
     const setupWhiteboard = async () => {
-      // Trigger API only when teacher opens the whiteboard AND we don't have data yet
-      if (isInClass && user.role === 2 && showWhiteboardRef.current && !whiteboardDataRef.current) {
-        try {
-          console.log("Whiteboard: Requesting session from backend...");
-          const res = await apiService.startWhiteboardSession();
-          console.log("Whiteboard: Backend response:", res);
-          
-          const data = (res as any).data || res;
-          // Use the specific keys provided by the user while keeping fallbacks
-          const uuid = data.uuid || data.whiteboard_room_uuid;
-          const roomToken = data.room_token || data.roomToken || data.whiteboard_room_token;
+      if (!isInClass || user.role !== 2 || !showWhiteboardRef.current || whiteboardDataRef.current) return;
 
-          if (uuid && roomToken) {
-            console.log("Whiteboard: Received credentials from backend. UUID:", uuid);
-            updateWhiteboardData({ 
-              roomUUID: uuid, 
-              roomToken: roomToken 
-            });
-          } else {
-            console.error("Whiteboard: Backend returned invalid room data. Raw response:", res);
+      // Check localStorage first — if we already have a saved room, restore it
+      // without calling the API. This keeps Netless annotations intact.
+      const savedRaw = typeof window !== 'undefined' ? localStorage.getItem('whiteboard_data') : null;
+      if (savedRaw) {
+        try {
+          const saved = JSON.parse(savedRaw);
+          if (saved.roomUUID && saved.roomToken) {
+            updateWhiteboardData(saved);
+            return;
           }
-        } catch (err) {
-          console.error("Failed to create whiteboard room via backend:", err);
+        } catch {}
+      }
+
+      // No saved room — request one from backend
+      try {
+        const res = await apiService.startWhiteboardSession();
+        const data = (res as any).data || res;
+        const uuid = data.uuid || data.whiteboard_room_uuid;
+        const roomToken = data.room_token || data.roomToken || data.whiteboard_room_token;
+        if (uuid && roomToken) {
+          updateWhiteboardData({ roomUUID: uuid, roomToken });
         }
+      } catch (err) {
+        console.error("Failed to create whiteboard room via backend:", err);
       }
     };
 
