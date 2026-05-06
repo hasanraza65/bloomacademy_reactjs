@@ -15,6 +15,7 @@ import { MaterialManager } from './MaterialManager';
 import { Controls } from './Controls';
 import { cn } from '@/src/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+import { BadgeReward } from '../BadgeReward';
 
 interface ClassroomProps {
   user: User;
@@ -349,6 +350,9 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
           } else if (msg.type === 'class-ended') {
             console.log("Agora: Class ended signal received");
             handleLeave();
+          } else if (msg.type === 'badge' && user.role !== 2) {
+            // This is handled inside BadgeReward via the rtmChannelRef directly
+            // No changes needed here — BadgeReward attaches its own listener
           }
         } catch(e) {}
       });
@@ -1228,6 +1232,20 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
             </div>
           </div>
         </div>
+      )}
+      
+      {isInClass && (
+        <BadgeReward
+          isTeacher={user.role === 2}
+          isInClass={isInClass}
+          studentName={
+            remoteUsers.length > 0
+              ? 'Student'
+              : 'Student'
+          }
+          rtmChannelRef={rtmChannelRef}
+          isRTMReady={isRTMReady}
+        />
       )}
     </div>
   );
