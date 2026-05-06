@@ -257,6 +257,28 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     return () => observer.disconnect();
   }, []);
 
+  // Force a view-size refresh after zoom/layout updates so strokes stay aligned to PDF.
+  useEffect(() => {
+    if (!roomRef.current) return;
+
+    const raf1 = requestAnimationFrame(() => {
+      try {
+        (roomRef.current as any)?.refreshViewSize?.();
+      } catch (_) {}
+    });
+
+    const raf2 = requestAnimationFrame(() => {
+      try {
+        (roomRef.current as any)?.refreshViewSize?.();
+      } catch (_) {}
+    });
+
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
+  }, [currentPage, pdfUrl]);
+
   useEffect(() => { setPageSize(null); }, [pdfUrl, currentPage]);
 
   // Sync scroll position from props (for student)
@@ -401,6 +423,11 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
 const lastToolRef = useRef<string | null>(null);
 const isApplyingToolRef = useRef(false);
 
+const getScaledStrokeWidth = (baseWidth: number) => {
+  if (!pdfUrl || zoom <= 0) return baseWidth;
+  return Math.max(1, Number((baseWidth / zoom).toFixed(2)));
+};
+
 const applyTool = (tool: string) => {
   if (!room || isApplyingToolRef.current) return;
   
@@ -435,7 +462,7 @@ const applyTool = (tool: string) => {
         room.setMemberState({ 
           currentApplianceName: ApplianceNames.pencil, 
           strokeColor: [139, 92, 246], 
-          strokeWidth: 4 
+          strokeWidth: getScaledStrokeWidth(4)
         });
         break;
       case 'highlighter':
@@ -443,7 +470,7 @@ const applyTool = (tool: string) => {
         room.setMemberState({ 
           currentApplianceName: ApplianceNames.pencil, 
           strokeColor: [251, 191, 36], 
-          strokeWidth: 20 
+          strokeWidth: getScaledStrokeWidth(20)
         });
         break;
       case 'laser':
@@ -536,6 +563,15 @@ useEffect(() => {
   }
 }, [room, isTeacher]);
 
+// Keep drawing thickness visually consistent while PDF zoom changes.
+useEffect(() => {
+  if (!room || !isTeacher || !pdfUrl) return;
+  if (currentTool !== 'pencil' && currentTool !== 'highlighter') return;
+  if (isApplyingToolRef.current) return;
+
+  applyTool(currentTool);
+}, [zoom, room, isTeacher, pdfUrl, currentTool]);
+
   const pdfOptions = React.useMemo(() => ({
     cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
     cMapPacked: true,
@@ -543,17 +579,22 @@ useEffect(() => {
     disableStream: true,
   }), []);
 
-  const computedPdfWidth = (() => {
-    if (!pageSize || !containerSize.width || !containerSize.height) return (containerSize.width || 800) - (pdfUrl ? 48 : 0);
+  const fitPdfWidth = (() => {
+    if (!pdfUrl) return containerSize.width || 800;
+    if (!pageSize || !containerSize.width || !containerSize.height) return Math.max((containerSize.width || 800) - 48, 240);
     const scaleByWidth = (containerSize.width - 48) / pageSize.width;
     const scaleByHeight = (containerSize.height - 48) / pageSize.height;
-    return pageSize.width * Math.min(scaleByWidth, scaleByHeight) * zoom;
+    return pageSize.width * Math.min(scaleByWidth, scaleByHeight);
   })();
 
-  const computedPdfHeight = (() => {
-    if (!pageSize || !pdfUrl) return '100%';
-    return computedPdfWidth * (pageSize.height / pageSize.width);
+  const fitPdfHeight = (() => {
+    if (!pdfUrl) return containerSize.height || 600;
+    if (!pageSize) return Math.max((containerSize.height || 600) - 48, 320);
+    return fitPdfWidth * (pageSize.height / pageSize.width);
   })();
+
+  const scaledPdfWidth = pdfUrl ? fitPdfWidth * zoom : '100%';
+  const scaledPdfHeight = pdfUrl ? fitPdfHeight * zoom : '100%';
 
   // Tool definitions — order here is the ONLY thing that controls render order
   const tools = [
@@ -597,45 +638,57 @@ useEffect(() => {
         <div 
           className="relative flex-shrink-0 bg-white shadow-2xl mx-auto"
           style={{ 
-            width: pdfUrl ? computedPdfWidth : '100%', 
-            height: pdfUrl ? computedPdfHeight : '100%',
+            width: pdfUrl ? scaledPdfWidth : '100%', 
+            height: pdfUrl ? scaledPdfHeight : '100%',
             minHeight: !pdfUrl ? '100%' : 'auto'
           }}
         >
-          {/* PDF Page Layer (Z-0) */}
-          {pdfUrl && containerSize.width > 0 && (
-            <div className="absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none">
-              <Document
-                file={pdfUrl}
-                options={pdfOptions}
-                onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-                onLoadError={(err) => {
-                  const isCors = err.message.includes("Failed to fetch") || err.name === "SecurityError";
-                  setError(`Failed to load PDF: ${err.message}${isCors ? ' (CORS issue — ensure backend allows this domain)' : ''}`);
-                }}
-                loading={<Loader2 className="animate-spin text-brand-purple" />}
-              >
-                <Page
-                  pageNumber={currentPage}
-                  renderTextLayer={false}
-                  renderAnnotationLayer={false}
-                  width={computedPdfWidth}
-                  onLoadSuccess={(page) => setPageSize({ width: page.originalWidth, height: page.originalHeight })}
-                />
-              </Document>
-            </div>
-          )}
-
-          {/* Whiteboard Overlay Layer (Z-10) */}
           <div
-            ref={containerRef}
-            className="netless-container absolute inset-0 z-10 touch-none"
-            style={{
-              pointerEvents: isTeacher ? 'all' : 'none',
-              cursor: isTeacher ? (currentTool === 'pencil' ? 'crosshair' : 'default') : 'default',
-              background: pdfUrl ? 'transparent' : 'white',
+            className="absolute left-0 top-0 origin-top-left"
+            style={pdfUrl ? {
+              width: fitPdfWidth,
+              height: fitPdfHeight,
+              transform: `scale(${zoom})`,
+            } : {
+              width: '100%',
+              height: '100%',
             }}
-          />
+          >
+            {/* PDF Page Layer (Z-0) */}
+            {pdfUrl && containerSize.width > 0 && (
+              <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <Document
+                  file={pdfUrl}
+                  options={pdfOptions}
+                  onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+                  onLoadError={(err) => {
+                    const isCors = err.message.includes("Failed to fetch") || err.name === "SecurityError";
+                    setError(`Failed to load PDF: ${err.message}${isCors ? ' (CORS issue — ensure backend allows this domain)' : ''}`);
+                  }}
+                  loading={<Loader2 className="animate-spin text-brand-purple" />}
+                >
+                  <Page
+                    pageNumber={currentPage}
+                    renderTextLayer={false}
+                    renderAnnotationLayer={false}
+                    width={fitPdfWidth}
+                    onLoadSuccess={(page) => setPageSize({ width: page.originalWidth, height: page.originalHeight })}
+                  />
+                </Document>
+              </div>
+            )}
+
+            {/* Whiteboard Overlay Layer (Z-10) */}
+            <div
+              ref={containerRef}
+              className="netless-container absolute inset-0 z-10 touch-none"
+              style={{
+                pointerEvents: isTeacher ? 'all' : 'none',
+                cursor: isTeacher ? (currentTool === 'pencil' ? 'crosshair' : 'default') : 'default',
+                background: pdfUrl ? 'transparent' : 'white',
+              }}
+            />
+          </div>
         </div>
       </div>
 

@@ -215,10 +215,9 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       }
       const client = clientRef.current;
       console.log("Agora: Client keys", Object.keys(client));
-      console.log("Agora: Client createDataStream type", typeof client.createDataStream);
 
       // Clear existing listeners to prevent duplicates
-      client.off('user-joined');
+      client.removeAllListeners('user-joined');
       client.on('user-joined', (user) => {
         console.log("Agora: User joined", user.uid);
         if (!remoteUsersRef.current.find(u => u.uid === user.uid)) {
@@ -227,7 +226,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
         }
       });
 
-      client.off('user-published');
+      client.removeAllListeners('user-published');
       client.on('user-published', async (user, mediaType) => {
         console.log("Agora: User published", user.uid, mediaType);
         await client.subscribe(user, mediaType);
@@ -242,13 +241,13 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
         }
       });
 
-      client.off('user-unpublished');
+      client.removeAllListeners('user-unpublished');
       client.on('user-unpublished', (user, mediaType) => {
         console.log("Agora: User unpublished", user.uid, mediaType);
         setRemoteUsers([...remoteUsersRef.current]);
       });
 
-      client.off('user-left');
+      client.removeAllListeners('user-left');
       client.on('user-left', (user) => {
         console.log("Agora: User left", user.uid);
         remoteUsersRef.current = remoteUsersRef.current.filter(u => u.uid !== user.uid);
@@ -334,9 +333,10 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       setIsRTMReady(true);
 
       // Listen for incoming sync messages
-      channel.on('ChannelMessage', ({ text }: { text: string }) => {
+      channel.on('ChannelMessage', (message) => {
         try {
-          const msg = JSON.parse(text);
+          if (message.messageType !== 'TEXT' || !message.text) return;
+          const msg = JSON.parse(message.text);
           if (msg.type === 'sync' && user.role !== 2) {
             if (msg.page !== undefined) setCurrentPage(msg.page);
             if (msg.zoom !== undefined) setZoom(msg.zoom);
