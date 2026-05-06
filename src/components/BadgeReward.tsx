@@ -41,7 +41,90 @@ export const BadgeReward: React.FC<BadgeRewardProps> = ({
   const lastBadgeIdRef = useRef<number | null>(null);
   const isPollingRef = useRef(false);
 
+  const playBadgeSound = (badgeType: string) => {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const t = ctx.currentTime;
+      const master = ctx.createGain();
+      master.gain.setValueAtTime(0.18, t);
+      master.connect(ctx.destination);
+
+      const playNote = (freq: number, start: number, dur: number, type: OscillatorType = 'sine', vol = 1) => {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, t + start);
+        g.gain.setValueAtTime(0, t + start);
+        g.gain.linearRampToValueAtTime(vol, t + start + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.001, t + start + dur);
+        osc.connect(g); g.connect(master);
+        osc.start(t + start); osc.stop(t + start + dur + 0.05);
+      };
+
+      switch (badgeType) {
+        case 'star':
+          // Sparkling ascending arpeggio C5-E5-G5-C6
+          [523.25, 659.25, 783.99, 1046.50].forEach((f, i) => playNote(f, i * 0.11, 0.45));
+          playNote(1318.5, 0.44, 0.6, 'triangle', 0.4);
+          break;
+        case 'fire':
+          // Energetic fast triplet + growl
+          [698.46, 880, 1046.50, 1318.5].forEach((f, i) => playNote(f, i * 0.08, 0.3, 'sawtooth', 0.6));
+          playNote(220, 0, 0.5, 'sawtooth', 0.3);
+          break;
+        case 'trophy':
+          // Fanfare: 3-note triumphant blast
+          [523.25, 523.25, 783.99, 1046.50].forEach((f, i) => playNote(f, i * 0.15, 0.55, 'square', 0.5));
+          playNote(1318.5, 0.55, 0.7, 'sine', 0.5);
+          break;
+        case 'heart':
+          // Gentle warm pulse: two soft chords
+          [392, 523.25, 659.25].forEach((f, i) => playNote(f, i * 0.05, 0.8, 'sine', 0.6));
+          [392, 523.25, 783.99].forEach((f, i) => playNote(f, 0.5 + i * 0.05, 0.9, 'sine', 0.5));
+          break;
+        case 'rocket':
+          // Whoosh + launch: rising frequency sweep
+          {
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(200, t);
+            osc.frequency.exponentialRampToValueAtTime(1600, t + 0.7);
+            g.gain.setValueAtTime(0.15, t);
+            g.gain.exponentialRampToValueAtTime(0.001, t + 0.75);
+            osc.connect(g); g.connect(master);
+            osc.start(t); osc.stop(t + 0.8);
+            [1046.50, 1318.5].forEach((f, i) => playNote(f, 0.72 + i * 0.13, 0.4));
+          }
+          break;
+        case 'crown':
+          // Royal: dotted rhythm with bell-like tone
+          [659.25, 783.99, 1046.50, 783.99, 1318.5].forEach((f, i) => playNote(f, i * 0.13, 0.5, 'triangle', 0.8));
+          break;
+        case 'diamond':
+          // Crystal: high bright plucks
+          [1046.50, 1318.5, 1567.98, 2093].forEach((f, i) => playNote(f, i * 0.1, 0.35, 'triangle', 0.7));
+          playNote(2093, 0.42, 0.8, 'sine', 0.3);
+          break;
+        case 'thumbs_up':
+          // Friendly two-tone ding-dong
+          playNote(783.99, 0, 0.5, 'sine', 1);
+          playNote(1046.50, 0.22, 0.6, 'sine', 0.9);
+          playNote(1318.5, 0.5, 0.5, 'sine', 0.5);
+          break;
+        default:
+          // Fallback: simple ascending arpeggio
+          [523.25, 659.25, 783.99, 1046.50].forEach((f, i) => playNote(f, i * 0.11, 0.45));
+      }
+
+      setTimeout(() => ctx.close(), 2500);
+    } catch (e) {
+      // Audio not supported — silent fail
+    }
+  };
+
   const triggerCelebration = (badge: Badge) => {
+    playBadgeSound(badge.badge_type);
     setCurrentCelebration(badge);
     setEarnedBadges(prev => [...prev, badge]);
     setTimeout(() => {
