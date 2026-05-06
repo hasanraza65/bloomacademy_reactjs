@@ -49,9 +49,9 @@ export const BadgeReward: React.FC<BadgeRewardProps> = ({
     }, 4000);
   };
 
-  // Student Polling
+  // Student Polling (only when RTM is not available)
   useEffect(() => {
-    if (isTeacher || !isInClass) return;
+    if (isTeacher || !isInClass || isRTMReady) return;
 
     const pollBadges = async () => {
       if (isPollingRef.current) return;
@@ -88,6 +88,9 @@ export const BadgeReward: React.FC<BadgeRewardProps> = ({
   useEffect(() => {
     if (isTeacher || !isRTMReady || !rtmChannelRef.current) return;
 
+    // Capture the channel instance so cleanup removes from the same object
+    const channel = rtmChannelRef.current;
+
     const handleMessage = (message: any) => {
       try {
         if (message.messageType !== 'TEXT' || !message.text) return;
@@ -103,11 +106,11 @@ export const BadgeReward: React.FC<BadgeRewardProps> = ({
       }
     };
 
-    rtmChannelRef.current.on('ChannelMessage', handleMessage);
+    channel.on('ChannelMessage', handleMessage);
     return () => {
-      rtmChannelRef.current?.off('ChannelMessage', handleMessage);
+      channel.off('ChannelMessage', handleMessage);
     };
-  }, [isTeacher, isRTMReady, rtmChannelRef.current]);
+  }, [isTeacher, isRTMReady]);
 
   const handleSendBadge = async (type: string, label: string) => {
     setShowPicker(false);
