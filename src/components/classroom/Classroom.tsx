@@ -286,22 +286,15 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       setIsInClass(true);
       setConnectionData(payload);
 
-      // Check for whiteboard data in response.
-      // Always prefer the saved roomUUID from localStorage — Netless annotations
-      // are keyed to that UUID. Use backend's fresh token for valid auth.
+      // Use backend-provided whiteboard credentials for this class session.
       if (payload.whiteboard_room_uuid && payload.whiteboard_room_token) {
-        const savedRaw = typeof window !== 'undefined' ? localStorage.getItem('whiteboard_data') : null;
-        if (savedRaw) {
-          try {
-            const saved = JSON.parse(savedRaw);
-            // Keep saved UUID (where annotations live), refresh token from backend
-            updateWhiteboardData({ roomUUID: saved.roomUUID, roomToken: payload.whiteboard_room_token });
-          } catch {
-            updateWhiteboardData({ roomUUID: payload.whiteboard_room_uuid, roomToken: payload.whiteboard_room_token });
-          }
-        } else {
-          updateWhiteboardData({ roomUUID: payload.whiteboard_room_uuid, roomToken: payload.whiteboard_room_token });
-        }
+        updateWhiteboardData({
+          roomUUID: payload.whiteboard_room_uuid,
+          roomToken: payload.whiteboard_room_token,
+        });
+      } else if (user.role === 2) {
+        // Teacher should not reuse stale local room credentials across classes.
+        updateWhiteboardData(null);
       }
     } catch (err: any) {
       console.error("Agora Init Error:", err);
@@ -488,25 +481,12 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
     }
   }, [classroomMode]);
 
-  // Teacher: Whiteboard Auto-Creation and Broadcasting
+  // Teacher: create a fresh whiteboard room when board is opened and none exists.
   useEffect(() => {
     let interval: any;
     
     const setupWhiteboard = async () => {
       if (!isInClass || user.role !== 2 || !showWhiteboardRef.current || whiteboardDataRef.current) return;
-
-      // Check localStorage first — if we already have a saved room, restore it
-      // without calling the API. This keeps Netless annotations intact.
-      const savedRaw = typeof window !== 'undefined' ? localStorage.getItem('whiteboard_data') : null;
-      if (savedRaw) {
-        try {
-          const saved = JSON.parse(savedRaw);
-          if (saved.roomUUID && saved.roomToken) {
-            updateWhiteboardData(saved);
-            return;
-          }
-        } catch {}
-      }
 
       // No saved room — request one from backend
       try {
@@ -530,7 +510,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
 
     return () => {
     };
-  }, [isInClass, user.role, activeMaterial, currentPage, showWhiteboard, whiteboardData]);
+  }, [isInClass, user.role, showWhiteboard]);
 
   const handleJoinClass = async () => {
     setIsLoading(true);

@@ -145,38 +145,46 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
 
   // Whiteboard scene:
   useEffect(() => {
-    if (!room || !isTeacher || pdfUrl || !isBound) return;
+    if (!room || pdfUrl || !isBound) return;
 
     const sceneDir = `/pair-${PAIR_ID}/whiteboard`;
     const scenePath = `${sceneDir}/main`;
 
-    // Only call putScenes the very first time in this room session.
-    // Re-calling putScenes on a return visit overwrites the existing scene
-    // and wipes all annotations — this is the same guard used for PDF scenes.
-    if (!initializedScenesRef.current.has(scenePath)) {
+    // Only teacher creates scenes. Students only navigate to existing scene.
+    if (isTeacher && !initializedScenesRef.current.has(scenePath)) {
       initializedScenesRef.current.add(scenePath);
       const scenes = room.entireScenes();
       if (!scenes[`${sceneDir}/`]) {
         room.putScenes(sceneDir, [{ name: 'main' }]);
       }
     }
-    room.setScenePath(scenePath);
 
-    room.setWritable(true).then(() => {
-      room.disableDeviceInputs = false;
-      (room as any).disableOperations = false;
-      room.setMemberState({
-        currentApplianceName: ApplianceNames.pencil,
-        strokeColor: [139, 92, 246],
-        strokeWidth: 4,
-      });
+    try {
+      room.setScenePath(scenePath);
+    } catch (_) {}
+
+    if (isTeacher) {
+      room.setWritable(true).then(() => {
+        room.disableDeviceInputs = false;
+        (room as any).disableOperations = false;
+        room.setMemberState({
+          currentApplianceName: ApplianceNames.pencil,
+          strokeColor: [139, 92, 246],
+          strokeWidth: 4,
+        });
+        (room as any).refreshViewSize?.();
+      }).catch(() => {});
+    } else {
+      room.setWritable(false).catch(() => {});
+      room.disableDeviceInputs = true;
+      (room as any).disableOperations = true;
       (room as any).refreshViewSize?.();
-    }).catch(() => {});
+    }
   }, [room, isTeacher, pdfUrl, isBound]);
 
   // PDF scene:
   useEffect(() => {
-    if (!room || !isTeacher || !pdfUrl || !pdfStableId || !isBound) return;
+    if (!room || !pdfUrl || !pdfStableId || !isBound) return;
 
     // Keep ref in sync so closures (clearAllAnnotationsForMaterial) always see current value.
     pdfStableIdRef.current = pdfStableId;
@@ -184,15 +192,11 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     const sceneDir = `/pair-${PAIR_ID}/pdf-${pdfStableId}`;
     const scenePath = `${sceneDir}/${currentPage}`;
 
-    // Try navigating to the scene first. If the scene already exists in Netless
-    // cloud (previous session), setScenePath will succeed and annotations are intact.
-    // Only call putScenes if the scene genuinely doesn't exist yet.
-    if (!initializedScenesRef.current.has(scenePath)) {
+    // Only teacher creates scenes. Students follow the same scene path/page.
+    if (isTeacher && !initializedScenesRef.current.has(scenePath)) {
       initializedScenesRef.current.add(scenePath);
       try {
         room.setScenePath(scenePath);
-        // Verify the navigation actually landed on our scene.
-        // If not, the scene doesn't exist yet — create it.
         const landed = (room as any).state?.sceneState?.scenePath;
         if (landed !== scenePath) {
           room.putScenes(sceneDir, [{ name: String(currentPage) }]);
@@ -203,22 +207,30 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
         room.setScenePath(scenePath);
       }
     } else {
-      room.setScenePath(scenePath);
+      try {
+        room.setScenePath(scenePath);
+      } catch (_) {}
     }
 
-    room.setWritable(true).then(() => {
-      // Small guard to ensure we are still on the same PDF
-      if (pdfUrlRef.current !== pdfUrl) return;
-      
-      room.disableDeviceInputs = false;
-      (room as any).disableOperations = false;
-      room.setMemberState({
-        currentApplianceName: ApplianceNames.pencil,
-        strokeColor: [139, 92, 246],
-        strokeWidth: 4,
-      });
+    if (isTeacher) {
+      room.setWritable(true).then(() => {
+        if (pdfUrlRef.current !== pdfUrl) return;
+        
+        room.disableDeviceInputs = false;
+        (room as any).disableOperations = false;
+        room.setMemberState({
+          currentApplianceName: ApplianceNames.pencil,
+          strokeColor: [139, 92, 246],
+          strokeWidth: 4,
+        });
+        (room as any).refreshViewSize?.();
+      }).catch(() => {});
+    } else {
+      room.setWritable(false).catch(() => {});
+      room.disableDeviceInputs = true;
+      (room as any).disableOperations = true;
       (room as any).refreshViewSize?.();
-    }).catch(() => {});
+    }
   }, [room, isTeacher, pdfUrl, pdfStableId, currentPage, isBound]);
 
   useEffect(() => {
