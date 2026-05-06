@@ -140,5 +140,47 @@ export const apiService = {
       },
     });
     return response.json();
+  },
+
+  async getAnnotations(pairId: number | string, materialId: number | string, pageNumber?: number): Promise<{ success: boolean; data?: any }> {
+    const token = localStorage.getItem('auth_token');
+    let url = `${BASE_URL}annotations?pair_id=${pairId}&material_id=${materialId}`;
+    if (pageNumber !== undefined) {
+      url += `&page_number=${pageNumber}`;
+    }
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+    });
+    return response.json();
+  },
+
+  async syncAnnotations(payload: any[]): Promise<{ success: boolean }> {
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(`${BASE_URL}annotations`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(payload),
+    });
+    return response.json();
+  },
+
+  async deleteAnnotations(pairId: number | string, materialId: number | string): Promise<{ success: boolean }> {
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(`${BASE_URL}annotations?pair_id=${pairId}&material_id=${materialId}`, {
+      method: 'DELETE',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+    });
+    return response.json();
   }
 };

@@ -333,24 +333,25 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       rtmChannelRef.current = channel;
       setIsRTMReady(true);
 
-      // Student only: listen for incoming sync messages
-      if (user.role !== 2) {
-        channel.on('ChannelMessage', ({ text }: { text: string }) => {
-          try {
-            const msg = JSON.parse(text);
-            if (msg.type === 'sync') {
-              if (msg.page !== undefined) setCurrentPage(msg.page);
-              if (msg.zoom !== undefined) setZoom(msg.zoom);
-              if (msg.scrollPosition !== undefined) setScrollPosition(msg.scrollPosition);
-              if (msg.mode !== undefined) setClassroomMode(msg.mode);
-              if (msg.material !== undefined) {
-                setActiveMaterial(msg.material);
-                if (msg.material) updateShowWhiteboard(true);
-              }
+      // Listen for incoming sync messages
+      channel.on('ChannelMessage', ({ text }: { text: string }) => {
+        try {
+          const msg = JSON.parse(text);
+          if (msg.type === 'sync' && user.role !== 2) {
+            if (msg.page !== undefined) setCurrentPage(msg.page);
+            if (msg.zoom !== undefined) setZoom(msg.zoom);
+            if (msg.scrollPosition !== undefined) setScrollPosition(msg.scrollPosition);
+            if (msg.mode !== undefined) setClassroomMode(msg.mode);
+            if (msg.material !== undefined) {
+              setActiveMaterial(msg.material);
+              if (msg.material) updateShowWhiteboard(true);
             }
-          } catch(e) {}
-        });
-      }
+          } else if (msg.type === 'class-ended') {
+            console.log("Agora: Class ended signal received");
+            handleLeave();
+          }
+        } catch(e) {}
+      });
     } catch (e) {
       console.warn("RTM Init failed", e);
     }
@@ -575,12 +576,22 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
   };
 
   const handleEndClass = async () => {
-    if (!connectionData) return;
     try {
-      await apiService.endClass(connectionData.classroom_id);
+      // Send signal to others
+      if (isRTMReady && rtmChannelRef.current) {
+        await rtmChannelRef.current.sendMessage({
+          text: JSON.stringify({ type: 'class-ended' })
+        }).catch(() => {});
+      }
+
+      if (connectionData) {
+        await apiService.endClass(connectionData.classroom_id);
+      }
       await handleLeave();
     } catch (err) {
       console.error(err);
+      // Fallback: leave anyway
+      await handleLeave();
     }
   };
 
@@ -822,7 +833,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
             </span>
           </div>
           
-          {user.role === 2 && (
+          {user.role === 2 ? (
             <>
               <button
                 onClick={() => setClassroomMode('whiteboard')}
@@ -857,7 +868,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                     : "bg-white/10 text-white hover:bg-white/20 border border-white/10"
                 )}
               >
-                <BookOpen size={14} />
+                < BookOpen size={14} />
                 Resources
               </button>
 
@@ -898,6 +909,13 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                 End Class
               </button>
             </>
+          ) : (
+            <button
+                onClick={handleEndClass}
+                className="px-6 py-2 bg-red-600/20 text-red-500 border border-red-500/30 font-black text-[10px] uppercase tracking-[0.2em] rounded-full hover:bg-red-600 hover:text-white transition-all shadow-lg active:scale-95"
+              >
+                End Class
+            </button>
           )}
 
         </div>
