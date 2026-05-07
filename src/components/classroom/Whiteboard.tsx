@@ -80,6 +80,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
       localStorage.setItem('whiteboard_tool', currentTool);
     }
   }, [currentTool, isTeacher]);
+
   const [numPages, setNumPages] = useState<number>(0);
 
   const prevPdfUrlRef = useRef<string | null>(null);
@@ -90,21 +91,129 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   // This prevents putScenes() from overwriting an existing annotated scene.
   const initializedScenesRef = useRef<Set<string>>(new Set());
 
+  // ─── localStorage persistence (ported from File 1) ───────────────────────
+  // Tracks which pages have already had their saved annotations restored.
+  // Prevents double-restoring on re-renders.
+  const restoredPagesRef = useRef<Set<string>>(new Set());
+
+  // Debounce timer for saving annotations
+  const saveTimeoutRef = useRef<any>(null);
+
+  // Reset restored-pages tracking whenever the PDF changes
+  useEffect(() => {
+    restoredPagesRef.current.clear();
+  }, [pdfUrl]);
+  // ─────────────────────────────────────────────────────────────────────────
+
   // Keep a ref to pdfStableId so closures always see the latest value.
   const pdfStableIdRef = useRef<string | null>(null);
 
-  // Removes all Netless scenes for this material's PDF (called on Close Book).
+  // Create a stable ID for the PDF based on its URL.
+  // Uses the same base-16 approach as File 1 so localStorage keys stay compatible.
+  const pdfStableId = React.useMemo(() => {
+    if (!pdfUrl) return null;
+    try {
+      let hash = 0;
+      for (let i = 0; i < pdfUrl.length; i++) {
+        const char = pdfUrl.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+      }
+      return Math.abs(hash).toString(16);
+    } catch (e) {
+      return null;
+    }
+  }, [pdfUrl]);
+
+  // Keep pdfStableIdRef in sync
+  useEffect(() => {
+    pdfStableIdRef.current = pdfStableId;
+  }, [pdfStableId]);
+
+  // ─── Save annotations to localStorage (debounced) ────────────────────────
+  useEffect(() => {
+    if (!room || !isTeacher) return;
+
+    const onRoomStateChanged = (modifyState: any) => {
+      if (modifyState.sceneState || modifyState.cameraState) {
+        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = setTimeout(() => {
+          try {
+            const scenePath = (room as any).sceneState?.scenePath;
+            const data = (room as any).exportScene?.(scenePath);
+            if (!data) return;
+
+            if (pdfUrl && pdfStableId) {
+              const key = `pdf_annotations__${pdfStableId}__page_${currentPage}`;
+              localStorage.setItem(key, JSON.stringify(data));
+            } else {
+              localStorage.setItem('whiteboard_annotations_global', JSON.stringify(data));
+            }
+          } catch (e) {
+            console.warn('[Whiteboard] Failed to save annotations:', e);
+          }
+        }, 1500);
+      }
+    };
+
+    room.callbacks.on('onRoomStateChanged', onRoomStateChanged);
+    return () => {
+      room.callbacks.off('onRoomStateChanged', onRoomStateChanged);
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, [room, isTeacher, pdfUrl, pdfStableId, currentPage]);
+
+  // ─── Auto-save when navigating away (page change / unmount) ──────────────
+  useEffect(() => {
+    return () => {
+      if (room && isTeacher) {
+        try {
+          const scenePath = (room as any).sceneState?.scenePath;
+          const data = (room as any).exportScene?.(scenePath);
+          if (data) {
+            if (pdfUrl && pdfStableId) {
+              const key = `pdf_annotations__${pdfStableId}__page_${currentPage}`;
+              localStorage.setItem(key, JSON.stringify(data));
+            } else {
+              localStorage.setItem('whiteboard_annotations_global', JSON.stringify(data));
+            }
+          }
+        } catch (_) {}
+      }
+    };
+  }, [currentPage, room, isTeacher, pdfStableId, pdfUrl]);
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // Removes all Netless scenes for this material's PDF AND clears localStorage (called on Close Book).
   const clearAllAnnotationsForMaterial = (_mId: number | string) => {
     const stableId = pdfStableIdRef.current;
-    if (!roomRef.current || !stableId) return;
-    const sceneDir = `/pair-${PAIR_ID}/pdf-${stableId}`;
-    try {
-      roomRef.current.removeScenes(sceneDir);
-    } catch (_) {}
-    // Allow scenes to be recreated fresh after clearing
-    initializedScenesRef.current.forEach(k => {
-      if (k.startsWith(sceneDir)) initializedScenesRef.current.delete(k);
-    });
+
+    // Clear Netless scenes
+    if (roomRef.current && stableId) {
+      const sceneDir = `/pair-${PAIR_ID}/pdf-${stableId}`;
+      try {
+        roomRef.current.removeScenes(sceneDir);
+      } catch (_) {}
+      // Allow scenes to be recreated fresh after clearing
+      initializedScenesRef.current.forEach(k => {
+        if (k.startsWith(sceneDir)) initializedScenesRef.current.delete(k);
+      });
+    }
+
+    // Clear localStorage entries for this PDF
+    if (stableId) {
+      try {
+        const prefix = `pdf_annotations__${stableId}`;
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith(prefix)) localStorage.removeItem(key);
+        });
+      } catch (e) {
+        console.warn('[Whiteboard] Failed to clear localStorage annotations:', e);
+      }
+    }
+
+    // Reset restored-pages tracking so they can be re-loaded if a new PDF is opened
+    restoredPagesRef.current.clear();
   };
 
   // Clears only the current page's strokes (Trash2 button).
@@ -112,20 +221,17 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     if (!roomRef.current) return;
     try {
       roomRef.current.cleanCurrentScene();
+      // Also remove saved annotation for this page from localStorage
+      if (isTeacher) {
+        if (pdfUrl && pdfStableId) {
+          const key = `pdf_annotations__${pdfStableId}__page_${currentPage}`;
+          localStorage.removeItem(key);
+        } else {
+          localStorage.removeItem('whiteboard_annotations_global');
+        }
+      }
     } catch (_) {}
   };
-  
-  // Create a stable ID for the PDF based on its URL
-  const pdfStableId = React.useMemo(() => {
-    if (!pdfUrl) return null;
-    let hash = 0;
-    for (let i = 0; i < pdfUrl.length; i++) {
-      const char = pdfUrl.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
-    }
-    return Math.abs(hash).toString(36).slice(0, 8);
-  }, [pdfUrl]);
 
   // Register the clear function with the parent as soon as it's available
   useEffect(() => {
@@ -143,7 +249,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     }
   }, [pdfUrl]);
 
-  // Whiteboard scene:
+  // ─── Whiteboard scene (no PDF active) ────────────────────────────────────
   useEffect(() => {
     if (!room || pdfUrl || !isBound) return;
 
@@ -164,6 +270,25 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     } catch (_) {}
 
     if (isTeacher) {
+      // Restore global whiteboard annotations from localStorage
+      const wbKey = 'whiteboard_global_restored';
+      if (!restoredPagesRef.current.has(wbKey)) {
+        restoredPagesRef.current.add(wbKey);
+        try {
+          const saved = localStorage.getItem('whiteboard_annotations_global');
+          if (saved) {
+            const data = JSON.parse(saved);
+            if (data && data.name) {
+              data.name = 'main';
+              room.removeScenes(scenePath);
+              room.putScenes(sceneDir, [data], 0);
+            }
+          }
+        } catch (e) {
+          console.warn('[Whiteboard] Failed to restore global whiteboard annotations:', e);
+        }
+      }
+
       room.setWritable(true).then(() => {
         room.disableDeviceInputs = false;
         (room as any).disableOperations = false;
@@ -182,12 +307,9 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     }
   }, [room, isTeacher, pdfUrl, isBound]);
 
-  // PDF scene:
+  // ─── PDF scene (PDF is active) ────────────────────────────────────────────
   useEffect(() => {
     if (!room || !pdfUrl || !pdfStableId || !isBound) return;
-
-    // Keep ref in sync so closures (clearAllAnnotationsForMaterial) always see current value.
-    pdfStableIdRef.current = pdfStableId;
 
     const sceneDir = `/pair-${PAIR_ID}/pdf-${pdfStableId}`;
     const scenePath = `${sceneDir}/${currentPage}`;
@@ -206,6 +328,27 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
         room.putScenes(sceneDir, [{ name: String(currentPage) }]);
         room.setScenePath(scenePath);
       }
+
+      // ── Restore saved annotations for this page from localStorage ──────
+      const pageKey = `pdf_restored__${pdfStableId}__${currentPage}`;
+      if (!restoredPagesRef.current.has(pageKey)) {
+        restoredPagesRef.current.add(pageKey);
+        try {
+          const storageKey = `pdf_annotations__${pdfStableId}__page_${currentPage}`;
+          const saved = localStorage.getItem(storageKey);
+          if (saved) {
+            const data = JSON.parse(saved);
+            if (data && data.name) {
+              data.name = String(currentPage);
+              room.removeScenes(scenePath);
+              room.putScenes(sceneDir, [data], currentPage - 1);
+            }
+          }
+        } catch (e) {
+          console.warn('[Whiteboard] Failed to restore PDF page annotations:', e);
+        }
+      }
+      // ──────────────────────────────────────────────────────────────────
     } else {
       try {
         room.setScenePath(scenePath);
@@ -215,7 +358,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     if (isTeacher) {
       room.setWritable(true).then(() => {
         if (pdfUrlRef.current !== pdfUrl) return;
-        
+
         room.disableDeviceInputs = false;
         (room as any).disableOperations = false;
         room.setMemberState({
@@ -262,15 +405,10 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     if (!roomRef.current) return;
 
     const raf1 = requestAnimationFrame(() => {
-      try {
-        (roomRef.current as any)?.refreshViewSize?.();
-      } catch (_) {}
+      try { (roomRef.current as any)?.refreshViewSize?.(); } catch (_) {}
     });
-
     const raf2 = requestAnimationFrame(() => {
-      try {
-        (roomRef.current as any)?.refreshViewSize?.();
-      } catch (_) {}
+      try { (roomRef.current as any)?.refreshViewSize?.(); } catch (_) {}
     });
 
     return () => {
@@ -287,7 +425,6 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
       const target = pdfContainerRef.current;
       const maxScrollX = target.scrollWidth - target.clientWidth;
       const maxScrollY = target.scrollHeight - target.clientHeight;
-      
       target.scrollLeft = scrollPosition.x * maxScrollX;
       target.scrollTop = scrollPosition.y * maxScrollY;
     }
@@ -299,10 +436,9 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
       const target = e.currentTarget;
       const maxScrollX = target.scrollWidth - target.clientWidth;
       const maxScrollY = target.scrollHeight - target.clientHeight;
-      
-      onScrollChange?.({ 
-        x: maxScrollX > 0 ? target.scrollLeft / maxScrollX : 0, 
-        y: maxScrollY > 0 ? target.scrollTop / maxScrollY : 0 
+      onScrollChange?.({
+        x: maxScrollX > 0 ? target.scrollLeft / maxScrollX : 0,
+        y: maxScrollY > 0 ? target.scrollTop / maxScrollY : 0,
       });
     }
   };
@@ -310,14 +446,13 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   useEffect(() => {
     if (!roomUUID || !roomToken) return;
     let isCancelled = false;
-    const sdk = new WhiteWebSdk({ 
-      appIdentifier: appId, 
-      deviceType: DeviceType.Surface, 
+    const sdk = new WhiteWebSdk({
+      appIdentifier: appId,
+      deviceType: DeviceType.Surface,
       region: 'us-sv',
       // @ts-ignore
       logger: { report: false, level: 'error' }
     });
-
 
     const joinRoom = async () => {
       try {
@@ -392,36 +527,26 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
           (room as any).disableOperations = true;
           room.setViewMode(ViewMode.Follower);
         }
-      } catch (e) {  }
+      } catch (e) { }
     }, 500);
 
     return () => { clearTimeout(timer); room.bindHtmlElement(null); setIsBound(false); };
   }, [room, isTeacher]);
 
   // When a PDF is active, keep the whiteboard camera locked at scale:1.
-  // We do NOT block events or set disableCameraTransform (both break drawing).
-  // Instead we snap the camera back to neutral immediately after any change.
   useEffect(() => {
     if (!room || !pdfUrl) return;
 
     const snap = () => {
       try {
-        (room as any).moveCamera?.({
-          scale: 1,
-          centerX: 0,
-          centerY: 0,
-          animationMode: 'immediately',
-        });
+        (room as any).moveCamera?.({ scale: 1, centerX: 0, centerY: 0, animationMode: 'immediately' });
       } catch (_) {}
     };
 
-    snap(); // lock immediately on PDF activation
+    snap();
 
     const onStateChanged = (modifyState: any) => {
       if (modifyState?.cameraState) {
-        // Only snap if camera has actually drifted from the locked position.
-        // Snapping on every state change (e.g. during drawing strokes) causes
-        // the canvas to flicker and annotations become invisible mid-draw.
         const cam = (room as any).state?.cameraState;
         const hasDrifted =
           cam &&
@@ -433,191 +558,121 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     };
 
     try { (room as any).callbacks?.on('onRoomStateChanged', onStateChanged); } catch (_) {}
-
     return () => {
       try { (room as any).callbacks?.off('onRoomStateChanged', onStateChanged); } catch (_) {}
     };
   }, [room, pdfUrl]);
 
-// Add a ref to track the last tool we explicitly set
-const lastToolRef = useRef<string | null>(null);
-const isApplyingToolRef = useRef(false);
+  // ─── Tool management ──────────────────────────────────────────────────────
+  const lastToolRef = useRef<string | null>(null);
+  const isApplyingToolRef = useRef(false);
 
-const getScaledStrokeWidth = (baseWidth: number) => {
-  // Now that zoom is applied via real element dimensions (not CSS transform),
-  // the SDK coordinate space already matches the visual space — no scaling needed.
-  return baseWidth;
-};
+  const getScaledStrokeWidth = (baseWidth: number) => baseWidth;
 
-const applyTool = (tool: string) => {
-  if (!room || isApplyingToolRef.current) return;
-  
-  // 
+  const applyTool = (tool: string) => {
+    if (!room || isApplyingToolRef.current) return;
 
-  
-  // Prevent recursive calls
-  isApplyingToolRef.current = true;
-  
-  // Update ref and state
-  lastToolRef.current = tool;
-  setCurrentTool(tool);
-  
-  // Ensure teacher has write permissions
-  if (isTeacher) {
-    room.setWritable(true).catch(err => {});
-    room.disableDeviceInputs = false;
-    (room as any).disableOperations = false;
-  }
-  
-  // Small delay to ensure previous operations complete
-  setTimeout(() => {
-    if (!room) return;
-    
-    // Apply the tool based on selection
-    console.log('[Whiteboard] Applying tool:', tool);
-    switch(tool) {
-      case 'selector':
-        // 
+    isApplyingToolRef.current = true;
+    lastToolRef.current = tool;
+    setCurrentTool(tool);
 
-        room.setMemberState({ currentApplianceName: ApplianceNames.selector });
-        break;
-      case 'pencil':
-        // 
-
-        room.setMemberState({ 
-          currentApplianceName: ApplianceNames.pencil, 
-          strokeColor: [139, 92, 246], 
-          strokeWidth: getScaledStrokeWidth(4)
-        });
-        break;
-      case 'highlighter':
-        // 
-
-        room.setMemberState({ 
-          currentApplianceName: ApplianceNames.pencil, 
-          strokeColor: [251, 191, 36], 
-          strokeWidth: getScaledStrokeWidth(20)
-        });
-        break;
-      case 'laser':
-        // 
-
-        room.setMemberState({ currentApplianceName: ApplianceNames.laserPointer });
-        break;
-      case 'eraser':
-        // 
-
-        room.setMemberState({ currentApplianceName: ApplianceNames.eraser });
-        break;
-      case 'rectangle':
-        // 
-
-        room.setMemberState({ currentApplianceName: ApplianceNames.rectangle });
-        break;
-      case 'ellipse':
-        // 
-
-        room.setMemberState({ currentApplianceName: ApplianceNames.ellipse });
-        break;
-      case 'text':
-        // 
-
-        room.setMemberState({ currentApplianceName: ApplianceNames.text });
-        break;
-      default:
-        // 
-
-        room.setMemberState({ currentApplianceName: ApplianceNames.pencil });
-    }
-    
-    // Explicitly ensure inputs are enabled if teacher
     if (isTeacher) {
+      room.setWritable(true).catch(() => {});
       room.disableDeviceInputs = false;
       (room as any).disableOperations = false;
     }
 
-    // Reset flag after setting tool
     setTimeout(() => {
-      isApplyingToolRef.current = false;
-    }, 100);
-  }, 50);
-};
+      if (!room) return;
 
-// Sync UI with whiteboard's actual tool state - IMPORTANT: This prevents SDK from overriding our selection
-useEffect(() => {
-  if (!room) return;
-  
-  const handleMemberStateChange = (memberState: any) => {
-    if (memberState && memberState.currentApplianceName) {
-      const applianceName = memberState.currentApplianceName;
-      // 
-
-      
-      // If we're in the middle of applying a tool, ignore the SDK's update
-      if (isApplyingToolRef.current) {
-        // 
-
-        return;
+      switch (tool) {
+        case 'selector':
+          room.setMemberState({ currentApplianceName: ApplianceNames.selector });
+          break;
+        case 'pencil':
+          room.setMemberState({ currentApplianceName: ApplianceNames.pencil, strokeColor: [139, 92, 246], strokeWidth: getScaledStrokeWidth(4) });
+          break;
+        case 'highlighter':
+          room.setMemberState({ currentApplianceName: ApplianceNames.pencil, strokeColor: [251, 191, 36], strokeWidth: getScaledStrokeWidth(20) });
+          break;
+        case 'laser':
+          room.setMemberState({ currentApplianceName: ApplianceNames.laserPointer });
+          break;
+        case 'eraser':
+          room.setMemberState({ currentApplianceName: ApplianceNames.eraser });
+          break;
+        case 'rectangle':
+          room.setMemberState({ currentApplianceName: ApplianceNames.rectangle });
+          break;
+        case 'ellipse':
+          room.setMemberState({ currentApplianceName: ApplianceNames.ellipse });
+          break;
+        case 'text':
+          room.setMemberState({ currentApplianceName: ApplianceNames.text });
+          break;
+        default:
+          room.setMemberState({ currentApplianceName: ApplianceNames.pencil });
       }
-      
-      // Map whiteboard appliance names to your tool IDs
-      let mappedTool: string | null = null;
-      
-      if (applianceName === 'selector') mappedTool = 'selector';
-      else if (applianceName === 'pencil') mappedTool = 'pencil';
-      else if (applianceName === 'eraser') mappedTool = 'eraser';
-      else if (applianceName === 'rectangle') mappedTool = 'rectangle';
-      else if (applianceName === 'ellipse') mappedTool = 'ellipse';
-      else if (applianceName === 'text') mappedTool = 'text';
-      else if (applianceName === 'laserPointer') mappedTool = 'laser';
-      
-      // Only update if it's different AND it's not our own update
-      if (mappedTool && mappedTool !== currentTool && !isApplyingToolRef.current) {
-        // 
 
-        setCurrentTool(mappedTool);
-        lastToolRef.current = mappedTool;
+      if (isTeacher) {
+        room.disableDeviceInputs = false;
+        (room as any).disableOperations = false;
       }
+
+      setTimeout(() => { isApplyingToolRef.current = false; }, 100);
+    }, 50);
+  };
+
+  // Sync UI with whiteboard's actual tool state
+  useEffect(() => {
+    if (!room) return;
+
+    const handleMemberStateChange = (memberState: any) => {
+      if (memberState && memberState.currentApplianceName) {
+        if (isApplyingToolRef.current) return;
+
+        const applianceName = memberState.currentApplianceName;
+        let mappedTool: string | null = null;
+
+        if (applianceName === 'selector') mappedTool = 'selector';
+        else if (applianceName === 'pencil') mappedTool = 'pencil';
+        else if (applianceName === 'eraser') mappedTool = 'eraser';
+        else if (applianceName === 'rectangle') mappedTool = 'rectangle';
+        else if (applianceName === 'ellipse') mappedTool = 'ellipse';
+        else if (applianceName === 'text') mappedTool = 'text';
+        else if (applianceName === 'laserPointer') mappedTool = 'laser';
+
+        if (mappedTool && mappedTool !== currentTool && !isApplyingToolRef.current) {
+          setCurrentTool(mappedTool);
+          lastToolRef.current = mappedTool;
+        }
+      }
+    };
+
+    room.addMagixEventListener('onMemberStateChanged', handleMemberStateChange);
+    return () => { room.removeMagixEventListener('onMemberStateChanged'); };
+  }, [room, currentTool]);
+
+  // Force sync the tool when room connects or mode changes
+  useEffect(() => {
+    if (room && isTeacher && currentTool) {
+      const timer = setTimeout(() => {
+        if (room && !isApplyingToolRef.current) applyTool(currentTool);
+      }, 500);
+      return () => clearTimeout(timer);
     }
-  };
-  
-  // Listen to member state changes
-  room.addMagixEventListener('onMemberStateChanged', handleMemberStateChange);
-  
-  return () => {
-    room.removeMagixEventListener('onMemberStateChanged');
-  };
-}, [room, currentTool]);
+  }, [room, isTeacher, currentTool]);
 
-// Also add this to force sync the tool when room connects or mode changes
-useEffect(() => {
-  if (room && isTeacher && currentTool) {
-    // Small delay to ensure room is ready
-    const timer = setTimeout(() => {
-      if (room && !isApplyingToolRef.current) {
-        // 
-
-        applyTool(currentTool);
-      }
-    }, 500);
-    
-    return () => clearTimeout(timer);
-  }
-}, [room, isTeacher, currentTool]);
-
-// Keep drawing thickness visually consistent while PDF zoom changes.
-// NOTE: Only re-apply when zoom actually changes, NOT when currentTool changes
-// (tool changes are handled directly by applyTool). Including currentTool here
-// caused applyTool → setCurrentTool → effect loop that interrupted strokes.
-useEffect(() => {
-  if (!room || !isTeacher || !pdfUrl) return;
-  if (currentTool !== 'pencil' && currentTool !== 'highlighter') return;
-  if (isApplyingToolRef.current) return;
-
-  applyTool(currentTool);
+  // Keep drawing thickness visually consistent while PDF zoom changes.
+  useEffect(() => {
+    if (!room || !isTeacher || !pdfUrl) return;
+    if (currentTool !== 'pencil' && currentTool !== 'highlighter') return;
+    if (isApplyingToolRef.current) return;
+    applyTool(currentTool);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [zoom, room, isTeacher, pdfUrl]);
+  }, [zoom, room, isTeacher, pdfUrl]);
 
+  // ─── PDF rendering helpers ────────────────────────────────────────────────
   const pdfOptions = React.useMemo(() => ({
     cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
     cMapPacked: true,
@@ -644,18 +699,19 @@ useEffect(() => {
 
   // Tool definitions — order here is the ONLY thing that controls render order
   const tools = [
-    { id: 'selector',    icon: <MousePointer2 size={20} />,   title: 'Select' },
-    { id: 'pencil',      icon: <Pencil size={20} />,          title: 'Pencil' },
-    { id: 'highlighter', icon: <Highlighter size={20} />,     title: 'Highlight' },
+    { id: 'selector',    icon: <MousePointer2 size={20} />,    title: 'Select' },
+    { id: 'pencil',      icon: <Pencil size={20} />,           title: 'Pencil' },
+    { id: 'highlighter', icon: <Highlighter size={20} />,      title: 'Highlight' },
     { id: 'laser',       icon: <MousePointerClick size={20} />, title: 'Laser Pointer' },
-    { id: 'eraser',      icon: <Eraser size={20} />,          title: 'Eraser' },
-    { id: 'rectangle',   icon: <Square size={20} />,          title: 'Rectangle' },
-    { id: 'ellipse',     icon: <Circle size={20} />,          title: 'Ellipse' },
-    { id: 'text',        icon: <Type size={20} />,            title: 'Text' },
+    { id: 'eraser',      icon: <Eraser size={20} />,           title: 'Eraser' },
+    { id: 'rectangle',   icon: <Square size={20} />,           title: 'Rectangle' },
+    { id: 'ellipse',     icon: <Circle size={20} />,           title: 'Ellipse' },
+    { id: 'text',        icon: <Type size={20} />,             title: 'Text' },
   ];
 
   const showTools = currentMode === 'whiteboard' || currentMode === 'pdf';
 
+  // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="relative w-full h-full bg-slate-100 rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
 
@@ -672,19 +728,18 @@ useEffect(() => {
         </div>
       )}
 
-      {/* 
-        The main content area — Handles scrolling and containment of PDF/Whiteboard.
-        Placing Whiteboard INSIDE the content div ensures it doesn't block parent scrollbars.
+      {/*
+        The main content area — handles scrolling and containment of PDF/Whiteboard.
       */}
       <div
         ref={pdfContainerRef}
         onScroll={handleScroll}
         className="absolute inset-0 bg-slate-200 z-0 overflow-auto flex items-start p-12"
       >
-        <div 
+        <div
           className="relative flex-shrink-0 bg-white shadow-2xl mx-auto"
-          style={{ 
-            width: pdfUrl ? scaledPdfWidth : '100%', 
+          style={{
+            width: pdfUrl ? scaledPdfWidth : '100%',
             height: pdfUrl ? scaledPdfHeight : '100%',
             minHeight: !pdfUrl ? '100%' : 'auto'
           }}
@@ -740,7 +795,7 @@ useEffect(() => {
       {/* Zoom controls for PDF */}
       {pdfUrl && isTeacher && (
         <div className="absolute right-8 top-1/2 -translate-y-1/2 flex flex-col gap-2 p-2 bg-slate-900/80 backdrop-blur-md rounded-2xl border border-white/10 z-30 shadow-2xl">
-          <button 
+          <button
             onClick={() => onZoomChange?.(Math.min(zoom + 0.25, 3))}
             className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all"
             title="Zoom In"
@@ -750,7 +805,7 @@ useEffect(() => {
           <div className="px-2 py-1 flex items-center justify-center">
             <span className="text-[10px] font-black text-white/50 uppercase tracking-widest">{Math.round(zoom * 100)}%</span>
           </div>
-          <button 
+          <button
             onClick={() => onZoomChange?.(Math.max(zoom - 0.25, 0.5))}
             className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all"
             title="Zoom Out"
@@ -803,7 +858,7 @@ useEffect(() => {
 
           <div className="h-px bg-white/10 my-1" />
 
-          {/* Drawing tools — rendered from array, never conditionally inside JSX */}
+          {/* Drawing tools */}
           {tools.map((tool) => (
             <button
               key={tool.id}
