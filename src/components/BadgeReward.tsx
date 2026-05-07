@@ -246,8 +246,7 @@ export const BadgeReward: React.FC<BadgeRewardProps> = ({
 
   return (
     <>
-      {/* Earned Badges Strip (Bottom Left) - Commented out as requested */}
-      {/* 
+      {/* Earned Badges Strip (Bottom Left) */}
       <div className="fixed bottom-24 left-6 z-[160] flex flex-col gap-2">
         {earnedBadges.length > 0 && (
           <>
@@ -276,7 +275,6 @@ export const BadgeReward: React.FC<BadgeRewardProps> = ({
           </>
         )}
       </div>
-      */}
 
       {/* Teacher Action Button - Moved to VideoTile */}
       {isTeacher && (
