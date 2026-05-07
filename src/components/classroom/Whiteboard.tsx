@@ -277,7 +277,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
       cancelAnimationFrame(raf1);
       cancelAnimationFrame(raf2);
     };
-  }, [currentPage, pdfUrl]);
+  }, [currentPage, pdfUrl, zoom]);
 
   useEffect(() => { setPageSize(null); }, [pdfUrl, currentPage]);
 
@@ -328,7 +328,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
           uid,
           region: 'us-sv',
           cursorAdapter: undefined,
-          disableNewPencil: true,
+          disableNewPencil: false,
           isWritable: isTeacher,
           disableDeviceInputs: !isTeacher,
           userPayload: { cursorName: userName },
@@ -418,7 +418,18 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     snap(); // lock immediately on PDF activation
 
     const onStateChanged = (modifyState: any) => {
-      if (modifyState?.cameraState) snap();
+      if (modifyState?.cameraState) {
+        // Only snap if camera has actually drifted from the locked position.
+        // Snapping on every state change (e.g. during drawing strokes) causes
+        // the canvas to flicker and annotations become invisible mid-draw.
+        const cam = (room as any).state?.cameraState;
+        const hasDrifted =
+          cam &&
+          (Math.abs((cam.scale ?? 1) - 1) > 0.02 ||
+            Math.abs(cam.centerX ?? 0) > 2 ||
+            Math.abs(cam.centerY ?? 0) > 2);
+        if (hasDrifted) snap();
+      }
     };
 
     try { (room as any).callbacks?.on('onRoomStateChanged', onStateChanged); } catch (_) {}
@@ -433,8 +444,9 @@ const lastToolRef = useRef<string | null>(null);
 const isApplyingToolRef = useRef(false);
 
 const getScaledStrokeWidth = (baseWidth: number) => {
-  if (!pdfUrl || zoom <= 0) return baseWidth;
-  return Math.max(1, Number((baseWidth / zoom).toFixed(2)));
+  // Now that zoom is applied via real element dimensions (not CSS transform),
+  // the SDK coordinate space already matches the visual space — no scaling needed.
+  return baseWidth;
 };
 
 const applyTool = (tool: string) => {
@@ -594,13 +606,17 @@ useEffect(() => {
 }, [room, isTeacher, currentTool]);
 
 // Keep drawing thickness visually consistent while PDF zoom changes.
+// NOTE: Only re-apply when zoom actually changes, NOT when currentTool changes
+// (tool changes are handled directly by applyTool). Including currentTool here
+// caused applyTool → setCurrentTool → effect loop that interrupted strokes.
 useEffect(() => {
   if (!room || !isTeacher || !pdfUrl) return;
   if (currentTool !== 'pencil' && currentTool !== 'highlighter') return;
   if (isApplyingToolRef.current) return;
 
   applyTool(currentTool);
-}, [zoom, room, isTeacher, pdfUrl, currentTool]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [zoom, room, isTeacher, pdfUrl]);
 
   const pdfOptions = React.useMemo(() => ({
     cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
@@ -674,11 +690,10 @@ useEffect(() => {
           }}
         >
           <div
-            className="absolute left-0 top-0 origin-top-left"
+            className="absolute left-0 top-0"
             style={pdfUrl ? {
-              width: fitPdfWidth,
-              height: fitPdfHeight,
-              transform: `scale(${zoom})`,
+              width: fitPdfWidth * zoom,
+              height: fitPdfHeight * zoom,
             } : {
               width: '100%',
               height: '100%',
@@ -701,7 +716,7 @@ useEffect(() => {
                     pageNumber={currentPage}
                     renderTextLayer={false}
                     renderAnnotationLayer={false}
-                    width={fitPdfWidth}
+                    width={fitPdfWidth * zoom}
                     onLoadSuccess={(page) => setPageSize({ width: page.originalWidth, height: page.originalHeight })}
                   />
                 </Document>
