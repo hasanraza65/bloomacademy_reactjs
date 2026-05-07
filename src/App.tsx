@@ -67,7 +67,8 @@ export default function App() {
         setRole(parsedUser.role);
         setIsLoggedIn(true);
       } catch (e) {
-        console.error("Failed to parse saved user", e);
+        // 
+
       }
     }
     setIsInitialized(true);

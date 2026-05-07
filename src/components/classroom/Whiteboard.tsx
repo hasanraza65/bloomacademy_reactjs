@@ -310,7 +310,14 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   useEffect(() => {
     if (!roomUUID || !roomToken) return;
     let isCancelled = false;
-    const sdk = new WhiteWebSdk({ appIdentifier: appId, deviceType: DeviceType.Surface, region: 'us-sv' });
+    const sdk = new WhiteWebSdk({ 
+      appIdentifier: appId, 
+      deviceType: DeviceType.Surface, 
+      region: 'us-sv',
+      // @ts-ignore
+      logger: { report: false, level: 'error' }
+    });
+
 
     const joinRoom = async () => {
       try {
@@ -383,7 +390,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
           (room as any).disableOperations = true;
           room.setViewMode(ViewMode.Follower);
         }
-      } catch (e) { console.error("Whiteboard binding error:", e); }
+      } catch (e) {  }
     }, 500);
 
     return () => { clearTimeout(timer); room.bindHtmlElement(null); setIsBound(false); };
@@ -431,7 +438,8 @@ const getScaledStrokeWidth = (baseWidth: number) => {
 const applyTool = (tool: string) => {
   if (!room || isApplyingToolRef.current) return;
   
-  console.log(`Applying tool: ${tool}`);
+  // 
+
   
   // Prevent recursive calls
   isApplyingToolRef.current = true;
@@ -442,7 +450,7 @@ const applyTool = (tool: string) => {
   
   // Ensure teacher has write permissions
   if (isTeacher) {
-    room.setWritable(true).catch(err => console.error("Failed to set writable:", err));
+    room.setWritable(true).catch(err => {});
     room.disableDeviceInputs = false;
     (room as any).disableOperations = false;
   }
@@ -454,11 +462,13 @@ const applyTool = (tool: string) => {
     // Apply the tool based on selection
     switch(tool) {
       case 'selector':
-        console.log("Setting selector tool");
+        // 
+
         room.setMemberState({ currentApplianceName: ApplianceNames.selector });
         break;
       case 'pencil':
-        console.log("Setting pencil tool");
+        // 
+
         room.setMemberState({ 
           currentApplianceName: ApplianceNames.pencil, 
           strokeColor: [139, 92, 246], 
@@ -466,7 +476,8 @@ const applyTool = (tool: string) => {
         });
         break;
       case 'highlighter':
-        console.log("Setting highlighter tool");
+        // 
+
         room.setMemberState({ 
           currentApplianceName: ApplianceNames.pencil, 
           strokeColor: [251, 191, 36], 
@@ -474,27 +485,33 @@ const applyTool = (tool: string) => {
         });
         break;
       case 'laser':
-        console.log("Setting laser pointer");
+        // 
+
         room.setMemberState({ currentApplianceName: ApplianceNames.laserPointer });
         break;
       case 'eraser':
-        console.log("Setting eraser tool");
+        // 
+
         room.setMemberState({ currentApplianceName: ApplianceNames.eraser });
         break;
       case 'rectangle':
-        console.log("Setting rectangle tool");
+        // 
+
         room.setMemberState({ currentApplianceName: ApplianceNames.rectangle });
         break;
       case 'ellipse':
-        console.log("Setting ellipse tool");
+        // 
+
         room.setMemberState({ currentApplianceName: ApplianceNames.ellipse });
         break;
       case 'text':
-        console.log("Setting text tool");
+        // 
+
         room.setMemberState({ currentApplianceName: ApplianceNames.text });
         break;
       default:
-        console.log("Defaulting to pencil");
+        // 
+
         room.setMemberState({ currentApplianceName: ApplianceNames.pencil });
     }
     
@@ -512,11 +529,13 @@ useEffect(() => {
   const handleMemberStateChange = (memberState: any) => {
     if (memberState && memberState.currentApplianceName) {
       const applianceName = memberState.currentApplianceName;
-      console.log("Whiteboard reported tool change to:", applianceName, "Last tool we set:", lastToolRef.current);
+      // 
+
       
       // If we're in the middle of applying a tool, ignore the SDK's update
       if (isApplyingToolRef.current) {
-        console.log("Ignoring SDK tool change because we're applying our own");
+        // 
+
         return;
       }
       
@@ -533,7 +552,8 @@ useEffect(() => {
       
       // Only update if it's different AND it's not our own update
       if (mappedTool && mappedTool !== currentTool && !isApplyingToolRef.current) {
-        console.log(`Syncing UI from ${currentTool} to ${mappedTool}`);
+        // 
+
         setCurrentTool(mappedTool);
         lastToolRef.current = mappedTool;
       }
@@ -554,7 +574,8 @@ useEffect(() => {
     // Small delay to ensure room is ready
     const timer = setTimeout(() => {
       if (room && !isApplyingToolRef.current) {
-        console.log("Force syncing tool on room ready:", currentTool);
+        // 
+
         applyTool(currentTool);
       }
     }, 500);

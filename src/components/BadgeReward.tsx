@@ -160,7 +160,8 @@ export const BadgeReward: React.FC<BadgeRewardProps> = ({
           }
         }
       } catch (err) {
-        console.warn('Badge polling failed:', err);
+        // 
+
       } finally {
         isPollingRef.current = false;
       }
@@ -188,7 +189,8 @@ export const BadgeReward: React.FC<BadgeRewardProps> = ({
           });
         }
       } catch (e) {
-        console.warn('Failed to parse badge RTM message', e);
+        // 
+
       }
     };
 
@@ -224,14 +226,15 @@ export const BadgeReward: React.FC<BadgeRewardProps> = ({
               badge_type: type,
               badge_label: label
             })
-          }).catch((e: any) => console.warn('RTM badge send failed', e));
+          }).catch((e: any) => {});
         }
 
         // Trigger local celebration for teacher
         triggerCelebration({ badge_type: type, badge_label: label });
       }
     } catch (err) {
-      console.error('Failed to send badge:', err);
+      // 
+
     }
   };
 

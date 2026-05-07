@@ -20,7 +20,8 @@ export const useWhiteboardStatus = (isTeacher: boolean, pollInterval = 4000) => 
         const res = await axios.get('/api/classroom/whiteboard-status');
         setWhiteboardStatus(res.data);
       } catch (err) {
-        console.error('Whiteboard status check failed:', err);
+        // 
+
       }
     };
 
