@@ -5,6 +5,10 @@ import AgoraRTC, {
   ILocalAudioTrack, 
   IAgoraRTCRemoteUser 
 } from 'agora-rtc-sdk-ng';
+
+// Disable Agora SDK logging
+AgoraRTC.setLogLevel(4);
+
 import { Sparkles, Loader2, AlertCircle, Mic, MicOff, Video, VideoOff, Monitor, MonitorPlay, Pencil, BookOpen, X, RefreshCw } from 'lucide-react';
 import { ClassroomConnection, AgoraParticipant, User } from '@/src/types';
 import { apiService } from '@/src/services/apiService';
@@ -172,7 +176,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
             if (isCamOff) await videoTrack.setEnabled(false);
           }
         } catch (err) {
-          console.error("Failed to init preview tracks", err);
+          // 
+
         }
       };
       initPreview();
@@ -216,12 +221,14 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
         clientRef.current = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
       }
       const client = clientRef.current;
-      console.log("Agora: Client keys", Object.keys(client));
+      // 
+
 
       // Clear existing listeners to prevent duplicates
       client.removeAllListeners('user-joined');
       client.on('user-joined', (user) => {
-        console.log("Agora: User joined", user.uid);
+        // 
+
         if (!remoteUsersRef.current.find(u => u.uid === user.uid)) {
           remoteUsersRef.current = [...remoteUsersRef.current, user];
           setRemoteUsers([...remoteUsersRef.current]);
@@ -230,7 +237,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
 
       client.removeAllListeners('user-published');
       client.on('user-published', async (user, mediaType) => {
-        console.log("Agora: User published", user.uid, mediaType);
+        // 
+
         await client.subscribe(user, mediaType);
         
         if (mediaType === 'video') {
@@ -245,13 +253,15 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
 
       client.removeAllListeners('user-unpublished');
       client.on('user-unpublished', (user, mediaType) => {
-        console.log("Agora: User unpublished", user.uid, mediaType);
+        // 
+
         setRemoteUsers([...remoteUsersRef.current]);
       });
 
       client.removeAllListeners('user-left');
       client.on('user-left', (user) => {
-        console.log("Agora: User left", user.uid);
+        // 
+
         remoteUsersRef.current = remoteUsersRef.current.filter(u => u.uid !== user.uid);
         setRemoteUsers([...remoteUsersRef.current]);
       });
@@ -273,14 +283,16 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
         
         // Publish tracks FIRST, then disable if needed
         await client.publish([audioTrack, videoTrack]);
-        console.log("Agora: Local tracks published");
+        // 
+
 
         // Sync with state AFTER publishing to avoid TRACK_IS_DISABLED error
         if (isMuted) await audioTrack.setEnabled(false);
         if (isCamOff) await videoTrack.setEnabled(false);
         
       } catch (mediaErr) {
-        console.error("Agora: Failed to get local media", mediaErr);
+        // 
+
       }
 
       await initRTM(channelName);
@@ -298,7 +310,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
         updateWhiteboardData(null);
       }
     } catch (err: any) {
-      console.error("Agora Init Error:", err);
+      // 
+
       setError("Video connection failed. Please check camera permissions.");
     }
   };
@@ -312,7 +325,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       // Workaround for some environments where libraries try to overwrite read-only fetch
       try {
         if (typeof window !== 'undefined' && !Object.getOwnPropertyDescriptor(window, 'fetch')?.writable) {
-          console.log("Agora: window.fetch is read-only, ensuring SDK doesn't crash");
+          // 
+
         }
       } catch (e) {}
       
@@ -324,7 +338,9 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       });
       const { token, uid: rtmUid } = await res.json();
 
-      const rtmClient = AgoraRTM.createInstance(appId);
+      // @ts-ignore
+      const rtmClient = AgoraRTM.createInstance(appId, { logFilter: (AgoraRTM as any).LOG_FILTER_OFF || 0 });
+
       await rtmClient.login({ uid: String(rtmUid), token });
 
       const channel = rtmClient.createChannel(channelName + '_sync');
@@ -349,7 +365,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
               if (msg.material) updateShowWhiteboard(true);
             }
           } else if (msg.type === 'class-ended') {
-            console.log("Agora: Class ended signal received");
+            // 
+
             handleLeave();
           } else if (msg.type === 'badge' && user.role !== 2) {
             // This is handled inside BadgeReward via the rtmChannelRef directly
@@ -358,7 +375,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
         } catch(e) {}
       });
     } catch (e) {
-      console.warn("RTM Init failed", e);
+      // 
+
     }
   };
 
@@ -378,7 +396,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
 
         if (!res.ok) return;
         const data = await res.json();
-        console.log('📡 Whiteboard poll:', data);
+        // 
+
 
         if (data.active && data.uuid && data.room_token) {
 
@@ -423,7 +442,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
         }
 
       } catch(e) {
-        console.warn('Poll error:', e);
+        // 
+
       }
     };
 
@@ -452,7 +472,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
         current_page: currentPage,
         is_whiteboard_active: classroomMode !== 'none'
       })
-    }).catch(e => console.warn('Sync material failed:', e));
+    }).catch(e => {});
 
     if (isRTMReady && rtmChannelRef.current) {
       rtmChannelRef.current.sendMessage({
@@ -464,7 +484,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
           zoom: zoom,
           scrollPosition: scrollPosition
         })
-      }).catch((e: any) => console.warn("RTM sync failed", e));
+      }).catch((e: any) => {});
     }
 
   }, [activeMaterial, currentPage, zoom, scrollPosition, classroomMode, isInClass, user.role, connectionData?.channel_name, isRTMReady]);
@@ -504,7 +524,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
           updateWhiteboardData({ roomUUID: uuid, roomToken });
         }
       } catch (err) {
-        console.error("Failed to create whiteboard room via backend:", err);
+        // 
+
       }
     };
 
@@ -527,7 +548,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
         ? await apiService.startClass()
         : await apiService.joinClass();
         
-      console.log("Join/Start Class API call result:", res);
+      // 
+
       
       const anyRes = res as any;
       const connectionData = anyRes.data || (anyRes.app_id ? anyRes : null);
@@ -539,7 +561,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
         setError(errorMsg || "Classroom details not found. The class might not be active yet.");
       }
     } catch (err: any) {
-      console.error("Join Class error:", err);
+      // 
+
       setError("Failed to connect: " + (err.message || "Check your internet connection"));
     } finally {
       setIsLoading(false);
@@ -576,7 +599,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       updateShowWhiteboard(false);
       onExit();
     } catch (err) {
-      console.error(err);
+      // 
+
     }
   };
 
@@ -594,7 +618,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       }
       await handleLeave();
     } catch (err) {
-      console.error(err);
+      // 
+
       // Fallback: leave anyway
       await handleLeave();
     }
@@ -633,7 +658,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
         }
         setIsSharingScreen(false);
       } catch (err) {
-        console.error("Stop screen share error", err);
+        // 
+
       }
     } else {
       try {
@@ -656,7 +682,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
         screenTrackRef.current = screenTrack;
         setIsSharingScreen(true);
       } catch (err) {
-        console.error("Start screen share error", err);
+        // 
+
         if (localTracks.video) {
           await client.publish(localTracks.video).catch(() => {});
         }
@@ -951,7 +978,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                   if (isRTMReady && rtmChannelRef.current) {
                     rtmChannelRef.current.sendMessage({
                       text: JSON.stringify({ type: 'sync', page: 1, material, mode: 'pdf' })
-                    }).catch((e: any) => console.warn("RTM send failed", e));
+                    }).catch((e: any) => {});
                   }
                 }}
                 onDeactivate={() => {
@@ -959,7 +986,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                   if (isRTMReady && rtmChannelRef.current) {
                     rtmChannelRef.current.sendMessage({
                       text: JSON.stringify({ type: 'sync', material: null })
-                    }).catch((e: any) => console.warn("RTM send failed", e));
+                    }).catch((e: any) => {});
                   }
                 }}
               />

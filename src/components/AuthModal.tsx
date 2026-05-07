@@ -396,7 +396,8 @@ const ParentSignupView = ({ onSwitch, onComplete }: { onSwitch: (m: AuthMode) =>
               finalUser = loginRes.user || finalUser;
             }
           } catch (loginErr) {
-            console.error("Auto-login failed after signup", loginErr);
+            // 
+
           }
         }
 
@@ -861,7 +862,8 @@ const TeacherSignupView = ({ onSwitch, onComplete }: { onSwitch: (m: AuthMode) =
               finalUser = loginRes.user || finalUser;
             }
           } catch (loginErr) {
-            console.error("Auto-login failed after signup", loginErr);
+            // 
+
           }
         }
 
