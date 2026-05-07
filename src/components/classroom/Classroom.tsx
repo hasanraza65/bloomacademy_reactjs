@@ -1236,7 +1236,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       )}
 
       {/* Footer Voice Tracking Timeline */}
-      <footer className="h-20 bg-slate-900 border-t border-white/5 flex items-center justify-center shrink-0 z-50">
+      {/* <footer className="h-20 bg-slate-900 border-t border-white/5 flex items-center justify-center shrink-0 z-50">
         <div className="w-full max-w-7xl h-full">
           <VoiceTimeline 
             teacherTrack={user.role === 2 ? localTracks.audio : remoteUsers[0]?.audioTrack}
@@ -1246,7 +1246,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
             studentName={user.role === 2 ? (remoteUsers[0] ? 'Student' : 'Waiting...') : user.firstName}
           />
         </div>
-      </footer>
+      </footer> */}
       
       {isInClass && (
         <BadgeReward
