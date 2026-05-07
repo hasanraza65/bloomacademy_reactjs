@@ -235,7 +235,7 @@ export const BadgeReward: React.FC<BadgeRewardProps> = ({
   return (
     <>
       {/* Earned Badges Strip (Bottom Left) */}
-      <div className="fixed bottom-6 left-6 z-[160] flex flex-col gap-2">
+      <div className="fixed bottom-24 left-6 z-[160] flex flex-col gap-2">
         {earnedBadges.length > 0 && (
           <>
             <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] ml-1">Badges Earned</span>
@@ -266,7 +266,7 @@ export const BadgeReward: React.FC<BadgeRewardProps> = ({
 
       {/* Teacher Action Button (Bottom Right) */}
       {isTeacher && (
-        <div className="fixed bottom-6 right-6 z-[160]">
+        <div className="fixed bottom-24 right-6 z-[160]">
           <button
             onClick={() => setShowPicker(!showPicker)}
             className="w-16 h-16 rounded-full bg-brand-purple text-3xl flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-transform border-4 border-white/20"

@@ -11,6 +11,7 @@ import { apiService } from '@/src/services/apiService';
 import { BASE_URL, SITE_ROOT, getFileUrl } from '@/src/lib/config';
 import { VideoTile } from './VideoTile';
 import { Whiteboard } from './Whiteboard';
+import { VoiceTimeline } from './VoiceTimeline';
 import { MaterialManager } from './MaterialManager';
 import { Controls } from './Controls';
 import { cn } from '@/src/lib/utils';
@@ -1233,6 +1234,19 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
           </div>
         </div>
       )}
+
+      {/* Footer Voice Tracking Timeline */}
+      <footer className="h-20 bg-slate-900 border-t border-white/5 flex items-center justify-center shrink-0 z-50">
+        <div className="w-full max-w-7xl h-full">
+          <VoiceTimeline 
+            teacherTrack={user.role === 2 ? localTracks.audio : remoteUsers[0]?.audioTrack}
+            studentTrack={user.role === 2 ? remoteUsers[0]?.audioTrack : localTracks.audio}
+            isTeacherView={user.role === 2}
+            teacherName={user.role === 2 ? user.firstName : 'Teacher'}
+            studentName={user.role === 2 ? (remoteUsers[0] ? 'Student' : 'Waiting...') : user.firstName}
+          />
+        </div>
+      </footer>
       
       {isInClass && (
         <BadgeReward
