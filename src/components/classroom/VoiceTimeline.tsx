@@ -166,7 +166,8 @@ export const VoiceTimeline: React.FC<VoiceTimelineProps> = ({
         <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-transparent to-transparent pointer-events-none" />
       </div>
 
-      {/* Live Indicators */}
+      {/* Live Indicators - Commented out as requested */}
+      {/* 
       <div className="flex items-center gap-4 pl-4 border-l border-white/5 h-full">
         <div className="flex flex-col items-center gap-1">
           <div className={cn(
@@ -188,6 +189,7 @@ export const VoiceTimeline: React.FC<VoiceTimelineProps> = ({
           <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">Student</span>
         </div>
       </div>
+      */}
     </div>
   );
 };

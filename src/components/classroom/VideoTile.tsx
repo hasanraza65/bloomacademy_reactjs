@@ -18,6 +18,8 @@ interface VideoTileProps {
   onToggleCam?: () => void;
   isMuted?: boolean;
   isCamOff?: boolean;
+  onReward?: () => void;
+  showRewardButton?: boolean;
 }
 
 export const VideoTile: React.FC<VideoTileProps> = ({
@@ -33,7 +35,9 @@ export const VideoTile: React.FC<VideoTileProps> = ({
   onToggleMic,
   onToggleCam,
   isMuted,
-  isCamOff
+  isCamOff,
+  onReward,
+  showRewardButton
 }) => {
   const videoRef = useRef<HTMLDivElement>(null);
 
@@ -87,6 +91,18 @@ export const VideoTile: React.FC<VideoTileProps> = ({
           <span className="text-xs font-bold text-white tracking-wide">
             {isScreen ? "Sharing Screen" : (name || (isLocal ? 'Me' : `User ${uid}`))}
           </span>
+          {showRewardButton && onReward && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onReward();
+              }}
+              className="ml-1 w-6 h-6 rounded-full bg-brand-purple text-[10px] flex items-center justify-center shadow-lg hover:scale-110 active:scale-95 transition-transform border border-white/20"
+              title="Reward Student"
+            >
+              🏅
+            </button>
+          )}
         </div>
       </div>
 

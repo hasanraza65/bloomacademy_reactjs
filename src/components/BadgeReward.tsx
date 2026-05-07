@@ -8,6 +8,8 @@ interface BadgeRewardProps {
   studentName?: string;
   rtmChannelRef: React.MutableRefObject<any>;
   isRTMReady: boolean;
+  showPicker: boolean;
+  setShowPicker: (show: boolean) => void;
 }
 
 interface Badge {
@@ -33,9 +35,10 @@ export const BadgeReward: React.FC<BadgeRewardProps> = ({
   isInClass, 
   studentName = 'Student', 
   rtmChannelRef, 
-  isRTMReady 
+  isRTMReady,
+  showPicker,
+  setShowPicker
 }) => {
-  const [showPicker, setShowPicker] = useState(false);
   const [earnedBadges, setEarnedBadges] = useState<Badge[]>([]);
   const [currentCelebration, setCurrentCelebration] = useState<Badge | null>(null);
   const lastBadgeIdRef = useRef<number | null>(null);
@@ -234,7 +237,8 @@ export const BadgeReward: React.FC<BadgeRewardProps> = ({
 
   return (
     <>
-      {/* Earned Badges Strip (Bottom Left) */}
+      {/* Earned Badges Strip (Bottom Left) - Commented out as requested */}
+      {/* 
       <div className="fixed bottom-24 left-6 z-[160] flex flex-col gap-2">
         {earnedBadges.length > 0 && (
           <>
@@ -263,17 +267,11 @@ export const BadgeReward: React.FC<BadgeRewardProps> = ({
           </>
         )}
       </div>
+      */}
 
-      {/* Teacher Action Button (Bottom Right) */}
+      {/* Teacher Action Button - Moved to VideoTile */}
       {isTeacher && (
         <div className="fixed bottom-24 right-6 z-[160]">
-          <button
-            onClick={() => setShowPicker(!showPicker)}
-            className="w-16 h-16 rounded-full bg-brand-purple text-3xl flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-transform border-4 border-white/20"
-          >
-            🏅
-          </button>
-
           <AnimatePresence>
             {showPicker && (
               <>

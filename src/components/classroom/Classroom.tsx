@@ -17,6 +17,8 @@ import { Controls } from './Controls';
 import { cn } from '@/src/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { BadgeReward } from '../BadgeReward';
+import { ChatPanel, ChatMessage } from '../ChatPanel';
+import { MessageSquare } from 'lucide-react';
 
 interface ClassroomProps {
   user: User;
@@ -147,6 +149,30 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
   }, [scrollPosition, user.role]);
   const [showMaterialManager, setShowMaterialManager] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
+
+  // Chat State
+  const [showChat, setShowChat] = useState(false);
+
+  const toggleChat = () => {
+    const newState = !showChat;
+    setShowChat(newState);
+    
+    // Sync to student if teacher
+    if (user.role === 2 && isRTMReady && rtmChannelRef.current) {
+      rtmChannelRef.current.sendMessage({
+        text: JSON.stringify({ type: 'chat-toggle', show: newState })
+      }).catch((e: any) => console.warn("RTM chat toggle sync failed", e));
+    }
+  };
+
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showBadgePicker, setShowBadgePicker] = useState(false);
+
+  // Sync showChat to unread count
+  useEffect(() => {
+    if (showChat) setUnreadCount(0);
+  }, [showChat]);
   // Holds the clearAllAnnotationsForMaterial callback registered by <Whiteboard>
   const clearAnnotationsRef = useRef<((mId: number | string) => void) | null>(null);
   const screenTrackRef = useRef<any>(null);
@@ -354,6 +380,18 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
           } else if (msg.type === 'badge' && user.role !== 2) {
             // This is handled inside BadgeReward via the rtmChannelRef directly
             // No changes needed here — BadgeReward attaches its own listener
+          } else if (msg.type === 'chat') {
+            setChatMessages(prev => {
+              if (prev.find(m => m.id === msg.id)) return prev;
+              const newMsgs = [...prev, msg];
+              return newMsgs;
+            });
+            // Update unread count if chat is hidden
+            setUnreadCount(prev => {
+              return document.getElementById('chat-panel-container') ? prev : prev + 1;
+            });
+          } else if (msg.type === 'chat-toggle' && user.role !== 2) {
+            setShowChat(msg.show);
           }
         } catch(e) {}
       });
@@ -616,6 +654,57 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
     }
   };
 
+  const handleSendMessage = async (text: string, file?: File | null) => {
+    let attachmentUrl = null;
+    let attachmentName = null;
+
+    if (file) {
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch(`${BASE_URL}api/chat/upload`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          },
+          body: formData,
+        });
+        if (res.ok) {
+          const data = await res.json();
+          attachmentUrl = data.url;
+          attachmentName = data.name;
+        } else {
+          console.error("File upload failed");
+        }
+      } catch (e) {
+        console.error("File upload error", e);
+      }
+    }
+
+    const newMessage: ChatMessage = {
+      type: 'chat',
+      id: crypto.randomUUID(),
+      senderId: user.id,
+      senderName: user.firstName,
+      senderRole: user.role,
+      text,
+      attachmentUrl,
+      attachmentName,
+      emoji: null,
+      timestamp: new Date().toISOString()
+    };
+
+    // Optimistic UI update
+    setChatMessages(prev => [...prev, newMessage]);
+
+    // Send via RTM
+    if (isRTMReady && rtmChannelRef.current) {
+      rtmChannelRef.current.sendMessage({
+        text: JSON.stringify(newMessage)
+      }).catch((e: any) => console.warn("RTM chat send failed", e));
+    }
+  };
+
   const toggleScreenShare = async () => {
     if (!isInClass || !clientRef.current) return;
     const client = clientRef.current;
@@ -837,6 +926,24 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
               {classroomMode === 'none' ? 'In Meeting' : `Sharing ${classroomMode === 'whiteboard' ? 'Board' : 'PDF'}`}
             </span>
           </div>
+
+          <button
+            onClick={toggleChat}
+            className={cn(
+              "px-5 py-2 font-black text-[10px] uppercase tracking-[0.2em] rounded-full transition-all shadow-lg active:scale-95 flex items-center gap-2 mr-2",
+              showChat 
+                ? "bg-brand-purple text-white" 
+                : "bg-white/10 text-white hover:bg-white/20 border border-white/10"
+            )}
+          >
+            <MessageSquare size={14} />
+            Chat
+            {unreadCount > 0 && !showChat && (
+              <span className="flex items-center justify-center min-w-[18px] h-[18px] bg-red-500 text-[9px] text-white rounded-full ml-1">
+                {unreadCount}
+              </span>
+            )}
+          </button>
           
           {user.role === 2 ? (
             <>
@@ -970,96 +1077,117 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
 
       {/* Main Classroom Area */}
       {classroomMode === 'none' ? (
-        <div className="flex-1 flex flex-col md:flex-row items-center justify-center gap-8 p-12">
-          <div className="w-full max-w-xl aspect-video rounded-[3rem] overflow-hidden shadow-2xl border border-white/10 relative">
-            {user.role === 2 ? (
-              <VideoTile 
-                key="local-teacher-centered"
-                uid={connectionData?.uid || 'host'}
-                videoTrack={isSharingScreen ? screenTrackRef.current : localTracks.video}
-                audioTrack={localTracks.audio}
-                isLocal={true}
-                name={user.firstName}
-                hasVideo={!isCamOff || isSharingScreen}
-                hasAudio={!isMuted}
-                role="host"
-                isScreen={isSharingScreen}
-                onToggleMic={toggleMic}
-                onToggleCam={toggleCam}
-                isMuted={isMuted}
-                isCamOff={isCamOff}
-                isLarge={true}
-              />
-            ) : (
-              remoteUsers.length > 0 ? (
+        <div className="flex-1 flex flex-col md:flex-row items-center justify-center gap-8 p-12 overflow-hidden">
+          <div className="flex-1 flex flex-col md:flex-row items-center justify-center gap-8 h-full">
+            <div className="w-full max-w-xl aspect-video rounded-[3rem] overflow-hidden shadow-2xl border border-white/10 relative">
+              {user.role === 2 ? (
                 <VideoTile 
-                  key={remoteUsers[0].uid}
-                  uid={remoteUsers[0].uid}
-                  videoTrack={remoteUsers[0].videoTrack}
-                  audioTrack={remoteUsers[0].audioTrack}
-                  name="Teacher"
-                  hasVideo={!!remoteUsers[0].videoTrack}
-                  hasAudio={!!remoteUsers[0].audioTrack}
+                  key="local-teacher-centered"
+                  uid={connectionData?.uid || 'host'}
+                  videoTrack={isSharingScreen ? screenTrackRef.current : localTracks.video}
+                  audioTrack={localTracks.audio}
+                  isLocal={true}
+                  name={user.firstName}
+                  hasVideo={!isCamOff || isSharingScreen}
+                  hasAudio={!isMuted}
                   role="host"
+                  isScreen={isSharingScreen}
+                  onToggleMic={toggleMic}
+                  onToggleCam={toggleCam}
+                  isMuted={isMuted}
+                  isCamOff={isCamOff}
                   isLarge={true}
                 />
               ) : (
-                <div className="w-full h-full bg-slate-900 flex flex-col items-center justify-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-slate-500">
-                    <VideoOff size={24} />
+                remoteUsers.length > 0 ? (
+                  <VideoTile 
+                    key={remoteUsers[0].uid}
+                    uid={remoteUsers[0].uid}
+                    videoTrack={remoteUsers[0].videoTrack}
+                    audioTrack={remoteUsers[0].audioTrack}
+                    name="Teacher"
+                    hasVideo={!!remoteUsers[0].videoTrack}
+                    hasAudio={!!remoteUsers[0].audioTrack}
+                    role="host"
+                    isLarge={true}
+                  />
+                ) : (
+                  <div className="w-full h-full bg-slate-900 flex flex-col items-center justify-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-slate-500">
+                      <VideoOff size={24} />
+                    </div>
+                    <p className="text-slate-500 text-xs font-black uppercase tracking-widest">Waiting for Teacher</p>
                   </div>
-                  <p className="text-slate-500 text-xs font-black uppercase tracking-widest">Waiting for Teacher</p>
+                )
+              )}
+            </div>
+
+            <AnimatePresence>
+              {showChat && (
+                <div id="chat-panel-container" className="h-full shrink-0 z-20">
+                  <ChatPanel 
+                    messages={chatMessages}
+                    currentUserId={user.id}
+                    currentUserName={user.firstName}
+                    currentUserRole={user.role}
+                    isRTMReady={isRTMReady}
+                    onSendMessage={handleSendMessage}
+                    onClose={toggleChat}
+                  />
                 </div>
-              )
-            )}
-          </div>
-          <div className="w-full max-w-xl aspect-video rounded-[3rem] overflow-hidden shadow-2xl border border-white/10 relative">
-            {user.role === 2 ? (
-              remoteUsers.length > 0 ? (
+              )}
+            </AnimatePresence>
+
+            <div className="w-full max-w-xl aspect-video rounded-[3rem] overflow-hidden shadow-2xl border border-white/10 relative">
+              {user.role === 2 ? (
+                remoteUsers.length > 0 ? (
+                  <VideoTile 
+                    key={remoteUsers[0].uid}
+                    uid={remoteUsers[0].uid}
+                    videoTrack={remoteUsers[0].videoTrack}
+                    audioTrack={remoteUsers[0].audioTrack}
+                    hasVideo={!!remoteUsers[0].videoTrack}
+                    hasAudio={!!remoteUsers[0].audioTrack}
+                    role="audience"
+                    name="Student"
+                    isLarge={true}
+                    showRewardButton={true}
+                    onReward={() => setShowBadgePicker(true)}
+                  />
+                ) : (
+                  <div className="w-full h-full bg-slate-900 flex flex-col items-center justify-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-slate-500">
+                      <VideoOff size={24} />
+                    </div>
+                    <p className="text-slate-500 text-xs font-black uppercase tracking-widest">Waiting for Student</p>
+                  </div>
+                )
+              ) : (
                 <VideoTile 
-                  key={remoteUsers[0].uid}
-                  uid={remoteUsers[0].uid}
-                  videoTrack={remoteUsers[0].videoTrack}
-                  audioTrack={remoteUsers[0].audioTrack}
-                  hasVideo={!!remoteUsers[0].videoTrack}
-                  hasAudio={!!remoteUsers[0].audioTrack}
+                  key="local-student-centered"
+                  uid={connectionData?.uid || 'me'}
+                  videoTrack={localTracks.video}
+                  audioTrack={localTracks.audio}
+                  isLocal={true}
+                  name={user.firstName}
+                  hasVideo={!isCamOff}
+                  hasAudio={!isMuted}
                   role="audience"
-                  name="Student"
+                  onToggleMic={toggleMic}
+                  onToggleCam={toggleCam}
+                  isMuted={isMuted}
+                  isCamOff={isCamOff}
                   isLarge={true}
                 />
-              ) : (
-                <div className="w-full h-full bg-slate-900 flex flex-col items-center justify-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-slate-500">
-                    <VideoOff size={24} />
-                  </div>
-                  <p className="text-slate-500 text-xs font-black uppercase tracking-widest">Waiting for Student</p>
-                </div>
-              )
-            ) : (
-              <VideoTile 
-                key="local-student-centered"
-                uid={connectionData?.uid || 'me'}
-                videoTrack={localTracks.video}
-                audioTrack={localTracks.audio}
-                isLocal={true}
-                name={user.firstName}
-                hasVideo={!isCamOff}
-                hasAudio={!isMuted}
-                role="audience"
-                onToggleMic={toggleMic}
-                onToggleCam={toggleCam}
-                isMuted={isMuted}
-                isCamOff={isCamOff}
-                isLarge={true}
-              />
-            )}
+              )}
+            </div>
           </div>
         </div>
       ) : (
         <div className="flex-1 p-6 flex flex-col md:flex-row gap-6 relative overflow-hidden">
           
           {/* Left Side: Big Screen (Whiteboard or PDF) */}
-          <div className="flex-[3] relative min-h-[300px]">
+          <div className={cn("relative min-h-[300px] transition-all duration-300", showChat ? "flex-[2]" : "flex-[3]")}>
             <AnimatePresence mode="wait">
               {showWhiteboard ? (
                 <motion.div
@@ -1143,8 +1271,25 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
             </AnimatePresence>
           </div>
 
+          {/* Chat Panel Side - Moved to Center */}
+          <AnimatePresence>
+            {showChat && (
+              <div id="chat-panel-container" className="h-full shrink-0">
+                <ChatPanel 
+                  messages={chatMessages}
+                  currentUserId={user.id}
+                  currentUserName={user.firstName}
+                  currentUserRole={user.role}
+                  isRTMReady={isRTMReady}
+                  onSendMessage={handleSendMessage}
+                  onClose={toggleChat}
+                />
+              </div>
+            )}
+          </AnimatePresence>
+
           {/* Right Side: Cameras Stack */}
-          <div className="max-w-sm w-full flex flex-col gap-4 overflow-hidden pr-2">
+          <div className={cn("w-full flex flex-col gap-4 overflow-hidden pr-2 transition-all duration-300", showChat ? "max-w-xs" : "max-w-sm")}>
             {/* TEACHER CAMERA (ALWAYS TOP) */}
             <div className="flex-1 min-h-0">
               {user.role === 2 ? (
@@ -1203,6 +1348,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                     role="audience"
                     name="Student"
                     isLarge={true}
+                    showRewardButton={user.role === 2}
+                    onReward={() => setShowBadgePicker(true)}
                   />
                 ) : (
                   <div className="w-full h-full bg-slate-900 rounded-3xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-3">
@@ -1232,11 +1379,13 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
               )}
             </div>
           </div>
+
         </div>
       )}
 
-      {/* Footer Voice Tracking Timeline */}
-      {/* <footer className="h-20 bg-slate-900 border-t border-white/5 flex items-center justify-center shrink-0 z-50">
+      {/* Footer Voice Tracking Timeline - Commented out as requested */}
+      {/* 
+      <footer className="h-20 bg-slate-900 border-t border-white/5 flex items-center justify-center shrink-0 z-50">
         <div className="w-full max-w-7xl h-full">
           <VoiceTimeline 
             teacherTrack={user.role === 2 ? localTracks.audio : remoteUsers[0]?.audioTrack}
@@ -1246,7 +1395,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
             studentName={user.role === 2 ? (remoteUsers[0] ? 'Student' : 'Waiting...') : user.firstName}
           />
         </div>
-      </footer> */}
+      </footer>
+      */}
       
       {isInClass && (
         <BadgeReward
@@ -1259,6 +1409,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
           }
           rtmChannelRef={rtmChannelRef}
           isRTMReady={isRTMReady}
+          showPicker={showBadgePicker}
+          setShowPicker={setShowBadgePicker}
         />
       )}
     </div>
