@@ -338,6 +338,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
 
         roomRef.current = joinedRoom;
         setRoom(joinedRoom);
+        console.log('[Whiteboard] Joined room successfully:', roomUUID);
 
         if (isTeacher) {
           joinedRoom.setViewMode(ViewMode.Broadcaster);
@@ -369,6 +370,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
       try {
         room.bindHtmlElement(containerRef.current);
         setIsBound(true);
+        console.log('[Whiteboard] Bound HTML element, isTeacher:', isTeacher);
         (room as any).refreshViewSize?.();
 
         if (isTeacher) {
@@ -460,6 +462,7 @@ const applyTool = (tool: string) => {
     if (!room) return;
     
     // Apply the tool based on selection
+    console.log('[Whiteboard] Applying tool:', tool);
     switch(tool) {
       case 'selector':
         // 
@@ -515,6 +518,12 @@ const applyTool = (tool: string) => {
         room.setMemberState({ currentApplianceName: ApplianceNames.pencil });
     }
     
+    // Explicitly ensure inputs are enabled if teacher
+    if (isTeacher) {
+      room.disableDeviceInputs = false;
+      (room as any).disableOperations = false;
+    }
+
     // Reset flag after setting tool
     setTimeout(() => {
       isApplyingToolRef.current = false;
@@ -582,7 +591,7 @@ useEffect(() => {
     
     return () => clearTimeout(timer);
   }
-}, [room, isTeacher]);
+}, [room, isTeacher, currentTool]);
 
 // Keep drawing thickness visually consistent while PDF zoom changes.
 useEffect(() => {

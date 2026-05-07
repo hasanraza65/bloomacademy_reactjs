@@ -41,6 +41,10 @@ export const BadgeReward: React.FC<BadgeRewardProps> = ({
   const lastBadgeIdRef = useRef<number | null>(null);
   const isPollingRef = useRef(false);
 
+  useEffect(() => {
+    console.log('[BadgeReward] showPicker state:', showPicker);
+  }, [showPicker]);
+
   const playBadgeSound = (badgeType: string) => {
     try {
       const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -124,10 +128,12 @@ export const BadgeReward: React.FC<BadgeRewardProps> = ({
   };
 
   const triggerCelebration = (badge: Badge) => {
+    console.log('[BadgeReward] Triggering celebration for:', badge.badge_type);
     playBadgeSound(badge.badge_type);
     setCurrentCelebration(badge);
     setEarnedBadges(prev => [...prev, badge]);
     setTimeout(() => {
+      console.log('[BadgeReward] Clearing celebration');
       setCurrentCelebration(null);
     }, 4000);
   };
@@ -285,7 +291,10 @@ export const BadgeReward: React.FC<BadgeRewardProps> = ({
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   onClick={() => setShowPicker(false)}
-                  className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[-1]"
+                  className={cn(
+                    "fixed inset-0 bg-black/40 backdrop-blur-sm z-[-1]",
+                    !showPicker && "pointer-events-none" // Ensure it doesn't block while fading out
+                  )}
                 />
                 <motion.div
                   initial={{ opacity: 0, scale: 0.9, y: 20 }}
