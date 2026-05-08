@@ -4,6 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bloom Buddies Academy</title>
+    <script>
+      (function() {
+        // Agora/Netless workaround: 
+        // Previously we tried to patch fetch here, but it interferes with AI Studio's requests.js.
+        // If SDKs fail to overwrite fetch, they should fallback gracefully or we'll handle it via specific SDK config if possible.
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

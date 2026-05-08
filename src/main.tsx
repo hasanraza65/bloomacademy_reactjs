@@ -6,23 +6,21 @@ try {
     Object.defineProperty(window, 'fetch', {
       get: () => originalFetch,
       set: (val) => { 
-        // 
+        console.warn('Something tried to overwrite window.fetch - ignored:', val); 
       },
       configurable: true,
       enumerable: true
     });
   }
 } catch (e) {
-  // 
-
+  console.warn('Failed to define fetch protector:', e);
 }
 
 // Global error handler for fetch property assignment
 window.addEventListener('error', (event) => {
   const msg = event.error?.message || event.message || '';
   if (msg.includes('Cannot set property fetch')) {
-    // 
-
+    console.warn('Suppressed fetch overwrite error:', msg);
     event.preventDefault();
     event.stopImmediatePropagation();
   }
@@ -31,14 +29,6 @@ window.addEventListener('error', (event) => {
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
-
-// Globally silence logs as requested by user
-if (typeof window !== 'undefined') {
-  (window as any).console.log = () => {};
-  (window as any).console.info = () => {};
-  (window as any).console.debug = () => {};
-}
-
 import './index.css';
 import { LanguageProvider } from './context/LanguageContext';
 

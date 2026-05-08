@@ -39,8 +39,7 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({
         setMaterials(res.data);
       }
     } catch (err) {
-      // 
-
+      console.error("Failed to fetch materials:", err);
       setError("Failed to load lesson materials.");
     } finally {
       setIsLoading(false);
@@ -74,8 +73,7 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({
         setError("Upload failed. Please try again.");
       }
     } catch (err) {
-      // 
-
+      console.error("Upload error:", err);
       setError("An error occurred during upload.");
     } finally {
       setIsUploading(false);
@@ -96,8 +94,7 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({
       }
       fetchMaterials();
     } catch (err) {
-      // 
-
+      console.error("Failed to toggle material:", err);
     }
   };
 

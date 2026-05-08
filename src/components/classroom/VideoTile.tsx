@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { CameraOff, MicOff, User as UserIcon, Mic, Video, VideoOff } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
+import { motion, AnimatePresence } from 'motion/react';
+import { Badge, BADGE_CONFIG } from '../BadgeReward';
 
 interface VideoTileProps {
   uid: string | number;
@@ -20,6 +22,7 @@ interface VideoTileProps {
   isCamOff?: boolean;
   onReward?: () => void;
   showRewardButton?: boolean;
+  earnedBadges?: Badge[];
 }
 
 export const VideoTile: React.FC<VideoTileProps> = ({
@@ -37,7 +40,8 @@ export const VideoTile: React.FC<VideoTileProps> = ({
   isMuted,
   isCamOff,
   onReward,
-  showRewardButton
+  showRewardButton,
+  earnedBadges = []
 }) => {
   const videoRef = useRef<HTMLDivElement>(null);
 
@@ -153,8 +157,34 @@ export const VideoTile: React.FC<VideoTileProps> = ({
 
       {/* Local Video Mirroring Tag */}
       {isLocal && hasVideo && !isCamOff && (
-        <div className="absolute bottom-4 left-4 text-[10px] font-bold text-white/40 uppercase tracking-widest pointer-events-none">
+        <div className="absolute top-4 right-4 text-[10px] font-bold text-white/20 uppercase tracking-widest pointer-events-none">
           Local Stream
+        </div>
+      )}
+
+      {/* Earned Badges History overlay - Student webcam bottom */}
+      {role === 'audience' && earnedBadges.length > 0 && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex flex-wrap gap-1.5 pointer-events-none justify-center w-full max-w-[80%]">
+          <AnimatePresence>
+            {earnedBadges.map((badge, idx) => {
+              const config = BADGE_CONFIG[badge.badge_type] || BADGE_CONFIG.star;
+              return (
+                <motion.div
+                  key={`${badge.badge_type}-${idx}`}
+                  initial={{ scale: 0, rotate: -20, opacity: 0 }}
+                  animate={{ scale: 1, rotate: 0, opacity: 1 }}
+                  whileHover={{ scale: 1.2, zIndex: 30 }}
+                  className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center text-sm shadow-lg border border-white/20 bg-gradient-to-br",
+                    config.gradient
+                  )}
+                  title={badge.badge_label}
+                >
+                  {config.icon}
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         </div>
       )}
     </div>

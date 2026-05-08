@@ -20,7 +20,7 @@ import { MaterialManager } from './MaterialManager';
 import { Controls } from './Controls';
 import { cn } from '@/src/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
-import { BadgeReward } from '../BadgeReward';
+import { BadgeReward, Badge } from '../BadgeReward';
 import { ChatPanel, ChatMessage } from '../ChatPanel';
 import { MessageSquare } from 'lucide-react';
 
@@ -56,8 +56,9 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
   const [whiteboardData, setWhiteboardData] = useState<any>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('whiteboard_data');
+      if (!saved || saved === 'undefined') return null;
       try {
-        return saved ? JSON.parse(saved) : null;
+        return JSON.parse(saved);
       } catch (e) {
         return null;
       }
@@ -72,10 +73,12 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
   const updateWhiteboardData = (data: any) => {
     whiteboardDataRef.current = data;
     setWhiteboardData(data);
-    if (data && typeof window !== 'undefined') {
-      localStorage.setItem('whiteboard_data', JSON.stringify(data));
-    } else if (!data && typeof window !== 'undefined') {
-      localStorage.removeItem('whiteboard_data');
+    if (typeof window !== 'undefined') {
+      if (data) {
+        localStorage.setItem('whiteboard_data', JSON.stringify(data));
+      } else {
+        localStorage.removeItem('whiteboard_data');
+      }
     }
   };
 
@@ -87,8 +90,9 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
   const [activeMaterial, setActiveMaterial] = useState<any>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('active_material');
+      if (!saved || saved === 'undefined') return null;
       try {
-        return saved ? JSON.parse(saved) : null;
+        return JSON.parse(saved);
       } catch (e) {
         return null;
       }
@@ -137,8 +141,9 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
   const [scrollPosition, setScrollPosition] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('scroll_position');
+      if (!saved || saved === 'undefined') return { x: 0, y: 0 };
       try {
-        return saved ? JSON.parse(saved) : { x: 0, y: 0 };
+        return JSON.parse(saved);
       } catch (e) {
         return { x: 0, y: 0 };
       }
@@ -148,7 +153,11 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
 
   useEffect(() => {
     if (user.role === 2) {
-      localStorage.setItem('scroll_position', JSON.stringify(scrollPosition));
+      if (scrollPosition) {
+        localStorage.setItem('scroll_position', JSON.stringify(scrollPosition));
+      } else {
+        localStorage.removeItem('scroll_position');
+      }
     }
   }, [scrollPosition, user.role]);
   const [showMaterialManager, setShowMaterialManager] = useState(false);
@@ -172,6 +181,27 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showBadgePicker, setShowBadgePicker] = useState(false);
+  const [earnedBadges, setEarnedBadges] = useState<Badge[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('earned_badges');
+      if (!saved || saved === 'undefined') return [];
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return [];
+      }
+    }
+    return [];
+  });
+
+  // Sync earnedBadges to localStorage
+  useEffect(() => {
+    if (earnedBadges.length > 0) {
+      localStorage.setItem('earned_badges', JSON.stringify(earnedBadges));
+    } else {
+      localStorage.removeItem('earned_badges');
+    }
+  }, [earnedBadges]);
 
   // Sync showChat to unread count
   useEffect(() => {
@@ -240,7 +270,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       const appId = (payload.app_id || payload.appId || VERIFIED_APP_ID).trim();
       const channelName = (payload.channel_name || payload.channelName || '').trim();
       const rawToken = payload.token || payload.token_name || '';
-      const token = rawToken ? rawToken.replace(/\\\//g, '/') : null;
+      const rawTokenStr = String(rawToken);
+      const token = rawTokenStr ? rawTokenStr.replace(/\\\//g, '/') : null;
       const uid = Number(payload.uid) || 0;
 
       if (!clientRef.current) {
@@ -347,14 +378,6 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       setIsRTMReady(false);
       const AgoraRTM = (await import('agora-rtm-sdk')).default;
       const appId = '754aa406b558496dbb87044f1550de44';
-
-      // Workaround for some environments where libraries try to overwrite read-only fetch
-      try {
-        if (typeof window !== 'undefined' && !Object.getOwnPropertyDescriptor(window, 'fetch')?.writable) {
-          // 
-
-        }
-      } catch (e) {}
       
       const res = await fetch(`${BASE_URL}classroom/rtm-token`, {
         headers: {
@@ -379,7 +402,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       // Listen for incoming sync messages
       channel.on('ChannelMessage', (message) => {
         try {
-          if (message.messageType !== 'TEXT' || !message.text) return;
+          if (message.messageType !== 'TEXT' || !message.text || message.text === 'undefined') return;
           const msg = JSON.parse(message.text);
           if (msg.type === 'sync' && user.role !== 2) {
             if (msg.page !== undefined) setCurrentPage(msg.page);
@@ -1011,6 +1034,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                 Resources
               </button>
 
+{/* 
               {classroomMode === 'pdf' && activeMaterial && (
                 <>
                   <button
@@ -1023,6 +1047,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                   </button>
                 </>
               )}
+              */}
 
               {classroomMode !== 'none' && (
                   <button
@@ -1180,6 +1205,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                     isLarge={true}
                     showRewardButton={true}
                     onReward={() => setShowBadgePicker(true)}
+                    earnedBadges={earnedBadges}
                   />
                 ) : (
                   <div className="w-full h-full bg-slate-900 flex flex-col items-center justify-center gap-3">
@@ -1205,6 +1231,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                   isMuted={isMuted}
                   isCamOff={isCamOff}
                   isLarge={true}
+                  earnedBadges={earnedBadges}
                 />
               )}
             </div>
@@ -1377,6 +1404,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                     isLarge={true}
                     showRewardButton={user.role === 2}
                     onReward={() => setShowBadgePicker(true)}
+                    earnedBadges={earnedBadges}
                   />
                 ) : (
                   <div className="w-full h-full bg-slate-900 rounded-3xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-3">
@@ -1402,6 +1430,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                   isMuted={isMuted}
                   isCamOff={isCamOff}
                   isLarge={true}
+                  earnedBadges={earnedBadges}
                 />
               )}
             </div>
@@ -1438,6 +1467,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
           isRTMReady={isRTMReady}
           showPicker={showBadgePicker}
           setShowPicker={setShowBadgePicker}
+          onBadgesUpdate={setEarnedBadges}
         />
       )}
     </div>

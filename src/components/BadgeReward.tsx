@@ -10,16 +10,17 @@ interface BadgeRewardProps {
   isRTMReady: boolean;
   showPicker: boolean;
   setShowPicker: (show: boolean) => void;
+  onBadgesUpdate?: (badges: Badge[]) => void;
 }
 
-interface Badge {
+export interface Badge {
   id?: number;
   badge_type: string;
   badge_label: string;
   created_at?: string;
 }
 
-const BADGE_CONFIG: Record<string, { icon: string, label: string, gradient: string, color: string }> = {
+export const BADGE_CONFIG: Record<string, { icon: string, label: string, gradient: string, color: string }> = {
   star: { icon: '⭐', label: 'Superstar', gradient: 'from-yellow-400 to-orange-500', color: '#fbbf24' },
   fire: { icon: '🔥', label: 'On Fire!', gradient: 'from-orange-500 to-red-600', color: '#f87171' },
   trophy: { icon: '🏆', label: 'Champion', gradient: 'from-yellow-300 to-yellow-500', color: '#fbbf24' },
@@ -37,7 +38,8 @@ export const BadgeReward: React.FC<BadgeRewardProps> = ({
   rtmChannelRef, 
   isRTMReady,
   showPicker,
-  setShowPicker
+  setShowPicker,
+  onBadgesUpdate
 }) => {
   const [earnedBadges, setEarnedBadges] = useState<Badge[]>([]);
   const [currentCelebration, setCurrentCelebration] = useState<Badge | null>(null);
@@ -134,7 +136,11 @@ export const BadgeReward: React.FC<BadgeRewardProps> = ({
     console.log('[BadgeReward] Triggering celebration for:', badge.badge_type);
     playBadgeSound(badge.badge_type);
     setCurrentCelebration(badge);
-    setEarnedBadges(prev => [...prev, badge]);
+    setEarnedBadges(prev => {
+      const newBadges = [...prev, badge];
+      onBadgesUpdate?.(newBadges);
+      return newBadges;
+    });
     setTimeout(() => {
       console.log('[BadgeReward] Clearing celebration');
       setCurrentCelebration(null);
@@ -186,7 +192,7 @@ export const BadgeReward: React.FC<BadgeRewardProps> = ({
 
     const handleMessage = (message: any) => {
       try {
-        if (message.messageType !== 'TEXT' || !message.text) return;
+        if (message.messageType !== 'TEXT' || !message.text || message.text === 'undefined') return;
         const msg = JSON.parse(message.text);
         if (msg.type === 'badge') {
           triggerCelebration({
@@ -246,36 +252,8 @@ export const BadgeReward: React.FC<BadgeRewardProps> = ({
 
   return (
     <>
-      {/* Earned Badges Strip (Bottom Left) */}
-      <div className="fixed bottom-24 left-6 z-[160] flex flex-col gap-2">
-        {earnedBadges.length > 0 && (
-          <>
-            <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] ml-1">Badges Earned</span>
-            <div className="flex flex-wrap gap-2 max-w-[200px]">
-              <AnimatePresence>
-                {earnedBadges.map((badge, idx) => {
-                  const config = BADGE_CONFIG[badge.badge_type] || BADGE_CONFIG.star;
-                  return (
-                    <motion.div
-                      key={`${badge.badge_type}-${idx}`}
-                      initial={{ scale: 0, rotate: -20 }}
-                      animate={{ scale: 1, rotate: 0 }}
-                      className={cn(
-                        "w-10 h-10 rounded-full flex items-center justify-center text-xl shadow-lg border border-white/20 bg-gradient-to-br",
-                        config.gradient
-                      )}
-                      title={badge.badge_label}
-                    >
-                      {config.icon}
-                    </motion.div>
-                  );
-                })}
-              </AnimatePresence>
-            </div>
-          </>
-        )}
-      </div>
-
+      {/* Earned Badges Strip (Removed from here - now handled by VideoTile) */}
+      
       {/* Teacher Action Button - Moved to VideoTile */}
       {isTeacher && (
         <div className="fixed bottom-24 right-6 z-[160]">
