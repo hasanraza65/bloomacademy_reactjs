@@ -92,17 +92,8 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   const initializedScenesRef = useRef<Set<string>>(new Set());
 
   // ─── localStorage persistence (ported from File 1) ───────────────────────
-  // Tracks which pages have already had their saved annotations restored.
-  // Prevents double-restoring on re-renders.
-  const restoredPagesRef = useRef<Set<string>>(new Set());
-
   // Debounce timer for saving annotations
   const saveTimeoutRef = useRef<any>(null);
-
-  // Reset restored-pages tracking whenever the PDF changes
-  useEffect(() => {
-    restoredPagesRef.current.clear();
-  }, [pdfUrl]);
   // ─────────────────────────────────────────────────────────────────────────
 
   // Keep a ref to pdfStableId so closures always see the latest value.
@@ -139,7 +130,14 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = setTimeout(() => {
           try {
+            // Guard: room must still be connected before calling exportScene
+            const phase = (room as any).phase;
+            if (phase !== 'connected') {
+              console.log('[WB] Save skipped — room phase:', phase);
+              return;
+            }
             const scenePath = (room as any).sceneState?.scenePath;
+            if (!scenePath) return;
             const data = (room as any).exportScene?.(scenePath);
             if (!data) return;
 
@@ -150,7 +148,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
               localStorage.setItem('whiteboard_annotations_global', JSON.stringify(data));
             }
           } catch (e) {
-            console.warn('[Whiteboard] Failed to save annotations:', e);
+            console.warn('[WB] Failed to save annotations:', e);
           }
         }, 1500);
       }
@@ -213,15 +211,20 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     }
 
     // Reset restored-pages tracking so they can be re-loaded if a new PDF is opened
-    restoredPagesRef.current.clear();
+    // (restoredPagesRef removed — restore logic no longer used)
   };
 
   // Clears only the current page's strokes (Trash2 button).
   const clearCurrentScene = () => {
     if (!roomRef.current) return;
+    console.log('[WB] clearCurrentScene — currentScene:', (roomRef.current as any).state?.sceneState?.scenePath,
+      '| disableDeviceInputs:', roomRef.current.disableDeviceInputs,
+      '| isWritable:', (roomRef.current as any).isWritable
+    );
     try {
       roomRef.current.cleanCurrentScene();
-      // Also remove saved annotation for this page from localStorage
+      console.log('[WB] cleanCurrentScene called OK');
+      // Also clear stale localStorage entries so they are not saved back
       if (isTeacher) {
         if (pdfUrl && pdfStableId) {
           const key = `pdf_annotations__${pdfStableId}__page_${currentPage}`;
@@ -229,8 +232,16 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
         } else {
           localStorage.removeItem('whiteboard_annotations_global');
         }
+        // Cancel any pending debounced save so it does not re-save after the clear
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+          saveTimeoutRef.current = null;
+          console.log('[WB] Debounced save cancelled after clear');
+        }
       }
-    } catch (_) {}
+    } catch (e) {
+      console.error('[WB] cleanCurrentScene ERROR:', e);
+    }
   };
 
   // Register the clear function with the parent as soon as it's available
@@ -256,40 +267,36 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     const sceneDir = `/pair-${PAIR_ID}/whiteboard`;
     const scenePath = `${sceneDir}/main`;
 
+    console.log('[WB] Whiteboard scene effect — pdfUrl:', pdfUrl, '| isBound:', isBound, '| isTeacher:', isTeacher);
+
     // Only teacher creates scenes. Students only navigate to existing scene.
     if (isTeacher && !initializedScenesRef.current.has(scenePath)) {
       initializedScenesRef.current.add(scenePath);
       const scenes = room.entireScenes();
-      if (!scenes[`${sceneDir}/`]) {
+      console.log('[WB] entireScenes():', JSON.stringify(Object.keys(scenes)));
+      // entireScenes() returns keys WITHOUT trailing slash (e.g. "/pair-1/whiteboard")
+      // so we check both forms to avoid calling putScenes unnecessarily (which wipes annotations).
+      const dirExists = scenes[sceneDir] || scenes[`${sceneDir}/`];
+      if (!dirExists) {
+        console.log('[WB] putScenes — creating whiteboard scene');
         room.putScenes(sceneDir, [{ name: 'main' }]);
+      } else {
+        console.log('[WB] Whiteboard scene dir already exists — skipping putScenes (annotations safe)');
       }
     }
 
     try {
       room.setScenePath(scenePath);
-    } catch (_) {}
+      console.log('[WB] setScenePath OK →', scenePath,
+        '| landed:', (room as any).state?.sceneState?.scenePath
+      );
+    } catch (e) {
+      console.error('[WB] setScenePath FAILED for', scenePath, '—', e);
+    }
 
     if (isTeacher) {
-      // Restore global whiteboard annotations from localStorage
-      const wbKey = 'whiteboard_global_restored';
-      if (!restoredPagesRef.current.has(wbKey)) {
-        restoredPagesRef.current.add(wbKey);
-        try {
-          const saved = localStorage.getItem('whiteboard_annotations_global');
-          if (saved) {
-            const data = JSON.parse(saved);
-            if (data && data.name) {
-              data.name = 'main';
-              room.removeScenes(scenePath);
-              room.putScenes(sceneDir, [data], 0);
-            }
-          }
-        } catch (e) {
-          console.warn('[Whiteboard] Failed to restore global whiteboard annotations:', e);
-        }
-      }
-
       room.setWritable(true).then(() => {
+        console.log('[WB] setWritable(true) resolved — disableDeviceInputs before:', room.disableDeviceInputs);
         room.disableDeviceInputs = false;
         (room as any).disableOperations = false;
         room.setMemberState({
@@ -298,7 +305,13 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
           strokeWidth: 4,
         });
         (room as any).refreshViewSize?.();
-      }).catch(() => {});
+        console.log('[WB] Whiteboard ready — scene:', (room as any).state?.sceneState?.scenePath,
+          '| disableDeviceInputs:', room.disableDeviceInputs,
+          '| isWritable:', (room as any).isWritable
+        );
+      }).catch((e) => {
+        console.error('[WB] setWritable(true) FAILED:', e);
+      });
     } else {
       room.setWritable(false).catch(() => {});
       room.disableDeviceInputs = true;
@@ -311,54 +324,53 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   useEffect(() => {
     if (!room || !pdfUrl || !pdfStableId || !isBound) return;
 
+    console.log('[WB] PDF scene effect — pdfUrl:', pdfUrl, '| page:', currentPage,
+      '| pdfStableId:', pdfStableId, '| isBound:', isBound
+    );
+
     const sceneDir = `/pair-${PAIR_ID}/pdf-${pdfStableId}`;
     const scenePath = `${sceneDir}/${currentPage}`;
 
     // Only teacher creates scenes. Students follow the same scene path/page.
     if (isTeacher && !initializedScenesRef.current.has(scenePath)) {
       initializedScenesRef.current.add(scenePath);
+      console.log('[WB] First time PDF scene — trying setScenePath:', scenePath);
       try {
         room.setScenePath(scenePath);
         const landed = (room as any).state?.sceneState?.scenePath;
+        console.log('[WB] setScenePath first try — landed:', landed, '| expected:', scenePath);
         if (landed !== scenePath) {
+          console.log('[WB] Landed on wrong scene, putScenes then retry');
           room.putScenes(sceneDir, [{ name: String(currentPage) }]);
           room.setScenePath(scenePath);
+          console.log('[WB] After putScenes retry — landed:', (room as any).state?.sceneState?.scenePath);
         }
-      } catch (_) {
+      } catch (e) {
+        console.warn('[WB] setScenePath threw, doing putScenes fallback. Error:', e);
         room.putScenes(sceneDir, [{ name: String(currentPage) }]);
         room.setScenePath(scenePath);
+        console.log('[WB] After catch putScenes — landed:', (room as any).state?.sceneState?.scenePath);
       }
 
       // ── Restore saved annotations for this page from localStorage ──────
-      const pageKey = `pdf_restored__${pdfStableId}__${currentPage}`;
-      if (!restoredPagesRef.current.has(pageKey)) {
-        restoredPagesRef.current.add(pageKey);
-        try {
-          const storageKey = `pdf_annotations__${pdfStableId}__page_${currentPage}`;
-          const saved = localStorage.getItem(storageKey);
-          if (saved) {
-            const data = JSON.parse(saved);
-            if (data && data.name) {
-              data.name = String(currentPage);
-              room.removeScenes(scenePath);
-              room.putScenes(sceneDir, [data], currentPage - 1);
-            }
-          }
-        } catch (e) {
-          console.warn('[Whiteboard] Failed to restore PDF page annotations:', e);
-        }
-      }
+      // (removed — Netless persists annotations server-side in the room)
       // ──────────────────────────────────────────────────────────────────
     } else {
+      console.log('[WB] PDF scene already initialized — setScenePath:', scenePath);
       try {
         room.setScenePath(scenePath);
-      } catch (_) {}
+        console.log('[WB] setScenePath (revisit) — landed:', (room as any).state?.sceneState?.scenePath);
+      } catch (e) {
+        console.error('[WB] setScenePath FAILED (revisit):', e);
+      }
     }
 
     if (isTeacher) {
       room.setWritable(true).then(() => {
         if (pdfUrlRef.current !== pdfUrl) return;
-
+        console.log('[WB] PDF setWritable resolved — scene:', (room as any).state?.sceneState?.scenePath,
+          '| disableDeviceInputs:', room.disableDeviceInputs
+        );
         room.disableDeviceInputs = false;
         (room as any).disableOperations = false;
         room.setMemberState({
@@ -367,7 +379,12 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
           strokeWidth: 4,
         });
         (room as any).refreshViewSize?.();
-      }).catch(() => {});
+        console.log('[WB] PDF scene ready — disableDeviceInputs:', room.disableDeviceInputs,
+          '| isWritable:', (room as any).isWritable
+        );
+      }).catch((e) => {
+        console.error('[WB] PDF setWritable FAILED:', e);
+      });
     } else {
       room.setWritable(false).catch(() => {});
       room.disableDeviceInputs = true;
@@ -457,6 +474,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     const joinRoom = async () => {
       try {
         setLoading(true);
+        console.log('[WB] joinRoom start — UUID:', roomUUID, '| isTeacher:', isTeacher);
         const joinedRoom = await sdk.joinRoom({
           uuid: roomUUID,
           roomToken,
@@ -473,7 +491,11 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
 
         roomRef.current = joinedRoom;
         setRoom(joinedRoom);
-        console.log('[Whiteboard] Joined room successfully:', roomUUID);
+        console.log('[WB] Room joined OK — UUID:', roomUUID,
+          '| isWritable:', (joinedRoom as any).isWritable,
+          '| disableDeviceInputs:', joinedRoom.disableDeviceInputs,
+          '| currentScene:', (joinedRoom as any).state?.sceneState?.scenePath
+        );
 
         if (isTeacher) {
           joinedRoom.setViewMode(ViewMode.Broadcaster);
@@ -485,6 +507,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
         }
         setLoading(false);
       } catch (err: any) {
+        console.error('[WB] joinRoom FAILED:', err.message);
         if (!isCancelled) { setError(err.message || 'Failed to join whiteboard'); setLoading(false); }
       }
     };
@@ -503,9 +526,16 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     const timer = setTimeout(async () => {
       if (!containerRef.current || !room) return;
       try {
+        console.log('[WB] bindHtmlElement — container size:',
+          containerRef.current.offsetWidth, 'x', containerRef.current.offsetHeight,
+          '| isTeacher:', isTeacher
+        );
         room.bindHtmlElement(containerRef.current);
         setIsBound(true);
-        console.log('[Whiteboard] Bound HTML element, isTeacher:', isTeacher);
+        console.log('[WB] Bind OK — currentScene:', (room as any).state?.sceneState?.scenePath,
+          '| isWritable:', (room as any).isWritable,
+          '| disableDeviceInputs:', room.disableDeviceInputs
+        );
         (room as any).refreshViewSize?.();
 
         if (isTeacher) {
@@ -514,12 +544,14 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
           (room as any).disableOperations = false;
           room.setViewMode(ViewMode.Broadcaster);
           room.setMemberState({ currentApplianceName: ApplianceNames.pencil, strokeColor: [139, 92, 246], strokeWidth: 4, textSize: 24 });
+          console.log('[WB] After bind setWritable — disableDeviceInputs:', room.disableDeviceInputs);
 
           setTimeout(() => {
             if (room && containerRef.current) {
               (room as any).refreshViewSize?.();
               room.disableDeviceInputs = false;
               (room as any).disableOperations = false;
+              console.log('[WB] After bind 300ms — disableDeviceInputs:', room.disableDeviceInputs);
             }
           }, 300);
         } else {
@@ -527,7 +559,9 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
           (room as any).disableOperations = true;
           room.setViewMode(ViewMode.Follower);
         }
-      } catch (e) { }
+      } catch (e) {
+        console.error('[WB] bindHtmlElement ERROR:', e);
+      }
     }, 500);
 
     return () => { clearTimeout(timer); room.bindHtmlElement(null); setIsBound(false); };
@@ -571,6 +605,12 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
 
   const applyTool = (tool: string) => {
     if (!room || isApplyingToolRef.current) return;
+
+    console.log('[WB] applyTool:', tool,
+      '| currentScene:', (room as any).state?.sceneState?.scenePath,
+      '| disableDeviceInputs:', room.disableDeviceInputs,
+      '| isWritable:', (room as any).isWritable
+    );
 
     isApplyingToolRef.current = true;
     lastToolRef.current = tool;
@@ -619,6 +659,9 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
         (room as any).disableOperations = false;
       }
 
+      console.log('[WB] applyTool done — disableDeviceInputs:', room.disableDeviceInputs,
+        '| appliance:', (room as any).state?.memberState?.currentApplianceName
+      );
       setTimeout(() => { isApplyingToolRef.current = false; }, 100);
     }, 50);
   };
