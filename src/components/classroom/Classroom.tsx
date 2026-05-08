@@ -356,6 +356,44 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       setIsInClass(true);
       setConnectionData(payload);
 
+      // Startup once: Notify backend that whiteboard/class session is active
+      fetch(`${BASE_URL}classrooms/start-whiteboard`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        }
+      }).catch(() => {});
+
+      // Change 2 — Load chat history on join
+      try {
+        const historyRes = await fetch(`${BASE_URL}chat/messages`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+            'Accept': 'application/json',
+          }
+        });
+        if (historyRes.ok) {
+          const historyData = await historyRes.json();
+          if (historyData.data && historyData.data.length > 0) {
+            const mapped = historyData.data.map((m: any) => ({
+              type: 'chat',
+              id: m.client_id,
+              senderId: m.sender_id,
+              senderName: m.sender_name,
+              senderRole: m.sender_role,
+              text: m.text || '',
+              attachmentUrl: m.attachment_url,
+              attachmentName: m.attachment_name,
+              emoji: null,
+              timestamp: m.created_at,
+            }));
+            setChatMessages(mapped);
+          }
+        }
+      } catch (e) {}
+
       // Use backend-provided whiteboard credentials for this class session.
       if (payload.whiteboard_room_uuid && payload.whiteboard_room_token) {
         updateWhiteboardData({
@@ -652,6 +690,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       await clientRef.current?.leave();
       setIsInClass(false);
       setIsSharingScreen(false);
+      setChatMessages([]); // Change 4 — Clear messages on leave
       // Clear state only — localStorage.whiteboard_data is intentionally kept
       // so the same Netless room is reused next class and annotations persist.
       whiteboardDataRef.current = null;
@@ -710,7 +749,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       try {
         const formData = new FormData();
         formData.append('file', file);
-        const res = await fetch(`${BASE_URL}api/chat/upload`, {
+        // Change 3 — Fixed endpoint (removed api/ prefix)
+        const res = await fetch(`${BASE_URL}chat/upload`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
@@ -751,6 +791,22 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
         text: JSON.stringify(newMessage)
       }).catch((e: any) => console.warn("RTM chat send failed", e));
     }
+
+    // Change 1 — Save sent message to DB (Only sender saves)
+    fetch(`${BASE_URL}chat/messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({
+        client_id:       newMessage.id,
+        text:            newMessage.text,
+        attachment_url:  newMessage.attachmentUrl,
+        attachment_name: newMessage.attachmentName,
+      })
+    }).catch(() => {});
   };
 
   const toggleScreenShare = async () => {
@@ -973,7 +1029,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
           <div className="hidden lg:flex items-center gap-3 px-4 py-1.5 bg-white/5 rounded-full border border-white/5 mr-2">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
             <span className="text-[10px] font-black text-white uppercase tracking-widest">
-              {classroomMode === 'none' ? 'In Meeting' : `Sharing ${classroomMode === 'whiteboard' ? 'Board' : 'PDF'}`}
+              Live Session
             </span>
           </div>
 
@@ -988,11 +1044,6 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
           >
             <MessageSquare size={14} />
             Chat
-            {unreadCount > 0 && !showChat && (
-              <span className="flex items-center justify-center min-w-[18px] h-[18px] bg-red-500 text-[9px] text-white rounded-full ml-1">
-                {unreadCount}
-              </span>
-            )}
           </button>
           
           {user.role === 2 ? (

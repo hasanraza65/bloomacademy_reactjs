@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { WhiteWebSdk, Room, DeviceType, ViewMode, ApplianceNames } from 'white-web-sdk';
 import { Loader2, Pencil, Eraser, Square, Circle, Type, MousePointer2, ChevronLeft, ChevronRight, Highlighter, MousePointerClick, BookOpen, X, Monitor, Plus, Minus, Trash2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
@@ -82,6 +83,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   }, [currentTool, isTeacher]);
 
   const [numPages, setNumPages] = useState<number>(0);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const prevPdfUrlRef = useRef<string | null>(null);
   const pdfUrlRef = useRef(pdfUrl);
@@ -294,30 +296,18 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
       console.error('[WB] setScenePath FAILED for', scenePath, '—', e);
     }
 
-    if (isTeacher) {
-      room.setWritable(true).then(() => {
-        console.log('[WB] setWritable(true) resolved — disableDeviceInputs before:', room.disableDeviceInputs);
-        room.disableDeviceInputs = false;
-        (room as any).disableOperations = false;
-        room.setMemberState({
-          currentApplianceName: ApplianceNames.pencil,
-          strokeColor: [139, 92, 246],
-          strokeWidth: 4,
-        });
-        (room as any).refreshViewSize?.();
-        console.log('[WB] Whiteboard ready — scene:', (room as any).state?.sceneState?.scenePath,
-          '| disableDeviceInputs:', room.disableDeviceInputs,
-          '| isWritable:', (room as any).isWritable
-        );
-      }).catch((e) => {
-        console.error('[WB] setWritable(true) FAILED:', e);
+    room.setWritable(true).then(() => {
+      room.disableDeviceInputs = false;
+      (room as any).disableOperations = false;
+      room.setMemberState({
+        currentApplianceName: ApplianceNames.pencil,
+        strokeColor: [139, 92, 246],
+        strokeWidth: 4,
       });
-    } else {
-      room.setWritable(false).catch(() => {});
-      room.disableDeviceInputs = true;
-      (room as any).disableOperations = true;
       (room as any).refreshViewSize?.();
-    }
+    }).catch((e) => {
+      console.error('[WB] setWritable(true) FAILED:', e);
+    });
   }, [room, isTeacher, pdfUrl, isBound]);
 
   // ─── PDF scene (PDF is active) ────────────────────────────────────────────
@@ -365,32 +355,19 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
       }
     }
 
-    if (isTeacher) {
-      room.setWritable(true).then(() => {
-        if (pdfUrlRef.current !== pdfUrl) return;
-        console.log('[WB] PDF setWritable resolved — scene:', (room as any).state?.sceneState?.scenePath,
-          '| disableDeviceInputs:', room.disableDeviceInputs
-        );
-        room.disableDeviceInputs = false;
-        (room as any).disableOperations = false;
-        room.setMemberState({
-          currentApplianceName: ApplianceNames.pencil,
-          strokeColor: [139, 92, 246],
-          strokeWidth: 4,
-        });
-        (room as any).refreshViewSize?.();
-        console.log('[WB] PDF scene ready — disableDeviceInputs:', room.disableDeviceInputs,
-          '| isWritable:', (room as any).isWritable
-        );
-      }).catch((e) => {
-        console.error('[WB] PDF setWritable FAILED:', e);
+    room.setWritable(true).then(() => {
+      if (pdfUrlRef.current !== pdfUrl) return;
+      room.disableDeviceInputs = false;
+      (room as any).disableOperations = false;
+      room.setMemberState({
+        currentApplianceName: ApplianceNames.pencil,
+        strokeColor: [139, 92, 246],
+        strokeWidth: 4,
       });
-    } else {
-      room.setWritable(false).catch(() => {});
-      room.disableDeviceInputs = true;
-      (room as any).disableOperations = true;
       (room as any).refreshViewSize?.();
-    }
+    }).catch((e) => {
+      console.error('[WB] PDF setWritable FAILED:', e);
+    });
   }, [room, isTeacher, pdfUrl, pdfStableId, currentPage, isBound]);
 
   useEffect(() => {
@@ -407,15 +384,15 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   // Whenever the whiteboard canvas div resizes (PDF load, zoom change, window resize),
   // notify the Netless SDK so it recalculates coordinate mapping.
   useEffect(() => {
-    if (!containerRef.current || !roomRef.current) return;
+    if (!containerRef.current || !room) return;
     const observer = new ResizeObserver(() => {
       try {
-        (roomRef.current as any)?.refreshViewSize?.();
+        (room as any)?.refreshViewSize?.();
       } catch (_) {}
     });
     observer.observe(containerRef.current);
     return () => observer.disconnect();
-  }, []);
+  }, [room]);
 
   // Force a view-size refresh after zoom/layout updates so strokes stay aligned to PDF.
   useEffect(() => {
@@ -482,8 +459,8 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
           region: 'us-sv',
           cursorAdapter: undefined,
           disableNewPencil: false,
-          isWritable: isTeacher,
-          disableDeviceInputs: !isTeacher,
+          isWritable: true,
+          disableDeviceInputs: false,
           userPayload: { cursorName: userName },
         } as any);
 
@@ -523,19 +500,26 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   useEffect(() => {
     if (!room || !containerRef.current) return;
 
-    const timer = setTimeout(async () => {
+    let timer: any;
+
+    const bind = async () => {
       if (!containerRef.current || !room) return;
       try {
-        console.log('[WB] bindHtmlElement — container size:',
+        console.log('[WB] bindHtmlElement — container ready:',
           containerRef.current.offsetWidth, 'x', containerRef.current.offsetHeight,
           '| isTeacher:', isTeacher
         );
+        
+        // Netless requires the element to be in the DOM and visible.
+        // If it's too small (0x0), it might fail to bind correctly.
+        if (containerRef.current.offsetWidth === 0 || containerRef.current.offsetHeight === 0) {
+          timer = setTimeout(bind, 100);
+          return;
+        }
+
         room.bindHtmlElement(containerRef.current);
         setIsBound(true);
-        console.log('[WB] Bind OK — currentScene:', (room as any).state?.sceneState?.scenePath,
-          '| isWritable:', (room as any).isWritable,
-          '| disableDeviceInputs:', room.disableDeviceInputs
-        );
+        console.log('[WB] Bind OK — currentScene:', (room as any).state?.sceneState?.scenePath);
         (room as any).refreshViewSize?.();
 
         if (isTeacher) {
@@ -544,27 +528,27 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
           (room as any).disableOperations = false;
           room.setViewMode(ViewMode.Broadcaster);
           room.setMemberState({ currentApplianceName: ApplianceNames.pencil, strokeColor: [139, 92, 246], strokeWidth: 4, textSize: 24 });
-          console.log('[WB] After bind setWritable — disableDeviceInputs:', room.disableDeviceInputs);
-
-          setTimeout(() => {
-            if (room && containerRef.current) {
-              (room as any).refreshViewSize?.();
-              room.disableDeviceInputs = false;
-              (room as any).disableOperations = false;
-              console.log('[WB] After bind 300ms — disableDeviceInputs:', room.disableDeviceInputs);
-            }
-          }, 300);
         } else {
-          room.disableDeviceInputs = true;
-          (room as any).disableOperations = true;
+          await room.setWritable(true);
+          room.disableDeviceInputs = false;
+          (room as any).disableOperations = false;
           room.setViewMode(ViewMode.Follower);
+          room.setMemberState({ currentApplianceName: ApplianceNames.pencil, strokeColor: [139, 92, 246], strokeWidth: 4, textSize: 24 });
         }
       } catch (e) {
         console.error('[WB] bindHtmlElement ERROR:', e);
       }
-    }, 500);
+    };
 
-    return () => { clearTimeout(timer); room.bindHtmlElement(null); setIsBound(false); };
+    bind();
+
+    return () => { 
+      if (timer) clearTimeout(timer);
+      try {
+        if (room) room.bindHtmlElement(null); 
+      } catch (_) {}
+      setIsBound(false); 
+    };
   }, [room, isTeacher]);
 
   // When a PDF is active, keep the whiteboard camera locked at scale:1.
@@ -604,23 +588,24 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   const getScaledStrokeWidth = (baseWidth: number) => baseWidth;
 
   const applyTool = (tool: string) => {
-    if (!room || isApplyingToolRef.current) return;
+    if (!room || isApplyingToolRef.current || !isBound) {
+      console.log('[WB] applyTool skipped — room:', !!room, '| isBound:', isBound, '| isApplyingTool:', isApplyingToolRef.current);
+      return;
+    }
 
-    console.log('[WB] applyTool:', tool,
-      '| currentScene:', (room as any).state?.sceneState?.scenePath,
-      '| disableDeviceInputs:', room.disableDeviceInputs,
-      '| isWritable:', (room as any).isWritable
+    console.log('[WB] applyTool (EXEC):', tool,
+      '| scene:', (room as any).state?.sceneState?.scenePath,
+      '| disableInputs:', room.disableDeviceInputs
     );
 
     isApplyingToolRef.current = true;
     lastToolRef.current = tool;
     setCurrentTool(tool);
 
-    if (isTeacher) {
-      room.setWritable(true).catch(() => {});
-      room.disableDeviceInputs = false;
-      (room as any).disableOperations = false;
-    }
+    // Allow everyone to set writable when applying a tool
+    room.setWritable(true).catch(() => {});
+    room.disableDeviceInputs = false;
+    (room as any).disableOperations = false;
 
     setTimeout(() => {
       if (!room) return;
@@ -654,10 +639,8 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
           room.setMemberState({ currentApplianceName: ApplianceNames.pencil });
       }
 
-      if (isTeacher) {
-        room.disableDeviceInputs = false;
-        (room as any).disableOperations = false;
-      }
+      room.disableDeviceInputs = false;
+      (room as any).disableOperations = false;
 
       console.log('[WB] applyTool done — disableDeviceInputs:', room.disableDeviceInputs,
         '| appliance:', (room as any).state?.memberState?.currentApplianceName
@@ -696,15 +679,16 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     return () => { room.removeMagixEventListener('onMemberStateChanged'); };
   }, [room, currentTool]);
 
-  // Force sync the tool when room connects or mode changes
+  // Force sync the tool when room connects, is bound, or mode changes
   useEffect(() => {
-    if (room && isTeacher && currentTool) {
+    if (room && currentTool && isBound) {
+      console.log('[WB] Tool sync effect — currentTool:', currentTool, '| isBound:', isBound);
       const timer = setTimeout(() => {
-        if (room && !isApplyingToolRef.current) applyTool(currentTool);
-      }, 500);
+        if (room && !isApplyingToolRef.current && isBound) applyTool(currentTool);
+      }, 300);
       return () => clearTimeout(timer);
     }
-  }, [room, isTeacher, currentTool]);
+  }, [room, currentTool, isBound]);
 
   // Keep drawing thickness visually consistent while PDF zoom changes.
   useEffect(() => {
@@ -826,8 +810,8 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
               ref={containerRef}
               className="netless-container absolute inset-0 z-10 touch-none"
               style={{
-                pointerEvents: isTeacher ? 'all' : 'none',
-                cursor: isTeacher ? (currentTool === 'pencil' ? 'crosshair' : 'default') : 'default',
+                pointerEvents: 'all',
+                cursor: currentTool === 'pencil' ? 'crosshair' : 'default',
                 background: pdfUrl ? 'transparent' : 'white',
               }}
             />
@@ -874,32 +858,36 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
       )}
 
       {/* Toolbar */}
-      {isTeacher && (
+      {(isTeacher || showTools) && (
         <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-2 p-2 bg-slate-900/80 backdrop-blur-md rounded-2xl border border-white/10 z-20">
 
           {/* Screen Share button */}
-          <button
-            onClick={() => onScreenShare?.()}
-            title={isSharingScreen ? 'Stop Sharing' : 'Share Screen'}
-            className={cn("p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95",
-              isSharingScreen ? "bg-amber-500 text-white shadow-lg shadow-amber-500/30" : "text-slate-400 hover:text-white hover:bg-white/10"
-            )}
-          >
-            <Monitor size={20} />
-          </button>
+          {isTeacher && (
+            <button
+              onClick={() => onScreenShare?.()}
+              title={isSharingScreen ? 'Stop Sharing' : 'Share Screen'}
+              className={cn("p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95",
+                isSharingScreen ? "bg-amber-500 text-white shadow-lg shadow-amber-500/30" : "text-slate-400 hover:text-white hover:bg-white/10"
+              )}
+            >
+              <Monitor size={20} />
+            </button>
+          )}
 
           {/* PDF / Resources button */}
-          <button
-            onClick={() => onOpenMaterials?.()}
-            title="PDF Resources"
-            className={cn("p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95",
-              currentMode === 'pdf' ? "bg-brand-purple text-white shadow-lg shadow-purple-500/30" : "text-slate-400 hover:text-white hover:bg-white/10"
-            )}
-          >
-            <BookOpen size={20} />
-          </button>
+          {isTeacher && (
+            <button
+              onClick={() => onOpenMaterials?.()}
+              title="PDF Resources"
+              className={cn("p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95",
+                currentMode === 'pdf' ? "bg-brand-purple text-white shadow-lg shadow-purple-500/30" : "text-slate-400 hover:text-white hover:bg-white/10"
+              )}
+            >
+              <BookOpen size={20} />
+            </button>
+          )}
 
-          <div className="h-px bg-white/10 my-1" />
+          {isTeacher && <div className="h-px bg-white/10 my-1" />}
 
           {/* Drawing tools */}
           {tools.map((tool) => (
@@ -920,13 +908,45 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
 
           {/* Clear current page's annotation strokes */}
           {isTeacher && (currentMode === 'pdf' || currentMode === 'whiteboard') && (
-            <button
-              onClick={clearCurrentScene}
-              title="Clear annotations on this page"
-              className="p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95 text-red-400 hover:text-red-300 hover:bg-white/10"
-            >
-              <Trash2 size={20} />
-            </button>
+            <div className="relative">
+              <AnimatePresence>
+                {showClearConfirm && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8, x: 20 }}
+                    animate={{ opacity: 1, scale: 1, x: 0 }}
+                    exit={{ opacity: 0, scale: 0.8, x: 20 }}
+                    className="absolute left-full ml-3 top-0 flex items-center gap-2 bg-slate-900 border border-white/10 p-1.5 rounded-xl shadow-2xl z-50 whitespace-nowrap"
+                  >
+                    <span className="text-[10px] font-bold text-white/50 uppercase px-2">Clear?</span>
+                    <button
+                      onClick={() => {
+                        clearCurrentScene();
+                        setShowClearConfirm(false);
+                      }}
+                      className="px-3 py-1.5 bg-red-500 text-white text-[10px] font-black uppercase rounded-lg hover:bg-red-600 transition-colors"
+                    >
+                      Yes
+                    </button>
+                    <button
+                      onClick={() => setShowClearConfirm(false)}
+                      className="px-3 py-1.5 bg-white/5 text-white/70 text-[10px] font-black uppercase rounded-lg hover:bg-white/10 transition-colors"
+                    >
+                      No
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              <button
+                onClick={() => setShowClearConfirm(!showClearConfirm)}
+                title="Clear annotations on this page"
+                className={cn(
+                  "p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95",
+                  showClearConfirm ? "bg-red-500 text-white shadow-lg shadow-red-500/30" : "text-red-400 hover:text-red-300 hover:bg-white/10"
+                )}
+              >
+                <Trash2 size={20} />
+              </button>
+            </div>
           )}
 
           <div className="h-px bg-white/10 my-1" />

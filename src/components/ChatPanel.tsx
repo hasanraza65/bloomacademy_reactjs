@@ -52,6 +52,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const [inputText, setInputText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [lightbox, setLightbox] = useState<{ url: string; name: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -101,19 +102,17 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   };
 
   return (
-    <motion.div
+    <>
+      <motion.div
       initial={{ width: 0, opacity: 0 }}
       animate={{ width: 320, opacity: 1 }}
       exit={{ width: 0, opacity: 0 }}
-      className="h-full flex flex-col bg-slate-900 border-l border-white/5 overflow-hidden"
+      className="h-full flex flex-col bg-slate-900 border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl"
     >
       {/* Header */}
-      <div className="h-12 px-4 flex items-center justify-between border-b border-white/5 shrink-0">
+      <div className="h-12 px-6 flex items-center justify-between border-b border-white/5 shrink-0">
         <div className="flex items-center gap-2">
-          <span className="text-white font-black text-xs uppercase tracking-widest">Class Chat</span>
-          <span className="px-2 py-0.5 bg-brand-purple/20 text-brand-purple rounded-full text-[10px] font-black">
-            {messages.length}
-          </span>
+          <span className="text-white font-black text-xs uppercase tracking-widest">Chat</span>
         </div>
         <button 
           onClick={onClose}
@@ -156,16 +155,36 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                   <p className="text-sm font-medium leading-relaxed break-words whitespace-pre-wrap">{msg.text}</p>
                   
                   {msg.attachmentUrl && (
-                    <div className="mt-2 p-2 rounded-xl bg-black/20 border border-white/5 flex items-center gap-2 group cursor-pointer" 
-                         onClick={() => window.open(msg.attachmentUrl!, '_blank')}>
-                      <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-white shrink-0">
-                        {msg.attachmentName?.match(/\.(jpg|jpeg|png|gif)$/i) ? <ImageIcon size={14} /> : <FileText size={14} />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[10px] font-bold truncate text-white/70">{msg.attachmentName}</p>
-                      </div>
-                      <Download size={14} className="text-white/40 group-hover:text-white transition-colors" />
-                    </div>
+                    <>
+                      {msg.attachmentName?.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                        <div 
+                          className="mt-2 rounded-xl overflow-hidden border border-white/10 cursor-pointer hover:opacity-90 transition-opacity"
+                          onClick={() => setLightbox({ url: msg.attachmentUrl!, name: msg.attachmentName! })}
+                        >
+                          <img 
+                            src={msg.attachmentUrl} 
+                            alt={msg.attachmentName} 
+                            className="w-full h-auto max-h-48 object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                          <div className="p-2 bg-black/40 flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-white/70 truncate">{msg.attachmentName}</span>
+                            <Download size={12} className="text-white/40 shrink-0" />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-2 p-2 rounded-xl bg-black/20 border border-white/5 flex items-center gap-2 group cursor-pointer" 
+                             onClick={() => window.open(msg.attachmentUrl!, '_blank')}>
+                          <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-white shrink-0">
+                            <FileText size={14} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] font-bold truncate text-white/70">{msg.attachmentName}</p>
+                          </div>
+                          <Download size={14} className="text-white/40 group-hover:text-white transition-colors" />
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
                 
@@ -180,14 +199,14 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       </div>
 
       {/* Input Area */}
-      <div className="p-4 border-t border-white/5 shrink-0 bg-slate-900">
+      <div className="p-4 border-t border-white/5 shrink-0 bg-slate-900 relative">
         <AnimatePresence>
           {showEmojiPicker && (
             <motion.div
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.95 }}
-              className="absolute bottom-24 right-4 bg-slate-800 border border-white/10 rounded-2xl p-3 grid grid-cols-6 gap-2 shadow-2xl z-20"
+              className="absolute bottom-full left-4 right-4 mb-2 bg-slate-800 border border-white/10 rounded-2xl p-3 grid grid-cols-6 gap-2 shadow-2xl z-20"
             >
               {EMOJIS.map(emoji => (
                 <button
@@ -268,5 +287,61 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         </div>
       </div>
     </motion.div>
-  );
+
+    <AnimatePresence>
+      {lightbox && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-4"
+          onClick={() => setLightbox(null)}
+        >
+          <div className="absolute top-4 right-4 flex items-center gap-4">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const a = document.createElement('a');
+                a.href = lightbox.url;
+                a.download = lightbox.name;
+                a.target = '_blank';
+                a.click();
+              }}
+              className="p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
+              title="Download"
+            >
+              <Download size={24} />
+            </button>
+            <button
+              onClick={() => setLightbox(null)}
+              className="p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
+              title="Close"
+            >
+              <X size={24} />
+            </button>
+          </div>
+          
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            className="w-full h-full flex items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img 
+              src={lightbox.url} 
+              alt={lightbox.name} 
+              className="max-w-full max-h-full object-contain shadow-2xl rounded-lg"
+              referrerPolicy="no-referrer"
+            />
+          </motion.div>
+          
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 bg-white/5 rounded-full border border-white/10 backdrop-blur-md">
+            <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">{lightbox.name}</p>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  </>
+);
 };

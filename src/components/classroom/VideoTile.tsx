@@ -155,18 +155,12 @@ export const VideoTile: React.FC<VideoTileProps> = ({
         )}
       </div>
 
-      {/* Local Video Mirroring Tag */}
-      {isLocal && hasVideo && !isCamOff && (
-        <div className="absolute top-4 right-4 text-[10px] font-bold text-white/20 uppercase tracking-widest pointer-events-none">
-          Local Stream
-        </div>
-      )}
 
       {/* Earned Badges History overlay - Student webcam bottom */}
       {role === 'audience' && earnedBadges.length > 0 && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex flex-wrap gap-1.5 pointer-events-none justify-center w-full max-w-[80%]">
           <AnimatePresence>
-            {earnedBadges.map((badge, idx) => {
+            {earnedBadges.slice(-3).map((badge, idx) => {
               const config = BADGE_CONFIG[badge.badge_type] || BADGE_CONFIG.star;
               return (
                 <motion.div
