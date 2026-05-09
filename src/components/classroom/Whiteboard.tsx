@@ -904,7 +904,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
             </button>
           ))}
 
-          <div className="h-px bg-white/10 my-1" />
+          {isTeacher && <div className="h-px bg-white/10 my-1" />}
 
           {/* Clear current page's annotation strokes */}
           {isTeacher && (currentMode === 'pdf' || currentMode === 'whiteboard') && (
@@ -949,7 +949,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
             </div>
           )}
 
-          <div className="h-px bg-white/10 my-1" />
+          {isTeacher && <div className="h-px bg-white/10 my-1" />}
 
           {/* Close button */}
           <button

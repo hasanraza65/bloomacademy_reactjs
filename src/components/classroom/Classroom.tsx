@@ -53,6 +53,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
   const [isCamOff, setIsCamOff] = useState(false);
   const [isSharingScreen, setIsSharingScreen] = useState(false);
   const [showWhiteboard, setShowWhiteboard] = useState(false);
+  const [isWhiteboardLoading, setIsWhiteboardLoading] = useState(false);
   const [whiteboardData, setWhiteboardData] = useState<any>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('whiteboard_data');
@@ -614,6 +615,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       if (!isInClass || user.role !== 2 || !showWhiteboardRef.current || whiteboardDataRef.current) return;
 
       // No saved room — request one from backend
+      setIsWhiteboardLoading(true);
       try {
         const res = await apiService.startWhiteboardSession();
         const data = (res as any).data || res;
@@ -625,6 +627,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       } catch (err) {
         // 
 
+      } finally {
+        setIsWhiteboardLoading(false);
       }
     };
 
@@ -1026,12 +1030,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
         </div>
         
         <div className="flex items-center gap-4">
-          <div className="hidden lg:flex items-center gap-3 px-4 py-1.5 bg-white/5 rounded-full border border-white/5 mr-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-            <span className="text-[10px] font-black text-white uppercase tracking-widest">
-              Live Session
-            </span>
-          </div>
+          {/* Live Session badge removed per request */}
 
           <button
             onClick={toggleChat}
@@ -1342,15 +1341,23 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                     />
                   ) : (
                     <div className="w-full h-full rounded-[3rem] bg-slate-900 border-4 border-dashed border-white/5 flex flex-col items-center justify-center p-12 text-center">
-                      <div className="w-20 h-20 rounded-full bg-brand-purple/10 flex items-center justify-center text-brand-purple mb-6">
-                        <Pencil size={40} />
-                      </div>
-                      <h4 className="text-xl font-black text-white uppercase tracking-widest mb-4">Whiteboard Not Ready</h4>
-                      <p className="text-slate-500 text-sm max-w-sm">
-                        {user.role === 2 
-                          ? "The classroom service didn't provide whiteboard credentials. Please ensure Whiteboard is enabled in your Agora dashboard."
-                          : "Waiting for the teacher to activate the whiteboard..."}
-                      </p>
+                      {isWhiteboardLoading || user.role === 2 ? (
+                        <>
+                          <div className="w-16 h-16 rounded-full border-4 border-brand-purple/30 border-t-brand-purple animate-spin mb-6" />
+                          <h4 className="text-lg font-black text-white uppercase tracking-widest mb-2">Setting Up Whiteboard</h4>
+                          <p className="text-slate-500 text-sm max-w-sm">Please wait a moment...</p>
+                        </>
+                      ) : (
+                        <>
+                          <div className="w-20 h-20 rounded-full bg-brand-purple/10 flex items-center justify-center text-brand-purple mb-6">
+                            <Pencil size={40} />
+                          </div>
+                          <h4 className="text-xl font-black text-white uppercase tracking-widest mb-4">Whiteboard Not Ready</h4>
+                          <p className="text-slate-500 text-sm max-w-sm">
+                            Waiting for the teacher to activate the whiteboard...
+                          </p>
+                        </>
+                      )}
                     </div>
                   )}
                 </motion.div>
