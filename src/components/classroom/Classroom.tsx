@@ -161,6 +161,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       }
     }
   }, [scrollPosition, user.role]);
+  const [isAnnotationsLocked, setIsAnnotationsLocked] = useState(false);
   const [showMaterialManager, setShowMaterialManager] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
 
@@ -452,6 +453,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
               setActiveMaterial(msg.material);
               if (msg.material) updateShowWhiteboard(true);
             }
+            if (msg.isLocked !== undefined) setIsAnnotationsLocked(msg.isLocked);
           } else if (msg.type === 'class-ended') {
             // 
 
@@ -533,6 +535,10 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
               return data.current_page;
             });
           }
+          
+          if (data.is_annotations_locked !== undefined) {
+            setIsAnnotationsLocked(!!data.is_annotations_locked);
+          }
 
         } else {
           // Whiteboard not active
@@ -570,7 +576,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
         channel_name: connectionData.channel_name,
         material_id: classroomMode === 'pdf' ? (activeMaterial?.id ?? null) : null,
         current_page: currentPage,
-        is_whiteboard_active: classroomMode !== 'none'
+        is_whiteboard_active: classroomMode !== 'none',
+        is_annotations_locked: isAnnotationsLocked
       })
     }).catch(e => {});
 
@@ -582,12 +589,13 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
           material: classroomMode === 'pdf' ? activeMaterial : null, 
           page: currentPage,
           zoom: zoom,
-          scrollPosition: scrollPosition
+          scrollPosition: scrollPosition,
+          isLocked: isAnnotationsLocked
         })
       }).catch((e: any) => {});
     }
 
-  }, [activeMaterial, currentPage, zoom, scrollPosition, classroomMode, isInClass, user.role, connectionData?.channel_name, isRTMReady]);
+  }, [activeMaterial, currentPage, zoom, scrollPosition, classroomMode, isInClass, user.role, connectionData?.channel_name, isRTMReady, isAnnotationsLocked]);
 
   // Handle classroom mode changes
   useEffect(() => {
@@ -1338,6 +1346,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                       }}
                       onScreenShare={toggleScreenShare}
                       isSharingScreen={isSharingScreen}
+                      isLocked={isAnnotationsLocked}
+                      onLockToggle={() => setIsAnnotationsLocked(!isAnnotationsLocked)}
                     />
                   ) : (
                     <div className="w-full h-full rounded-[3rem] bg-slate-900 border-4 border-dashed border-white/5 flex flex-col items-center justify-center p-12 text-center">

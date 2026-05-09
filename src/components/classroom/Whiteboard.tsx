@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { WhiteWebSdk, Room, DeviceType, ViewMode, ApplianceNames } from 'white-web-sdk';
-import { Loader2, Pencil, Eraser, Square, Circle, Type, MousePointer2, ChevronLeft, ChevronRight, Highlighter, MousePointerClick, BookOpen, X, Monitor, Plus, Minus, Trash2 } from 'lucide-react';
+import { Loader2, Pencil, Eraser, Square, Circle, Type, MousePointer2, ChevronLeft, ChevronRight, Highlighter, MousePointerClick, BookOpen, X, Monitor, Plus, Minus, Trash2, Lock, Unlock } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -31,6 +31,8 @@ interface WhiteboardProps {
   materialId?: number | string;
   /** Called with the clearAllAnnotations function so the parent can trigger a clear */
   onCloseBook?: (clearFn: (mId: number | string) => void) => void;
+  isLocked?: boolean;
+  onLockToggle?: () => void;
 }
 
 export const Whiteboard: React.FC<WhiteboardProps> = ({
@@ -54,6 +56,8 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   onScrollChange,
   materialId,
   onCloseBook,
+  isLocked = false,
+  onLockToggle,
 }) => {
   // TODO: make dynamic in future — currently hardcoded until pair/session system is implemented
   const PAIR_ID = 1;
@@ -529,9 +533,9 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
           room.setViewMode(ViewMode.Broadcaster);
           room.setMemberState({ currentApplianceName: ApplianceNames.pencil, strokeColor: [139, 92, 246], strokeWidth: 4, textSize: 24 });
         } else {
-          await room.setWritable(true);
-          room.disableDeviceInputs = false;
-          (room as any).disableOperations = false;
+          await room.setWritable(!isLocked);
+          room.disableDeviceInputs = isLocked;
+          (room as any).disableOperations = isLocked;
           room.setViewMode(ViewMode.Follower);
           room.setMemberState({ currentApplianceName: ApplianceNames.pencil, strokeColor: [139, 92, 246], strokeWidth: 4, textSize: 24 });
         }
@@ -550,6 +554,14 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
       setIsBound(false); 
     };
   }, [room, isTeacher]);
+
+  // Update writable state when lock toggles (for students)
+  useEffect(() => {
+    if (!room || isTeacher) return;
+    room.setWritable(!isLocked);
+    room.disableDeviceInputs = isLocked;
+    (room as any).disableOperations = isLocked;
+  }, [isLocked, room, isTeacher]);
 
   // When a PDF is active, keep the whiteboard camera locked at scale:1.
   useEffect(() => {
@@ -736,7 +748,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     { id: 'text',        icon: <Type size={20} />,             title: 'Text' },
   ];
 
-  const showTools = currentMode === 'whiteboard' || currentMode === 'pdf';
+  const showTools = (currentMode === 'whiteboard' || currentMode === 'pdf') && (isTeacher || !isLocked);
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
@@ -947,6 +959,20 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
                 <Trash2 size={20} />
               </button>
             </div>
+          )}
+
+          {/* Lock annotations button */}
+          {isTeacher && (
+            <button
+              onClick={onLockToggle}
+              title={isLocked ? "Unlock student annotations" : "Lock student annotations"}
+              className={cn(
+                "p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95",
+                isLocked ? "bg-red-500 text-white shadow-lg shadow-red-500/30" : "text-slate-400 hover:text-white hover:bg-white/10"
+              )}
+            >
+              {isLocked ? <Lock size={20} /> : <Unlock size={20} />}
+            </button>
           )}
 
           {isTeacher && <div className="h-px bg-white/10 my-1" />}
