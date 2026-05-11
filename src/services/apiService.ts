@@ -1,4 +1,4 @@
-import { LoginResponse } from '../types';
+import { LoginResponse, ClassroomData } from '../types';
 import { BASE_URL } from '../lib/config';
 
 export const apiService = {
@@ -177,6 +177,18 @@ export const apiService = {
     const token = localStorage.getItem('auth_token');
     const response = await fetch(`${BASE_URL}annotations?pair_id=${pairId}&material_id=${materialId}`, {
       method: 'DELETE',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+    });
+    return response.json();
+  },
+
+  async getMyClasses(): Promise<ClassroomData[]> {
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(`${BASE_URL}my-classes`, {
+      method: 'GET',
       headers: {
         'Accept': 'application/json',
         'Authorization': `Bearer ${token}`

@@ -12,7 +12,8 @@ import {
 import { AuthModal } from './components/AuthModal';
 import { Dashboard } from './components/Dashboard';
 import { Classroom } from './components/classroom/Classroom';
-import { UserRole, AuthMode, User } from './types';
+import { UserRole, AuthMode, User, ClassroomData } from './types';
+import { apiService } from './services/apiService';
 
 function LandingPage({ 
   isLoggedIn, 
@@ -55,6 +56,8 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [role, setRole] = useState<UserRole>(3); // 3 = Parent
   const [user, setUser] = useState<User | null>(null);
+  const [myClasses, setMyClasses] = useState<ClassroomData[]>([]);
+  const [isLoadingClasses, setIsLoadingClasses] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
@@ -66,6 +69,13 @@ export default function App() {
         setUser(parsedUser);
         setRole(parsedUser.role);
         setIsLoggedIn(true);
+        // Fetch classes on reload
+        setIsLoadingClasses(true);
+        apiService.getMyClasses().then(classes => {
+          if (Array.isArray(classes)) setMyClasses(classes);
+        })
+        .catch(console.error)
+        .finally(() => setIsLoadingClasses(false));
       } catch (e) {
         console.error("Failed to parse saved user", e);
       }
@@ -81,6 +91,13 @@ export default function App() {
     setUser(userData);
     setIsLoggedIn(true);
     localStorage.setItem('auth_user', JSON.stringify(userData));
+    // Fetch classes after login
+    setIsLoadingClasses(true);
+    apiService.getMyClasses().then(classes => {
+      if (Array.isArray(classes)) setMyClasses(classes);
+    })
+    .catch(console.error)
+    .finally(() => setIsLoadingClasses(false));
     closeAuth();
   };
 
@@ -111,7 +128,13 @@ export default function App() {
           path="/dashboard" 
           element={
             isLoggedIn && user ? (
-              <Dashboard role={role} user={user} onLogout={handleLogout} />
+              <Dashboard 
+                role={role} 
+                user={user} 
+                myClasses={myClasses} 
+                isLoading={isLoadingClasses}
+                onLogout={handleLogout} 
+              />
             ) : (
               <Navigate to="/" replace />
             )

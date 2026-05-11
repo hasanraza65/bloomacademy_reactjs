@@ -70,3 +70,46 @@ export interface AgoraParticipant {
   hasVideo: boolean;
   name?: string;
 }
+export interface ClassroomData {
+  id: number;
+  channel_name: string;
+  teacher_id: number;
+  child_id: number;
+  pair_id: number;
+  status: string;
+  whiteboard_uuid: string | null;
+  whiteboard_token: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+  created_at: string;
+  updated_at: string;
+  active_material_id: number | null;
+  current_page: number;
+  scroll_position: number;
+  is_whiteboard_active: number;
+  teacher: {
+    id: number;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: number;
+    phone: string;
+    address: string;
+    lat: number | null;
+    lng: number | null;
+    board_status: string;
+    position: number;
+    user_status: number;
+    created_at: string;
+    updated_at: string;
+  };
+  child: {
+    id: number;
+    child_name: string;
+    user_id: number;
+    external_id: string | null;
+    dob: string;
+    created_at: string;
+    updated_at: string;
+  };
+}

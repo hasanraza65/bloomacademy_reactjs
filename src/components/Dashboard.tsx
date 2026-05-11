@@ -7,19 +7,22 @@ import {
   Sparkles, 
   GraduationCap,
   Bell,
-  Users
+  Users,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
-import { UserRole, User } from '@/src/types';
+import { UserRole, User, ClassroomData } from '@/src/types';
 import { useLanguage } from '../context/LanguageContext';
 
 interface DashboardProps {
   role: UserRole;
   user: User;
+  myClasses: ClassroomData[];
+  isLoading?: boolean;
   onLogout: () => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ role, user, onLogout }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ role, user, myClasses, isLoading, onLogout }) => {
   const { t, language, setLanguage } = useLanguage();
   const roleName = role === 3 ? t('nav.signupParent') : t('nav.signupTeacher');
 
@@ -98,116 +101,67 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, user, onLogout }) =>
         <div className="p-8 max-w-6xl w-full mx-auto space-y-10">
           {/* Classes Section */}
           <section>
-             {role === 3 ? (
-               user.children && user.children.length > 0 ? (
-                 <div className="grid grid-cols-1 gap-8">
-                   {user.children.map((child: any, childIdx: number) => (
-                     child.classrooms?.map((classroom: any, classIdx: number) => (
-                       <motion.div 
-                         key={`${child.id}-${classroom.id}`}
-                         initial={{ opacity: 0, y: 20 }}
-                         animate={{ opacity: 1, y: 0 }}
-                         transition={{ delay: (childIdx + classIdx) * 0.1 }}
-                         className="bloom-gradient rounded-[2.5rem] p-10 text-white soft-shadow flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden group h-full"
-                       >
-                          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 blur-[80px] rounded-full translate-x-1/3 -translate-y-1/2" />
-                          
-                          <div className="relative z-10 flex-1">
-                             <div className="flex items-center gap-2 mb-4">
-                                <Sparkles size={20} className="text-amber-300" />
-                                <span className="text-sm font-bold uppercase tracking-widest opacity-80 font-mono">
-                                  {child.firstName || `Child ${childIdx + 1}`} • {t('dash.currentSession')}
-                                </span>
-                             </div>
-                             <h2 className="text-3xl md:text-4xl font-extrabold mb-10 leading-tight">
-                               {classroom.name || t('dash.creativeWriting')}
-                             </h2>
-                             
-                             <div className="flex flex-col sm:flex-row items-center gap-6">
-                                <Link 
-                                  to={`/classroom/${classroom.teacher?.channel_name}`}
-                                  className="inline-flex bg-white text-brand-indigo px-10 py-5 rounded-2xl font-extrabold text-lg items-center gap-3 hover:scale-105 active:scale-95 transition-all soft-shadow group/btn"
-                                >
-                                   <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-brand-indigo group-hover/btn:bg-brand-indigo group-hover/btn:text-white transition-colors">
-                                     <Play fill="currentColor" size={20} className="ml-1" />
+             {isLoading ? (
+               <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                  <div className="relative">
+                    <Loader2 size={48} className="text-brand-indigo animate-spin" />
+                    <div className="absolute inset-0 blur-xl bg-brand-indigo/20 animate-pulse rounded-full" />
+                  </div>
+                  <p className="text-slate-400 font-bold animate-pulse tracking-wide uppercase text-xs">
+                    Fetching your sessions...
+                  </p>
+               </div>
+             ) : myClasses.length > 0 ? (
+               <div className="grid grid-cols-1 gap-8">
+                 {myClasses.map((classroom, idx) => (
+                   <motion.div 
+                     key={classroom.id}
+                     initial={{ opacity: 0, y: 20 }}
+                     animate={{ opacity: 1, y: 0 }}
+                     transition={{ delay: idx * 0.1 }}
+                     className="bloom-gradient rounded-[2.5rem] p-10 text-white soft-shadow flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden group h-full"
+                   >
+                      <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 blur-[80px] rounded-full translate-x-1/3 -translate-y-1/2" />
+                      
+                      <div className="relative z-10 flex-1">
+                         <div className="flex items-center gap-2 mb-4">
+                            <Sparkles size={20} className="text-amber-300" />
+                            <span className="text-sm font-bold uppercase tracking-widest opacity-80 font-mono">
+                              {role === 3 
+                                ? `${classroom.child?.child_name || 'Child'} • ${t('dash.currentSession')}`
+                                : `${classroom.child?.child_name || 'Student Session'} • ${t('dash.currentSession')}`
+                              }
+                            </span>
+                         </div>
+                         <h2 className="text-3xl md:text-4xl font-extrabold mb-10 leading-tight">
+                           {t('dash.creativeWriting')}
+                         </h2>
+                         
+                         <div className="flex flex-col sm:flex-row items-center gap-6">
+                            <Link 
+                              to={`/classroom/${classroom.channel_name}`}
+                              className="inline-flex bg-white text-brand-indigo px-10 py-5 rounded-2xl font-extrabold text-lg items-center gap-3 hover:scale-105 active:scale-95 transition-all soft-shadow group/btn"
+                            >
+                               <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-brand-indigo group-hover/btn:bg-brand-indigo group-hover/btn:text-white transition-colors">
+                                 <Play fill="currentColor" size={20} className="ml-1" />
+                               </div>
+                               {role === 3 ? t('dash.joinClass') : "Manage Class"}
+                            </Link>
+
+                            {role === 3 ? (
+                              classroom.teacher && (
+                                <div className="flex items-center gap-3 opacity-90">
+                                   <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30">
+                                      <GraduationCap size={20} />
                                    </div>
-                                   {t('dash.joinClass')}
-                                </Link>
-
-                                {classroom.teacher && (
-                                  <div className="flex items-center gap-3 opacity-90">
-                                     <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30">
-                                        <GraduationCap size={20} />
-                                     </div>
-                                     <div className="text-left">
-                                        <p className="text-[10px] font-black uppercase tracking-widest opacity-60 leading-none mb-1">Teacher</p>
-                                        <p className="text-sm font-bold">{classroom.teacher.name || "Instructor"}</p>
-                                     </div>
-                                  </div>
-                                )}
-                             </div>
-                          </div>
-                       </motion.div>
-                     ))
-                   ))}
-                 </div>
-               ) : (
-                 <div className="bloom-gradient rounded-[2.5rem] p-10 text-white soft-shadow flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 blur-[80px] rounded-full translate-x-1/3 -translate-y-1/2" />
-                    <div className="relative z-10 flex-1">
-                       <div className="flex items-center gap-2 mb-4">
-                          <Sparkles size={20} className="text-amber-300" />
-                          <span className="text-sm font-bold uppercase tracking-widest opacity-80 font-mono">{t('dash.currentSession')}</span>
-                       </div>
-                       <h2 className="text-4xl md:text-5xl font-extrabold mb-10 leading-tight">{t('dash.creativeWriting')}</h2>
-                       <Link 
-                         to="/classroom/demo"
-                         className="inline-flex bg-white text-brand-indigo px-10 py-5 rounded-2xl font-extrabold text-lg items-center gap-3 hover:scale-105 active:scale-95 transition-all soft-shadow group/btn"
-                       >
-                          <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-brand-indigo group-hover/btn:bg-brand-indigo group-hover/btn:text-white transition-colors">
-                            <Play fill="currentColor" size={20} className="ml-1" />
-                          </div>
-                          {t('dash.joinClass')}
-                       </Link>
-                    </div>
-                 </div>
-               )
-             ) : (
-               user.classrooms && user.classrooms.length > 0 ? (
-                 <div className="grid grid-cols-1 gap-8">
-                   {user.classrooms.map((classroom: any, idx: number) => (
-                     <motion.div 
-                       key={classroom.id}
-                       initial={{ opacity: 0, y: 20 }}
-                       animate={{ opacity: 1, y: 0 }}
-                       transition={{ delay: idx * 0.1 }}
-                       className="bloom-gradient rounded-[2.5rem] p-10 text-white soft-shadow flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden group h-full"
-                     >
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 blur-[80px] rounded-full translate-x-1/3 -translate-y-1/2" />
-                        
-                        <div className="relative z-10 flex-1">
-                           <div className="flex items-center gap-2 mb-4">
-                              <Sparkles size={20} className="text-amber-300" />
-                              <span className="text-sm font-bold uppercase tracking-widest opacity-80 font-mono">
-                                {classroom.child?.child_name || (classroom.child ? "Student Session" : "Open Session")} • {t('dash.currentSession')}
-                              </span>
-                           </div>
-                           <h2 className="text-3xl md:text-4xl font-extrabold mb-10 leading-tight">
-                             {classroom.name || t('dash.creativeWriting')}
-                           </h2>
-                           
-                           <div className="flex flex-col sm:flex-row items-center gap-6">
-                              <Link 
-                                to={`/classroom/${classroom.channel_name}`}
-                                className="inline-flex bg-white text-brand-indigo px-10 py-5 rounded-2xl font-extrabold text-lg items-center gap-3 hover:scale-105 active:scale-95 transition-all soft-shadow group/btn"
-                              >
-                                 <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-brand-indigo group-hover/btn:bg-brand-indigo group-hover/btn:text-white transition-colors">
-                                   <Play fill="currentColor" size={20} className="ml-1" />
-                                 </div>
-                                 Manage Class
-                              </Link>
-
-                              {classroom.child && (
+                                   <div className="text-left">
+                                      <p className="text-[10px] font-black uppercase tracking-widest opacity-60 leading-none mb-1">Teacher</p>
+                                      <p className="text-sm font-bold">{classroom.teacher.firstName} {classroom.teacher.lastName}</p>
+                                   </div>
+                                </div>
+                              )
+                            ) : (
+                              classroom.child && (
                                 <div className="flex items-center gap-3 opacity-90">
                                    <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30">
                                       <Users size={20} />
@@ -217,33 +171,33 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, user, onLogout }) =>
                                       <p className="text-sm font-bold">{classroom.child.child_name || "Assigned Student"}</p>
                                    </div>
                                 </div>
-                              )}
-                           </div>
+                              )
+                            )}
+                         </div>
+                      </div>
+                   </motion.div>
+                 ))}
+               </div>
+             ) : (
+               <div className="bloom-gradient rounded-[2.5rem] p-10 text-white soft-shadow flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 blur-[80px] rounded-full translate-x-1/3 -translate-y-1/2" />
+                  <div className="relative z-10 flex-1">
+                     <div className="flex items-center gap-2 mb-4">
+                        <Sparkles size={20} className="text-amber-300" />
+                        <span className="text-sm font-bold uppercase tracking-widest opacity-80 font-mono">{t('dash.currentSession')}</span>
+                     </div>
+                     <h2 className="text-4xl md:text-5xl font-extrabold mb-10 leading-tight">{t('dash.creativeWriting')}</h2>
+                     <Link 
+                       to={role === 3 ? "/classroom/demo" : `/classroom/${user.teacher?.channel_name || 'demo'}`}
+                       className="inline-flex bg-white text-brand-indigo px-10 py-5 rounded-2xl font-extrabold text-lg items-center gap-3 hover:scale-105 active:scale-95 transition-all soft-shadow group/btn"
+                     >
+                        <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-brand-indigo group-hover/btn:bg-brand-indigo group-hover/btn:text-white transition-colors">
+                          <Play fill="currentColor" size={20} className="ml-1" />
                         </div>
-                     </motion.div>
-                   ))}
-                 </div>
-               ) : (
-                 <div className="bloom-gradient rounded-[2.5rem] p-10 text-white soft-shadow flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 blur-[80px] rounded-full translate-x-1/3 -translate-y-1/2" />
-                    <div className="relative z-10 flex-1">
-                       <div className="flex items-center gap-2 mb-4">
-                          <Sparkles size={20} className="text-amber-300" />
-                          <span className="text-sm font-bold uppercase tracking-widest opacity-80 font-mono">{t('dash.currentSession')}</span>
-                       </div>
-                       <h2 className="text-4xl md:text-5xl font-extrabold mb-10 leading-tight">{t('dash.creativeWriting')}</h2>
-                       <Link 
-                         to={`/classroom/${user.teacher?.channel_name}`}
-                         className="inline-flex bg-white text-brand-indigo px-10 py-5 rounded-2xl font-extrabold text-lg items-center gap-3 hover:scale-105 active:scale-95 transition-all soft-shadow group/btn"
-                       >
-                          <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-brand-indigo group-hover/btn:bg-brand-indigo group-hover/btn:text-white transition-colors">
-                            <Play fill="currentColor" size={20} className="ml-1" />
-                          </div>
-                          Manage Class
-                       </Link>
-                    </div>
-                 </div>
-               )
+                        {role === 3 ? t('dash.joinClass') : "Manage Class"}
+                     </Link>
+                  </div>
+               </div>
              )}
           </section>
         </div>
