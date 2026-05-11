@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useLocation, useParams } from 'react-router-dom';
 import AgoraRTC, { 
   IAgoraRTCClient, 
   ILocalVideoTrack, 
@@ -32,6 +33,8 @@ interface ClassroomProps {
 export type ClassroomMode = 'whiteboard' | 'pdf' | 'none';
 
 export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
+  const location = useLocation();
+  const { channelName } = useParams<{ channelName: string }>();
   const [isInClass, setIsInClass] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -659,8 +662,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
     try {
       // Teachers start a class, students join an existing one
       const res = user.role === 2 
-        ? await apiService.startClass()
-        : await apiService.joinClass();
+        ? await apiService.startClass(channelName)
+        : await apiService.joinClass(channelName);
         
       // 
 

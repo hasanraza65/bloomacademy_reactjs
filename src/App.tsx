@@ -118,7 +118,7 @@ export default function App() {
           } 
         />
         <Route 
-          path="/classroom" 
+          path="/classroom/:channelName" 
           element={
             isLoggedIn && user ? (
               <Classroom user={user} onExit={() => window.location.href = '/dashboard'} />

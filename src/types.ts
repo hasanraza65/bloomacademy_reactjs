@@ -39,6 +39,7 @@ export interface User {
   role: UserRole;
   avatar?: string;
   children?: any[];
+  classrooms?: any[];
   teacher?: any;
 }
 

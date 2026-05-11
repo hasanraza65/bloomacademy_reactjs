@@ -38,7 +38,7 @@ export const apiService = {
     return response.json();
   },
 
-  async startClass(): Promise<{ success: boolean; data: any; message?: string }> {
+  async startClass(channelName?: string): Promise<{ success: boolean; data: any; message?: string }> {
     const token = localStorage.getItem('auth_token');
     const response = await fetch(`${BASE_URL}classrooms/start`, {
       method: 'POST',
@@ -47,6 +47,7 @@ export const apiService = {
         'Accept': 'application/json',
         'Authorization': `Bearer ${token}`
       },
+      body: JSON.stringify({ channel_name: channelName }),
     });
     return response.json();
   },
