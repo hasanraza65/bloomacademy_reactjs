@@ -57,6 +57,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
   const [isSharingScreen, setIsSharingScreen] = useState(false);
   const [showWhiteboard, setShowWhiteboard] = useState(false);
   const [isWhiteboardLoading, setIsWhiteboardLoading] = useState(false);
+  const [whiteboardSetupError, setWhiteboardSetupError] = useState<string | null>(null);
   const [whiteboardData, setWhiteboardData] = useState<any>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('whiteboard_data');
@@ -75,6 +76,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
   const showWhiteboardRef = useRef(false);
 
   const updateWhiteboardData = (data: any) => {
+    console.log('[Classroom] updateWhiteboardData called with:', data ? { uuid: data.roomUUID } : 'null');
     whiteboardDataRef.current = data;
     setWhiteboardData(data);
     if (typeof window !== 'undefined') {
@@ -400,14 +402,23 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       } catch (e) {}
 
       const wbAppId = (import.meta as any).env.VITE_WHITEBOARD_APP_ID;
-      if (payload.whiteboard_room_uuid && payload.whiteboard_room_token) {
+      const uuid = payload.whiteboard_room_uuid || payload.whiteboard_uuid || payload.uuid || payload.room_uuid;
+      const roomToken = payload.whiteboard_room_token || payload.whiteboard_token || payload.room_token || payload.roomToken || payload.token;
+
+      if (uuid && roomToken) {
+        console.log('[Classroom] initAgora — found whiteboard data in payload, updating...');
         updateWhiteboardData({
           appId: wbAppId,
-          roomUUID: payload.whiteboard_room_uuid,
-          roomToken: payload.whiteboard_room_token,
+          roomUUID: uuid,
+          roomToken: roomToken,
         });
-        console.log('[Classroom] whiteboard from startClass — appId:', wbAppId, '| uuid:', payload.whiteboard_room_uuid);
+        console.log('[Classroom] whiteboard from startClass — appId:', wbAppId, '| uuid:', uuid);
       } else if (user.role === 2) {
+        // Teacher handles their own whiteboard initialization via setupWhiteboard()
+        // We only clear if we specifically want to reset, but not every time initAgora runs.
+        console.log('[Classroom] initAgora — teacher role, skipping auto-clear of whiteboard');
+      } else {
+        console.log('[Classroom] initAgora — no whiteboard data in payload, clearing for student...');
         updateWhiteboardData(null);
       }
     } catch (err: any) {
@@ -505,15 +516,24 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
         // 
 
 
-        if (data.active && data.uuid && data.room_token) {
+        const extractCreds = (d: any) => {
+          const uuid = d.uuid || d.whiteboard_uuid || d.whiteboard_room_uuid || d.room_uuid || d.roomUuid || d.room_id;
+          const token = d.room_token || d.whiteboard_token || d.whiteboard_room_token || d.token || d.roomToken || d.whiteboard_room_token;
+          return { uuid, token };
+        };
+
+        const creds = extractCreds(data);
+
+        if (data.active && creds.uuid && creds.token) {
+          const { uuid, token: roomToken } = creds;
 
           // Only update whiteboard credentials if uuid actually changed
           // This prevents the Whiteboard component from unmounting and remounting
           setWhiteboardData((prev: any) => {
-            if (prev?.roomUUID === data.uuid) return prev;
+            if (prev?.roomUUID === uuid) return prev;
             return {
-              roomUUID: data.uuid,
-              roomToken: data.room_token,
+              roomUUID: uuid,
+              roomToken: roomToken,
               appId: (import.meta as any).env.VITE_WHITEBOARD_APP_ID,
             };
           });
@@ -619,42 +639,68 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
     }
   }, [classroomMode]);
 
+  const setupWhiteboard = React.useCallback(async (forceRefresh = false) => {
+    if (!isInClass || user.role !== 2 || !showWhiteboardRef.current) return;
+    
+    // If we already have data and it's valid, don't re-initialize unless forced
+    if (whiteboardDataRef.current && !forceRefresh) {
+       console.log('[WB] setupWhiteboard — already initialized, skipping.');
+       return;
+    }
+
+    if (!forceRefresh) {
+      const savedData = localStorage.getItem('whiteboard_data');
+      if (savedData) {
+        try {
+          const data = JSON.parse(savedData);
+          if (data.roomUUID && data.roomToken) {
+            updateWhiteboardData(data);
+            console.log('[WB] setupWhiteboard — restored from localStorage');
+            return;
+          }
+        } catch (e) {
+          localStorage.removeItem('whiteboard_data');
+        }
+      }
+    }
+
+    // No saved room — request one from backend
+    setIsWhiteboardLoading(true);
+    setWhiteboardSetupError(null);
+    try {
+      console.log('[WB] setupWhiteboard — calling start-whiteboard API...');
+      const res = await apiService.startWhiteboardSession();
+      console.log('[WB] setupWhiteboard — API Response:', res);
+      
+      const data = (res as any).data || res;
+      const wbAppId = (import.meta as any).env.VITE_WHITEBOARD_APP_ID;
+      const uuid = data.uuid || data.whiteboard_room_uuid || data.whiteboard_uuid || data.room_uuid;
+      const roomToken = data.room_token || data.roomToken || data.whiteboard_room_token || data.whiteboard_token || data.token;
+      
+      if (uuid && roomToken) {
+        updateWhiteboardData({ appId: wbAppId, roomUUID: uuid, roomToken });
+        console.log('[WB] setupWhiteboard — SUCCESS:', { uuid, roomToken: '***' });
+      } else {
+        const errorMsg = (res as any).message || 'Invalid response from server (missing UUID/Token)';
+        console.warn('[WB] setupWhiteboard — FAILED:', errorMsg, data);
+        setWhiteboardSetupError(errorMsg);
+      }
+    } catch (err: any) {
+      console.error('[WB] setupWhiteboard — EXCEPTION:', err);
+      setWhiteboardSetupError(err?.message || 'Connection failed');
+    } finally {
+      setIsWhiteboardLoading(false);
+    }
+  }, [isInClass, user.role]);
+
   // Teacher: create a fresh whiteboard room when board is opened and none exists.
   useEffect(() => {
-    let interval: any;
-    
-    const setupWhiteboard = async () => {
-      if (!isInClass || user.role !== 2 || !showWhiteboardRef.current || whiteboardDataRef.current) return;
-
-      // No saved room — request one from backend
-      setIsWhiteboardLoading(true);
-      try {
-        const res = await apiService.startWhiteboardSession();
-        const data = (res as any).data || res;
-        const wbAppId = (import.meta as any).env.VITE_WHITEBOARD_APP_ID;
-        const uuid = data.uuid || data.whiteboard_room_uuid;
-        const roomToken = data.room_token || data.roomToken || data.whiteboard_room_token;
-        if (uuid && roomToken) {
-          updateWhiteboardData({ appId: wbAppId, roomUUID: uuid, roomToken });
-          console.log('[WB] setupWhiteboard — appId:', wbAppId, '| uuid:', uuid, '| token:', roomToken ? '(set)' : '(missing)');
-        }
-      } catch (err) {
-        // 
-
-      } finally {
-        setIsWhiteboardLoading(false);
-      }
-    };
-
     if (isInClass && user.role === 2) {
       if (showWhiteboard) {
         setupWhiteboard();
       }
     }
-
-    return () => {
-    };
-  }, [isInClass, user.role, showWhiteboard]);
+  }, [isInClass, user.role, showWhiteboard, setupWhiteboard]);
 
   const handleJoinClass = async () => {
     setIsLoading(true);
@@ -1354,14 +1400,49 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                       isSharingScreen={isSharingScreen}
                       isLocked={isAnnotationsLocked}
                       onLockToggle={() => setIsAnnotationsLocked(!isAnnotationsLocked)}
+                      onConnectionError={(err) => setWhiteboardSetupError(err)}
                     />
                   ) : (
                     <div className="w-full h-full rounded-[3rem] bg-slate-900 border-4 border-dashed border-white/5 flex flex-col items-center justify-center p-12 text-center">
-                      {isWhiteboardLoading || user.role === 2 ? (
+                      {isWhiteboardLoading ? (
                         <>
                           <div className="w-16 h-16 rounded-full border-4 border-brand-purple/30 border-t-brand-purple animate-spin mb-6" />
                           <h4 className="text-lg font-black text-white uppercase tracking-widest mb-2">Setting Up Whiteboard</h4>
                           <p className="text-slate-500 text-sm max-w-sm">Please wait a moment...</p>
+                        </>
+                      ) : user.role === 2 ? (
+                        <>
+                          <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 mb-6">
+                            <AlertCircle size={40} />
+                          </div>
+                          <h4 className="text-xl font-black text-white uppercase tracking-widest mb-4">Setup Failed</h4>
+                          <p className="text-slate-500 text-sm max-w-sm mb-2">
+                            We couldn't initialize the whiteboard.
+                          </p>
+                          {whiteboardSetupError && (
+                            <p className="text-red-400/80 text-[10px] font-mono mb-8 bg-red-500/5 px-4 py-2 rounded-lg border border-red-500/10">
+                              Error: {whiteboardSetupError}
+                            </p>
+                          )}
+                          {!whiteboardSetupError && (
+                             <p className="text-slate-500 text-sm max-w-sm mb-8">
+                               Please check your connection and try again.
+                             </p>
+                          )}
+                          <button 
+                            onClick={() => {
+                              // Clear everything and force a fresh backend request
+                              whiteboardDataRef.current = null;
+                              localStorage.removeItem('whiteboard_data');
+                              setWhiteboardData(null);
+                              setWhiteboardSetupError(null);
+                              setupWhiteboard(true);
+                            }}
+                            className="px-8 py-3 bg-brand-purple text-white font-black text-xs uppercase tracking-widest rounded-full hover:scale-105 active:scale-95 transition-all shadow-lg flex items-center gap-2"
+                          >
+                            <RefreshCw size={14} />
+                            Retry Setup
+                          </button>
                         </>
                       ) : (
                         <>

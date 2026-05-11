@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { WhiteWebSdk, Room, DeviceType, ViewMode, ApplianceNames } from 'white-web-sdk';
-import { Loader2, Pencil, Eraser, Square, Circle, Type, MousePointer2, ChevronLeft, ChevronRight, Highlighter, MousePointerClick, BookOpen, X, Monitor, Plus, Minus, Trash2, Lock, Unlock } from 'lucide-react';
+import { Loader2, Pencil, Eraser, Square, Circle, Type, MousePointer2, ChevronLeft, ChevronRight, Highlighter, MousePointerClick, BookOpen, X, Monitor, Plus, Minus, Trash2, Lock, Unlock, AlertCircle, RefreshCw } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -33,6 +33,7 @@ interface WhiteboardProps {
   onCloseBook?: (clearFn: (mId: number | string) => void) => void;
   isLocked?: boolean;
   onLockToggle?: () => void;
+  onConnectionError?: (error: string) => void;
 }
 
 export const Whiteboard: React.FC<WhiteboardProps> = ({
@@ -58,6 +59,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   onCloseBook,
   isLocked = false,
   onLockToggle,
+  onConnectionError,
 }) => {
   // TODO: make dynamic in future — currently hardcoded until pair/session system is implemented
   const PAIR_ID = 1;
@@ -72,6 +74,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   // True once bindHtmlElement has been called — scene effects wait for this
   // so setScenePath is never called before the canvas is attached.
   const [isBound, setIsBound] = useState(false);
+  const [wbRetryCount, setWbRetryCount] = useState(0);
   const [currentTool, setCurrentTool] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('whiteboard_tool');
@@ -441,76 +444,76 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     }
   };
 
-  useEffect(() => {
+  const joinRoom = React.useCallback(async (retries = 0) => {
     if (!roomUUID || !roomToken) return;
-    let isCancelled = false;
+    
     const sdk = new WhiteWebSdk({
       appIdentifier: appId,
-      deviceType: DeviceType.Surface,
-      region: 'us-sv',
+      region: (import.meta as any).env.VITE_WHITEBOARD_REGION || 'us-sv',
       // @ts-ignore
       logger: { report: false, level: 'error' }
     });
 
-    const joinRoom = async () => {
-      try {
-        setLoading(true);
-        console.log('[WB] joinRoom start — UUID:', roomUUID, '| appId:', appId, '| isTeacher:', isTeacher);
+    try {
+      setLoading(true);
+      setError(null);
+      console.log(`[WB] joinRoom start (attempt ${retries + 1}) — UUID:`, roomUUID, '| appId:', appId, '| isTeacher:', isTeacher);
 
-        // Race joinRoom against a 20s timeout so it never hangs forever
-        const joinPromise = sdk.joinRoom({
-          uuid: roomUUID,
-          roomToken,
-          uid,
-          region: 'us-sv',
-          cursorAdapter: undefined,
-          disableNewPencil: false,
-          isWritable: true,
-          disableDeviceInputs: false,
-          userPayload: { cursorName: userName },
-        } as any);
+      const region = (import.meta as any).env.VITE_WHITEBOARD_REGION || 'us-sv';
 
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('joinRoom timed out after 20s — check network/credentials')), 20000)
-        );
+      // Race joinRoom against a 45s timeout so it never hangs forever
+      const joinPromise = sdk.joinRoom({
+        uuid: roomUUID,
+        roomToken,
+        uid,
+        region,
+        cursorAdapter: undefined,
+        disableNewPencil: false,
+        isWritable: isTeacher,
+        disableDeviceInputs: !isTeacher,
+        userPayload: { cursorName: userName },
+      } as any);
 
-        const joinedRoom = await Promise.race([joinPromise, timeoutPromise]);
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Whiteboard connection timed out — please check your network or try again.')), 45000)
+      );
 
-        if (isCancelled) { joinedRoom.disconnect(); return; }
+      const joinedRoom = await Promise.race([joinPromise, timeoutPromise]) as Room;
 
-        roomRef.current = joinedRoom;
-        setRoom(joinedRoom);
-        console.log('[WB] Room joined OK — UUID:', roomUUID,
-          '| isWritable:', (joinedRoom as any).isWritable,
-          '| disableDeviceInputs:', joinedRoom.disableDeviceInputs,
-          '| currentScene:', (joinedRoom as any).state?.sceneState?.scenePath
-        );
+      roomRef.current = joinedRoom;
+      setRoom(joinedRoom);
+      console.log('[WB] Room joined OK — UUID:', roomUUID,
+        '| isWritable:', (joinedRoom as any).isWritable,
+        '| disableDeviceInputs:', joinedRoom.disableDeviceInputs,
+        '| currentScene:', (joinedRoom as any).state?.sceneState?.scenePath
+      );
 
-        if (isTeacher) {
-          joinedRoom.setViewMode(ViewMode.Broadcaster);
-          (joinedRoom as any).disableOperations = false;
-          joinedRoom.setMemberState({ currentApplianceName: ApplianceNames.pencil, strokeColor: [139, 92, 246], strokeWidth: 4, textSize: 24 });
-        } else {
-          joinedRoom.setViewMode(ViewMode.Follower);
-          (joinedRoom as any).disableOperations = true;
-        }
-        setLoading(false);
-      } catch (err: any) {
-        console.error('[WB] joinRoom FAILED:', err?.message, err?.stack || '');
-        if (!isCancelled) {
-          const msg = err?.message || 'Failed to join whiteboard';
-          setError(msg);
-          setLoading(false);
-        }
+      if (isTeacher) {
+        joinedRoom.setViewMode(ViewMode.Broadcaster);
+        (joinedRoom as any).disableOperations = false;
+        joinedRoom.setMemberState({ currentApplianceName: ApplianceNames.pencil, strokeColor: [139, 92, 246], strokeWidth: 4, textSize: 24 });
+      } else {
+        joinedRoom.setViewMode(ViewMode.Follower);
+        (joinedRoom as any).disableOperations = true;
       }
-    };
+      setLoading(false);
+    } catch (err: any) {
+      console.error('[WB] joinRoom FAILED:', err?.message, err?.stack || '');
+      const msg = err?.message || 'Failed to join whiteboard';
+      setError(msg);
+      setLoading(false);
+      onConnectionError?.(msg);
+    }
+  }, [appId, roomUUID, roomToken, uid, userName, isTeacher]);
 
+  useEffect(() => {
+    let isCancelled = false;
     joinRoom();
     return () => {
       isCancelled = true;
       if (roomRef.current) { roomRef.current.disconnect(); roomRef.current = null; }
     };
-  }, [appId, roomUUID, roomToken, uid, userName]);
+  }, [joinRoom, wbRetryCount]);
 
   // Bind whiteboard to DOM — only once when room connects (NO rebinding on PDF change)
   useEffect(() => {
@@ -771,14 +774,43 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
           <Loader2 className="animate-spin text-white mb-4" size={48} />
           <p className="text-white font-black text-sm tracking-widest uppercase">Connecting to Whiteboard</p>
           {error && (
-            <p className="text-red-400 font-black text-xs mt-4 max-w-xs text-center">{error}</p>
+            <div className="mt-6 flex flex-col items-center gap-4">
+              <p className="text-red-400 font-black text-xs max-w-xs text-center">{error}</p>
+              <button 
+                onClick={() => {
+                  setError(null);
+                  setLoading(true);
+                  setWbRetryCount(prev => prev + 1);
+                }}
+                className="px-6 py-2 bg-brand-purple text-white font-black text-[10px] uppercase tracking-widest rounded-full hover:scale-105 active:scale-95 transition-all shadow-lg flex items-center gap-2"
+              >
+                <RefreshCw size={12} />
+                Retry Connection
+              </button>
+            </div>
           )}
         </div>
       )}
 
       {error && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-red-500/90 text-white px-6 py-3 rounded-xl z-50 font-bold shadow-xl border border-red-400 backdrop-blur-md max-w-lg text-center">
-          {error}
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-red-500/95 text-white px-6 py-4 rounded-2xl z-[60] font-bold shadow-2xl border border-red-400 backdrop-blur-md max-w-lg flex flex-col items-center gap-3">
+          <div className="flex items-center gap-2">
+             <AlertCircle size={20} />
+             <p className="text-sm">{error}</p>
+          </div>
+          <button 
+            onClick={() => {
+              setError(null);
+              setLoading(true);
+              // Trigger a re-join by briefly clearing then setting a local state if needed, 
+              // but here we can just call joinRoom again if we had it in scope.
+              // Since it's in a useEffect, we can just toggle a local 'retry' counter.
+              setWbRetryCount(prev => prev + 1);
+            }}
+            className="bg-white text-red-500 px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all"
+          >
+            Retry Connection
+          </button>
         </div>
       )}
 
