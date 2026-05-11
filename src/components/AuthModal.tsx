@@ -143,6 +143,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [mode, setMode] = useState<AuthMode>(initialMode);
   
   useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
     setMode(initialMode);
   }, [initialMode]);
 
@@ -162,7 +173,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   return (
     <AnimatePresence mode="wait">
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex justify-center p-4 overflow-y-auto pt-10 pb-10 items-start md:items-center">
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -178,7 +189,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             exit={{ opacity: 0, scale: 0.95, y: 30 }}
             transition={{ duration: 0.4, ease: "circOut" }}
             className={cn(
-               "relative bg-white w-full h-[90vh] md:h-[800px] overflow-hidden card-rounded soft-shadow flex flex-col z-50",
+               "relative bg-white w-full h-auto md:h-[800px] md:max-h-[90vh] card-rounded overflow-hidden soft-shadow flex flex-col z-50 my-auto shrink-0",
                mode === 'login' ? "max-w-[500px]" : "max-w-[1200px]"
             )}
           >
@@ -232,7 +243,7 @@ const LoginView = ({ onSwitch, onComplete }: { onSwitch: (m: AuthMode) => void, 
   };
 
   return (
-    <div className="flex flex-col h-full p-10 md:p-14 justify-center">
+    <div className="flex flex-col h-full p-6 sm:p-10 md:p-14 justify-center">
       <div className="mb-10 text-center">
         <div className="flex items-center justify-center gap-2 mb-4">
           <div className="w-10 h-10 bloom-gradient rounded-xl flex items-center justify-center text-white font-bold">B</div>
@@ -546,15 +557,15 @@ const ParentSignupView = ({ onSwitch, onComplete }: { onSwitch: (m: AuthMode) =>
 
   return (
     <div className="flex flex-col md:flex-row h-full">
-      {/* Left Column: Form (60%) */}
-      <div className="w-full md:w-[55%] bg-slate-50/50 border-r border-slate-100 p-8 md:p-12 overflow-y-auto no-scrollbar">
-        <div className="mb-10">
+      {/* Left Column: Form (55%) */}
+      <div className="w-full md:w-[55%] bg-slate-50/50 border-r border-slate-100 p-6 sm:p-8 md:p-12 md:overflow-y-auto no-scrollbar">
+        <div className="mb-10 mt-4 md:mt-0">
           <div className="flex items-center gap-2 mb-4">
-            <div className="w-10 h-10 bloom-gradient rounded-xl flex items-center justify-center text-white font-bold">B</div>
+            <div className="w-10 h-10 bloom-gradient rounded-xl flex items-center justify-center text-white font-bold shrink-0">B</div>
             <span className="text-xl font-bold tracking-tight text-brand-slate-ink">Bloom Buddies Academy</span>
           </div>
-          <h2 className="text-3xl font-extrabold text-brand-slate-ink">{t('auth.parentReg')}</h2>
-          <p className="text-slate-500 mt-1">{t('auth.loginDesc')}</p>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-slate-ink">{t('auth.parentReg')}</h2>
+          <p className="text-slate-500 mt-1 text-sm sm:text-base">{t('auth.loginDesc')}</p>
         </div>
 
         <form className="space-y-6" id="parent-signup-form" onSubmit={handleSubmit}>
@@ -569,7 +580,7 @@ const ParentSignupView = ({ onSwitch, onComplete }: { onSwitch: (m: AuthMode) =>
               {success}
             </div>
           )}
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <FormInput 
               label={t('auth.firstName')}
               icon={UserIcon}
@@ -600,7 +611,7 @@ const ParentSignupView = ({ onSwitch, onComplete }: { onSwitch: (m: AuthMode) =>
             onChange={(e) => setParentFields(prev => ({ ...prev, email: e.target.value }))}
           />
 
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <FormInput 
               label={t('auth.password')}
               icon={Lock}
@@ -621,7 +632,7 @@ const ParentSignupView = ({ onSwitch, onComplete }: { onSwitch: (m: AuthMode) =>
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <div className="space-y-2">
               <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('auth.telephone')}</label>
               <div className="relative group">
@@ -683,7 +694,7 @@ const ParentSignupView = ({ onSwitch, onComplete }: { onSwitch: (m: AuthMode) =>
       </div>
 
       {/* Right Column: Schedule UI (40%) */}
-      <div className="flex-1 bg-white p-8 md:p-12 flex flex-col h-full overflow-hidden">
+      <div className="flex-1 bg-white p-6 sm:p-8 md:p-12 flex flex-col md:h-full md:overflow-hidden">
         <div className="flex justify-between items-center mb-8">
            <div className="flex bg-slate-100 p-1 rounded-full overflow-x-auto no-scrollbar max-w-full">
              {children.map((_, idx) => (
@@ -918,14 +929,14 @@ const TeacherSignupView = ({ onSwitch, onComplete }: { onSwitch: (m: AuthMode) =
   return (
     <div className="flex flex-col md:flex-row h-full" onMouseUp={handleMouseUp}>
       {/* Left Column: Form (55%) */}
-      <div className="w-full md:w-[55%] bg-slate-50/50 border-r border-slate-100 p-8 md:p-12 overflow-y-auto no-scrollbar">
-        <div className="mb-10">
+      <div className="w-full md:w-[55%] bg-slate-50/50 border-r border-slate-100 p-6 sm:p-8 md:p-12 md:overflow-y-auto no-scrollbar">
+        <div className="mb-10 mt-4 md:mt-0">
           <div className="flex items-center gap-2 mb-4">
-            <div className="w-10 h-10 bloom-gradient rounded-xl flex items-center justify-center text-white font-bold">B</div>
+            <div className="w-10 h-10 bloom-gradient rounded-xl flex items-center justify-center text-white font-bold shrink-0">B</div>
             <span className="text-xl font-bold tracking-tight text-brand-slate-ink">Bloom Buddies Academy</span>
           </div>
-          <h2 className="text-3xl font-extrabold text-brand-slate-ink">{t('auth.teacherOnboarding')}</h2>
-          <p className="text-slate-500 mt-1">{t('auth.teacherOnboardingDesc')}</p>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-slate-ink">{t('auth.teacherOnboarding')}</h2>
+          <p className="text-slate-500 mt-1 text-sm sm:text-base">{t('auth.teacherOnboardingDesc')}</p>
         </div>
 
         <form className="space-y-6" id="teacher-signup-form" onSubmit={handleSubmit}>
@@ -958,7 +969,7 @@ const TeacherSignupView = ({ onSwitch, onComplete }: { onSwitch: (m: AuthMode) =
              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-4">{t('auth.profilePhoto')}</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <FormInput 
               label={t('auth.firstName')}
               icon={UserIcon}
@@ -989,7 +1000,7 @@ const TeacherSignupView = ({ onSwitch, onComplete }: { onSwitch: (m: AuthMode) =
             onChange={(e) => setFields(prev => ({ ...prev, email: e.target.value }))}
           />
 
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <FormInput 
               label={t('auth.password')}
               icon={Lock}
@@ -1010,7 +1021,7 @@ const TeacherSignupView = ({ onSwitch, onComplete }: { onSwitch: (m: AuthMode) =
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <div className="space-y-2">
               <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('auth.telephone')}</label>
               <div className="relative group">
@@ -1040,7 +1051,7 @@ const TeacherSignupView = ({ onSwitch, onComplete }: { onSwitch: (m: AuthMode) =
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <FormInput 
               label={t('auth.city')}
               icon={MapPin}
@@ -1085,7 +1096,7 @@ const TeacherSignupView = ({ onSwitch, onComplete }: { onSwitch: (m: AuthMode) =
       </div>
 
       {/* Right Column: Schedule Grid (45%) */}
-      <div className="flex-1 bg-white p-8 md:px-12 md:py-10 flex flex-col h-full overflow-hidden select-none">
+      <div className="flex-1 bg-white p-6 sm:p-8 md:px-12 md:py-10 flex flex-col md:h-full md:overflow-hidden select-none">
         <div className="mb-6 shrink-0">
           <h3 className="text-xl font-bold text-slate-800">{t('auth.weeklyAvailability')}</h3>
           <p className="text-xs text-slate-400 mt-1 uppercase tracking-widest font-bold">{t('auth.teacherStep2')}</p>
