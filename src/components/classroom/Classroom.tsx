@@ -396,14 +396,15 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
         }
       } catch (e) {}
 
-      // Use backend-provided whiteboard credentials for this class session.
+      const wbAppId = (import.meta as any).env.VITE_WHITEBOARD_APP_ID;
       if (payload.whiteboard_room_uuid && payload.whiteboard_room_token) {
         updateWhiteboardData({
+          appId: wbAppId,
           roomUUID: payload.whiteboard_room_uuid,
           roomToken: payload.whiteboard_room_token,
         });
+        console.log('[Classroom] whiteboard from startClass — appId:', wbAppId, '| uuid:', payload.whiteboard_room_uuid);
       } else if (user.role === 2) {
-        // Teacher should not reuse stale local room credentials across classes.
         updateWhiteboardData(null);
       }
     } catch (err: any) {
@@ -627,10 +628,12 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       try {
         const res = await apiService.startWhiteboardSession();
         const data = (res as any).data || res;
+        const wbAppId = (import.meta as any).env.VITE_WHITEBOARD_APP_ID;
         const uuid = data.uuid || data.whiteboard_room_uuid;
         const roomToken = data.room_token || data.roomToken || data.whiteboard_room_token;
         if (uuid && roomToken) {
-          updateWhiteboardData({ roomUUID: uuid, roomToken });
+          updateWhiteboardData({ appId: wbAppId, roomUUID: uuid, roomToken });
+          console.log('[WB] setupWhiteboard — appId:', wbAppId, '| uuid:', uuid, '| token:', roomToken ? '(set)' : '(missing)');
         }
       } catch (err) {
         // 

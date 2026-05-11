@@ -455,8 +455,10 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     const joinRoom = async () => {
       try {
         setLoading(true);
-        console.log('[WB] joinRoom start — UUID:', roomUUID, '| isTeacher:', isTeacher);
-        const joinedRoom = await sdk.joinRoom({
+        console.log('[WB] joinRoom start — UUID:', roomUUID, '| appId:', appId, '| isTeacher:', isTeacher);
+
+        // Race joinRoom against a 20s timeout so it never hangs forever
+        const joinPromise = sdk.joinRoom({
           uuid: roomUUID,
           roomToken,
           uid,
@@ -467,6 +469,12 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
           disableDeviceInputs: false,
           userPayload: { cursorName: userName },
         } as any);
+
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('joinRoom timed out after 20s — check network/credentials')), 20000)
+        );
+
+        const joinedRoom = await Promise.race([joinPromise, timeoutPromise]);
 
         if (isCancelled) { joinedRoom.disconnect(); return; }
 
@@ -488,8 +496,12 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
         }
         setLoading(false);
       } catch (err: any) {
-        console.error('[WB] joinRoom FAILED:', err.message);
-        if (!isCancelled) { setError(err.message || 'Failed to join whiteboard'); setLoading(false); }
+        console.error('[WB] joinRoom FAILED:', err?.message, err?.stack || '');
+        if (!isCancelled) {
+          const msg = err?.message || 'Failed to join whiteboard';
+          setError(msg);
+          setLoading(false);
+        }
       }
     };
 
@@ -758,6 +770,9 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/50 backdrop-blur-sm z-50">
           <Loader2 className="animate-spin text-white mb-4" size={48} />
           <p className="text-white font-black text-sm tracking-widest uppercase">Connecting to Whiteboard</p>
+          {error && (
+            <p className="text-red-400 font-black text-xs mt-4 max-w-xs text-center">{error}</p>
+          )}
         </div>
       )}
 
