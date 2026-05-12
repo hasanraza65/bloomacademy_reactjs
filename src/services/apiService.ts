@@ -117,8 +117,10 @@ export const apiService = {
     return response.json();
   },
 
-  async startWhiteboardSession(): Promise<{ uuid: string; roomToken: string }> {
+  async startWhiteboardSession(channelName: string): Promise<{ uuid: string; roomToken: string }> {
+
     const token = localStorage.getItem('auth_token');
+
     const response = await fetch(`${BASE_URL}classrooms/start-whiteboard`, {
       method: 'POST',
       headers: {
@@ -126,7 +128,13 @@ export const apiService = {
         'Accept': 'application/json',
         'Authorization': `Bearer ${token}`
       },
+
+      body: JSON.stringify({
+        channel_name: channelName
+      })
+
     });
+
     return response.json();
   },
 

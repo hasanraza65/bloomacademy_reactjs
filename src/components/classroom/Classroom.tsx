@@ -497,6 +497,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
     }
   };
 
+
+
   // Student polling: auto-detect when teacher starts whiteboard
   useEffect(() => {
     if (user.role === 2 || !isInClass) return;
@@ -504,7 +506,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
     const poll = async () => {
       try {
         const token = localStorage.getItem('auth_token') || '';
-        const res = await fetch(`${BASE_URL}classroom/whiteboard-status`, {
+        
+        const res = await fetch(`${BASE_URL}classroom/whiteboard-status?channel_name=${channelName}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Accept': 'application/json',
@@ -669,7 +672,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
     setWhiteboardSetupError(null);
     try {
       console.log('[WB] setupWhiteboard — calling start-whiteboard API...');
-      const res = await apiService.startWhiteboardSession();
+      const res = await apiService.startWhiteboardSession(channelName || '');
       console.log('[WB] setupWhiteboard — API Response:', res);
       
       const data = (res as any).data || res;
@@ -691,7 +694,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
     } finally {
       setIsWhiteboardLoading(false);
     }
-  }, [isInClass, user.role]);
+  }, [isInClass, user.role, channelName]);
 
   // Teacher: create a fresh whiteboard room when board is opened and none exists.
   useEffect(() => {

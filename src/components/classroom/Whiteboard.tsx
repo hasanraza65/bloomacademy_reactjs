@@ -278,29 +278,21 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
 
     console.log('[WB] Whiteboard scene effect — pdfUrl:', pdfUrl, '| isBound:', isBound, '| isTeacher:', isTeacher);
 
-    // Only teacher creates scenes. Students only navigate to existing scene.
-    if (isTeacher && !initializedScenesRef.current.has(scenePath)) {
-      initializedScenesRef.current.add(scenePath);
-      const scenes = room.entireScenes();
-      console.log('[WB] entireScenes():', JSON.stringify(Object.keys(scenes)));
-      // entireScenes() returns keys WITHOUT trailing slash (e.g. "/pair-1/whiteboard")
-      // so we check both forms to avoid calling putScenes unnecessarily (which wipes annotations).
-      const dirExists = scenes[sceneDir] || scenes[`${sceneDir}/`];
-      if (!dirExists) {
-        console.log('[WB] putScenes — creating whiteboard scene');
-        room.putScenes(sceneDir, [{ name: 'main' }]);
-      } else {
-        console.log('[WB] Whiteboard scene dir already exists — skipping putScenes (annotations safe)');
+    // Teacher manages scenes. Students follow in Follower mode.
+    if (isTeacher) {
+      if (!initializedScenesRef.current.has(scenePath)) {
+        initializedScenesRef.current.add(scenePath);
+        const scenes = room.entireScenes();
+        const dirExists = scenes[sceneDir] || scenes[`${sceneDir}/`];
+        if (!dirExists) {
+          room.putScenes(sceneDir, [{ name: 'main' }]);
+        }
       }
-    }
-
-    try {
-      room.setScenePath(scenePath);
-      console.log('[WB] setScenePath OK →', scenePath,
-        '| landed:', (room as any).state?.sceneState?.scenePath
-      );
-    } catch (e) {
-      console.error('[WB] setScenePath FAILED for', scenePath, '—', e);
+      try {
+        room.setScenePath(scenePath);
+      } catch (e) {
+        console.error('[WB] setScenePath FAILED for', scenePath, '—', e);
+      }
     }
 
     room.setWritable(true).then(() => {
@@ -328,37 +320,31 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     const sceneDir = `/pair-${PAIR_ID}/pdf-${pdfStableId}`;
     const scenePath = `${sceneDir}/${currentPage}`;
 
-    // Only teacher creates scenes. Students follow the same scene path/page.
-    if (isTeacher && !initializedScenesRef.current.has(scenePath)) {
-      initializedScenesRef.current.add(scenePath);
-      console.log('[WB] First time PDF scene — trying setScenePath:', scenePath);
-      try {
-        room.setScenePath(scenePath);
-        const landed = (room as any).state?.sceneState?.scenePath;
-        console.log('[WB] setScenePath first try — landed:', landed, '| expected:', scenePath);
-        if (landed !== scenePath) {
-          console.log('[WB] Landed on wrong scene, putScenes then retry');
+    // Teacher manages scenes. Students follow in Follower mode.
+    if (isTeacher) {
+      if (!initializedScenesRef.current.has(scenePath)) {
+        initializedScenesRef.current.add(scenePath);
+        console.log('[WB] First time PDF scene — trying setScenePath:', scenePath);
+        try {
+          room.setScenePath(scenePath);
+          const landed = (room as any).state?.sceneState?.scenePath;
+          if (landed !== scenePath) {
+            console.log('[WB] Landed on wrong scene, putScenes then retry');
+            room.putScenes(sceneDir, [{ name: String(currentPage) }]);
+            room.setScenePath(scenePath);
+          }
+        } catch (e) {
+          console.warn('[WB] setScenePath threw, doing putScenes fallback.', e);
           room.putScenes(sceneDir, [{ name: String(currentPage) }]);
           room.setScenePath(scenePath);
-          console.log('[WB] After putScenes retry — landed:', (room as any).state?.sceneState?.scenePath);
         }
-      } catch (e) {
-        console.warn('[WB] setScenePath threw, doing putScenes fallback. Error:', e);
-        room.putScenes(sceneDir, [{ name: String(currentPage) }]);
-        room.setScenePath(scenePath);
-        console.log('[WB] After catch putScenes — landed:', (room as any).state?.sceneState?.scenePath);
-      }
-
-      // ── Restore saved annotations for this page from localStorage ──────
-      // (removed — Netless persists annotations server-side in the room)
-      // ──────────────────────────────────────────────────────────────────
-    } else {
-      console.log('[WB] PDF scene already initialized — setScenePath:', scenePath);
-      try {
-        room.setScenePath(scenePath);
-        console.log('[WB] setScenePath (revisit) — landed:', (room as any).state?.sceneState?.scenePath);
-      } catch (e) {
-        console.error('[WB] setScenePath FAILED (revisit):', e);
+      } else {
+        console.log('[WB] PDF scene already initialized — setScenePath:', scenePath);
+        try {
+          room.setScenePath(scenePath);
+        } catch (e) {
+          console.error('[WB] setScenePath FAILED (revisit):', e);
+        }
       }
     }
 
@@ -469,7 +455,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
         region,
         cursorAdapter: undefined,
         disableNewPencil: false,
-        isWritable: isTeacher,
+        isWritable: true,
         disableDeviceInputs: !isTeacher,
         userPayload: { cursorName: userName },
       } as any);
@@ -482,11 +468,23 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
 
       roomRef.current = joinedRoom;
       setRoom(joinedRoom);
+
+      // ADD THESE:
+      console.log('=== DIAGNOSTIC ===');
+      console.log('Role:', isTeacher ? 'TEACHER' : 'STUDENT');
+      console.log('UUID:', roomUUID);
+      console.log('Token:', roomToken);
+      console.log('Region:', region);
+      console.log('Scene:', (joinedRoom as any).state?.sceneState?.scenePath);
+      console.log('All Scenes:', JSON.stringify(Object.keys((joinedRoom as any).entireScenes())));
+      console.log('==================');
+
+      /*
       console.log('[WB] Room joined OK — UUID:', roomUUID,
         '| isWritable:', (joinedRoom as any).isWritable,
         '| disableDeviceInputs:', joinedRoom.disableDeviceInputs,
         '| currentScene:', (joinedRoom as any).state?.sceneState?.scenePath
-      );
+      ); */
 
       if (isTeacher) {
         joinedRoom.setViewMode(ViewMode.Broadcaster);
