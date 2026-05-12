@@ -370,12 +370,16 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-        }
+        },
+        body: JSON.stringify({
+          channel_name: channelName,
+        })
       }).catch(() => {});
 
       // Change 2 — Load chat history on join
       try {
-        const historyRes = await fetch(`${BASE_URL}chat/messages`, {
+        let classroomId = payload.classroom_id;
+        const historyRes = await fetch(`${BASE_URL}chat/messages?classroom_id=${classroomId}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
             'Accept': 'application/json',
@@ -872,6 +876,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
         text:            newMessage.text,
         attachment_url:  newMessage.attachmentUrl,
         attachment_name: newMessage.attachmentName,
+        classroom_id:    connectionData.classroom_id,
       })
     }).catch(() => {});
   };
