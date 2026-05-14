@@ -19,34 +19,7 @@ import { cn } from '@/src/lib/utils';
 import { Link, useLocation } from 'react-router-dom';
 
 import { useLanguage } from '../context/LanguageContext';
-
-// --- Language Switcher Component ---
-const LanguageSwitcher = ({ isMobile = false }) => {
-  const { language, setLanguage } = useLanguage();
-
-  return (
-    <div className={cn("flex items-center gap-2 bg-slate-100 rounded-full p-1", isMobile && "mt-4 w-fit")}>
-      <button
-        onClick={() => setLanguage('fr')}
-        className={cn(
-          "px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider transition-all",
-          language === 'fr' ? "bg-white text-brand-indigo shadow-sm" : "text-slate-400 hover:text-slate-600"
-        )}
-      >
-        FR
-      </button>
-      <button
-        onClick={() => setLanguage('en')}
-        className={cn(
-          "px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider transition-all",
-          language === 'en' ? "bg-white text-brand-indigo shadow-sm" : "text-slate-400 hover:text-slate-600"
-        )}
-      >
-        EN
-      </button>
-    </div>
-  );
-};
+import { LanguageSwitcher } from './LanguageSwitcher';
 
 // --- Navbar ---
 export const Navbar = ({
@@ -80,46 +53,46 @@ export const Navbar = ({
       "fixed top-0 left-0 right-0 z-50 transition-all duration-300 px-6 py-4",
       isScrolled ? "glass-morphism py-3 soft-shadow" : "bg-transparent"
     )}>
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
-        <div className="flex items-center gap-2 cursor-pointer group">
+      <div className="max-w-[1600px] mx-auto flex items-center justify-between">
+        <div className="flex items-center gap-2 cursor-pointer group shrink-0">
           <div className="w-10 h-10 bloom-gradient rounded-xl flex items-center justify-center text-white soft-shadow group-hover:scale-110 transition-transform">
             <GraduationCap size={24} />
           </div>
-          <span className="text-2xl font-extrabold tracking-tight text-slate-800">
-            Bloom Buddies <span className="text-brand-purple">Academy</span>
+          <span className="text-2xl font-extrabold tracking-tight text-slate-800 whitespace-nowrap">
+            Bloom Buddies <span className="text-brand-purple">{t('nav.academy') || 'Academy'}</span>
           </span>
         </div>
 
         {/* Desktop Menu */}
-        <div className="hidden md:flex items-center gap-8 font-semibold text-slate-600">
-          <Link to="/" className="hover:text-brand-purple transition-colors">{t('nav.home') || 'Home'}</Link>
-          <a href={isMenagePage ? "/#features" : "#features"} className="hover:text-brand-purple transition-colors">{t('nav.features')}</a>
-          <a href={isMenagePage ? "/#how-it-works" : "#how-it-works"} className="hover:text-brand-purple transition-colors">{t('nav.howItWorks')}</a>
-          <a href={isMenagePage ? "/#testimonials" : "#testimonials"} className="hover:text-brand-purple transition-colors">{t('nav.testimonials')}</a>
-          <div className="h-6 w-px bg-slate-200" />
+        <div className="hidden md:flex items-center gap-6 lg:gap-8 font-semibold text-slate-600">
+          <Link to="/" className="hover:text-brand-purple transition-colors whitespace-nowrap">{t('nav.home') || 'Home'}</Link>
+          <a href={isMenagePage ? "/#features" : "#features"} className="hover:text-brand-purple transition-colors whitespace-nowrap">{t('nav.features')}</a>
+          <a href={isMenagePage ? "/#how-it-works" : "#how-it-works"} className="hover:text-brand-purple transition-colors whitespace-nowrap">{t('nav.howItWorks')}</a>
+          <a href={isMenagePage ? "/#testimonials" : "#testimonials"} className="hover:text-brand-purple transition-colors whitespace-nowrap">{t('nav.testimonials')}</a>
+          <div className="h-6 w-px bg-slate-200 shrink-0" />
 
           <LanguageSwitcher />
 
           {!isMenagePage && (
-            <>
+            <div className="flex items-center gap-4 lg:gap-6">
               {isLoggedIn ? (
                 <>
-                  <Link to="/dashboard" className="hover:text-brand-purple transition-colors">{t('nav.dashboard')}</Link>
+                  <Link to="/dashboard" className="hover:text-brand-purple transition-colors whitespace-nowrap">{t('nav.dashboard')}</Link>
                   <button
                     onClick={onLogout}
-                    className="bg-slate-100 text-slate-600 px-6 py-2.5 rounded-full font-bold hover:bg-red-50 hover:text-red-500 transition-all"
+                    className="bg-slate-100 text-slate-600 px-6 py-2.5 rounded-full font-bold hover:bg-red-50 hover:text-red-500 transition-all whitespace-nowrap"
                   >
                     {t('nav.logout')}
                   </button>
                 </>
               ) : (
                 <>
-                  <button onClick={onLogin} className="hover:text-brand-purple transition-colors">{t('nav.login')}</button>
+                  <button onClick={onLogin} className="hover:text-brand-purple transition-colors whitespace-nowrap">{t('nav.login')}</button>
                   <div className="relative">
                     <button
                       onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                       onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)}
-                      className="bloom-gradient text-white px-6 py-2.5 rounded-full font-bold flex items-center gap-2 transition-all shadow-lg shadow-indigo-100 active:scale-95"
+                      className="bloom-gradient text-white px-6 py-2.5 rounded-full font-bold flex items-center gap-2 transition-all shadow-lg shadow-indigo-100 active:scale-95 whitespace-nowrap"
                     >
                       {t('nav.signup')} <ChevronDown size={18} className={cn("transition-transform", isDropdownOpen && "rotate-180")} />
                     </button>
@@ -162,7 +135,7 @@ export const Navbar = ({
                   </div>
                 </>
               )}
-            </>
+            </div>
           )}
         </div>
 
@@ -309,7 +282,7 @@ export const Hero = ({ onStartTrial }: { onStartTrial: () => void }) => {
             <div className="w-12 h-12 bg-pink-100 rounded-2xl flex items-center justify-center text-brand-pink">
               <Sparkles size={24} />
             </div>
-            <p className="text-sm font-bold text-slate-800">100% Fun</p>
+            <p className="text-sm font-bold text-slate-800">{t('hero.fun') || '100% Fun'}</p>
           </motion.div>
 
           <motion.div
@@ -322,7 +295,7 @@ export const Hero = ({ onStartTrial }: { onStartTrial: () => void }) => {
             </div>
             <div>
               <p className="text-lg font-bold text-slate-800">200+</p>
-              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Courses</p>
+              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('hero.courses') || 'Courses'}</p>
             </div>
           </motion.div>
         </motion.div>
@@ -558,7 +531,7 @@ export const Footer = () => {
             <div className="w-10 h-10 bg-brand-purple rounded-xl flex items-center justify-center text-white">
               <Sparkles size={24} />
             </div>
-            <span className="text-2xl font-extrabold tracking-tight">Bloom Buddies <span className="text-brand-purple">Academy</span></span>
+            <span className="text-2xl font-extrabold tracking-tight">Bloom Buddies <span className="text-brand-purple">{t('nav.academy') || 'Academy'}</span></span>
           </div>
           <p className="text-slate-400 max-w-lg font-medium">
             {t('menage.footer.address')}
@@ -566,7 +539,7 @@ export const Footer = () => {
         </div>
 
         <div className="py-8 border-y border-slate-800 mb-12">
-          <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mb-6">Nos Villes</p>
+          <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mb-6">{t('footer.ourCities') || 'Nos Villes'}</p>
           <p className="text-slate-300 font-medium leading-relaxed max-w-4xl mx-auto">
             {t('menage.footer.cities')}
           </p>

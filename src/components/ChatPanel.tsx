@@ -11,6 +11,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
+import { useLanguage } from '../context/LanguageContext';
 
 export interface ChatMessage {
   type: 'chat';
@@ -60,6 +61,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const [lightbox, setLightbox] = useState<{ url: string; name: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { t } = useLanguage();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -90,7 +92,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       if (file.type.match('image.*') || file.type === 'application/pdf') {
         setSelectedFile(file);
       } else {
-        alert('Only images and PDFs are allowed.');
+        alert(t('class.onlyImagesPDF'));
       }
     }
   };
@@ -117,7 +119,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       {/* Header */}
       <div className="h-12 px-6 flex items-center justify-between border-b border-white/5 shrink-0">
         <div className="flex items-center gap-2">
-          <span className="text-white font-black text-xs uppercase tracking-widest">Chat</span>
+          <span className="text-white font-black text-xs uppercase tracking-widest">{t('class.chat')}</span>
         </div>
         <button 
           onClick={onClose}
@@ -236,7 +238,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[10px] font-bold truncate text-white">{selectedFile.name}</p>
-              <p className="text-[8px] text-white/40 uppercase tracking-widest font-black">Ready to send</p>
+              <p className="text-[8px] text-white/40 uppercase tracking-widest font-black">{t('chat.readyToSend')}</p>
             </div>
             <button 
               onClick={() => setSelectedFile(null)}
@@ -252,7 +254,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <Loader2 className="animate-spin text-brand-purple" size={12} />
-                <span className="text-[10px] font-black text-white uppercase tracking-widest">Uploading File...</span>
+                <span className="text-[10px] font-black text-white uppercase tracking-widest">{t('chat.uploading')}</span>
               </div>
               <span className="text-[10px] font-black text-brand-purple uppercase tracking-widest">{uploadProgress}%</span>
             </div>
@@ -272,7 +274,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Type message..."
+              placeholder={t('chat.placeholder')}
               rows={1}
               className="w-full bg-transparent border-none focus:ring-0 text-white text-sm font-medium p-2 resize-none max-h-32 placeholder:text-slate-500"
               style={{ height: 'auto', minHeight: '40px' }}

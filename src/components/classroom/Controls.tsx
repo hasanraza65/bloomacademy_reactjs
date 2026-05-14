@@ -11,6 +11,7 @@ import {
   ShieldOff
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface ControlsProps {
   isMuted: boolean;
@@ -33,6 +34,7 @@ export const Controls: React.FC<ControlsProps> = ({
   role,
   participantCount
 }) => {
+  const { t } = useLanguage();
   return (
     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4 z-50">
       <div className="px-6 py-3 bg-slate-900 border border-white/5 rounded-[2.5rem] shadow-2xl flex items-center gap-3 backdrop-blur-xl">
@@ -72,7 +74,7 @@ export const Controls: React.FC<ControlsProps> = ({
         <button
           onClick={onLeave}
           className="w-12 h-12 rounded-full flex items-center justify-center bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white transition-all duration-300"
-          title="Leave Class"
+          title={t('class.leaveClass')}
         >
           <PhoneOff size={20} />
         </button>
@@ -82,13 +84,13 @@ export const Controls: React.FC<ControlsProps> = ({
           <button
             onClick={onEndClass}
             className="ml-2 pl-4 border-l border-white/10 flex items-center gap-2 group"
-            title="End Class for Everyone"
+            title={t('class.endClassTitle')}
           >
             <div className="w-12 h-12 rounded-full flex items-center justify-center bg-red-500 text-white shadow-lg shadow-red-500/20 group-hover:scale-110 transition-all duration-300">
               <Power size={20} />
             </div>
             <span className="text-[10px] font-black text-red-500 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">
-              End Class
+              {t('class.endClass')}
             </span>
           </button>
         )}

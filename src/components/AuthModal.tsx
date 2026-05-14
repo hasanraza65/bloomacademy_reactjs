@@ -287,15 +287,15 @@ const LoginView = ({ onSwitch, onComplete }: { onSwitch: (m: AuthMode) => void, 
         if (response.token) {
           localStorage.setItem('auth_token', response.token);
         }
-        setSuccess(response.message || (t('en') === 'en' ? 'Login successful! Redirecting...' : 'Connexion réussie ! Redirection...'));
+        setSuccess(response.message || t('auth.loginSuccess'));
         setTimeout(() => {
           onComplete(response.user.role, response.user);
         }, 1500);
       } else {
-        setError(response.message || (t('en') === 'en' ? 'Login failed' : 'Échec de la connexion'));
+        setError(response.message || t('auth.loginFailed'));
       }
     } catch (err) {
-      setError(t('en') === 'en' ? 'An unexpected error occurred. Please try again.' : 'Une erreur inattendue est survenue. Veuillez réessayer.');
+      setError(t('auth.errorUnexpected'));
     } finally {
       setLoading(false);
     }
@@ -402,7 +402,7 @@ const ForgotView = ({ onSwitch }: { onSwitch: (m: AuthMode) => void }) => {
       if (response.success) {
         setSuccess(response.message || t('auth.checkEmail'));
       } else {
-        setError(response.message || (t('en') === 'en' ? 'Failed to send reset link' : 'Échec de l\'envoi du lien de réinitialisation'));
+        setError(response.message || t('auth.failedResetLink'));
       }
     } catch (err) {
       setError(t('auth.errorUnexpected'));
@@ -416,7 +416,7 @@ const ForgotView = ({ onSwitch }: { onSwitch: (m: AuthMode) => void }) => {
       <div className="mb-10 text-center">
         <div className="flex items-center justify-center gap-2 mb-4">
           <div className="w-10 h-10 bloom-gradient rounded-xl flex items-center justify-center text-white font-bold">B</div>
-          <span className="text-2xl font-bold tracking-tight text-brand-slate-ink">Bloom Buddies Academy</span>
+          <span className="text-2xl font-bold tracking-tight text-brand-slate-ink">{t('common.brandName')}</span>
         </div>
         <h2 className="text-3xl font-extrabold text-brand-slate-ink">{t('auth.forgot')}</h2>
         <p className="text-slate-500 mt-2">{t('auth.forgotDesc')}</p>
@@ -758,7 +758,7 @@ const ParentSignupView = ({
                 step === 1 ? "text-brand-indigo" : "text-emerald-600"
               )}
             >
-              {t("en") === "en" ? "Your Details" : "Vos Infos"}
+              {t('auth.yourDetails')}
             </span>
           </div>
 
@@ -790,7 +790,7 @@ const ParentSignupView = ({
                 step === 2 ? "text-brand-indigo" : "text-slate-400"
               )}
             >
-              {t("en") === "en" ? "Children's Schedule" : "Planning Enfants"}
+              {t("auth.childrenSchedule")}
             </span>
           </div>
         </div>
@@ -882,10 +882,9 @@ const ParentSignupView = ({
               </div>
 
               {/* Password mismatch hint */}
-              {parentFields.confirmPassword &&
-                parentFields.password !== parentFields.confirmPassword && (
+              {parentFields.password !== parentFields.confirmPassword && (
                   <p className="text-[11px] text-red-500 font-bold ml-1 -mt-4">
-                    {t("en") === "en" ? "Passwords do not match" : "Les mots de passe ne correspondent pas"}
+                    {t('auth.passwordMatch')}
                   </p>
                 )}
 
@@ -905,7 +904,7 @@ const ParentSignupView = ({
                     onChange={(phone) =>
                       setParentFields((prev) => ({
                         ...prev,
-                        telephone: phone,
+                        telephone: phone.startsWith('+') ? phone : `+${phone}`,
                       }))
                     }
                     inputClass="!w-full !h-14 !rounded-2xl !border !border-slate-300 !pl-14"
@@ -962,7 +961,7 @@ const ParentSignupView = ({
               >
                 {[1, 2, 3, 4, 5].map((n) => (
                   <option key={n} value={n}>
-                    {n} {n === 1 ? (t("en") === "en" ? "Child" : "Enfant") : (t("en") === "en" ? "Children" : "Enfants")}
+                    {n} {n === 1 ? t("class.child") : (t("en") === "en" ? "Children" : "Enfants")}
                   </option>
                 ))}
               </select>
@@ -977,7 +976,7 @@ const ParentSignupView = ({
                   className="p-4 bg-white rounded-2xl soft-shadow border border-slate-100"
                 >
                   <label className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest font-mono block mb-2">
-                    {t("en") === "en" ? "Child" : "Enfant"} {idx + 1}
+                    {t("class.child")} {idx + 1}
                   </label>
                   <div className="relative group">
                     <CalendarIcon
@@ -1006,7 +1005,7 @@ const ParentSignupView = ({
                     activeChildIndex === idx ? "tab-active" : "tab-inactive"
                   )}
                 >
-                  {t("en") === "en" ? "Child" : "Enfant"} {idx + 1}
+                  {t("class.child")} {idx + 1}
                 </button>
               ))}
             </div>
@@ -1029,10 +1028,10 @@ const ParentSignupView = ({
                     </button>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex wrap items-center gap-3">
                     {day.slots.length === 0 ? (
                       <div className="text-[11px] font-bold text-slate-300 uppercase tracking-widest italic py-2">
-                        {t("en") === "en" ? "No slots added" : "Aucun créneau ajouté"}
+                        {t("auth.noSlots")}
                       </div>
                     ) : (
                       day.slots.map((slot) => (
@@ -1043,7 +1042,7 @@ const ParentSignupView = ({
                           <div className="flex items-center gap-2">
                             <div className="space-y-0.5">
                               <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest leading-none">
-                                {t("en") === "en" ? "Start" : "Début"}
+                                {t("auth.start")}
                               </p>
                               <input
                                 type="time"
@@ -1057,7 +1056,7 @@ const ParentSignupView = ({
                             <div className="w-4 h-px bg-slate-100" />
                             <div className="space-y-0.5">
                               <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest leading-none">
-                                {t("en") === "en" ? "End" : "Fin"}
+                                {t("auth.end")}
                               </p>
                               <input
                                 type="time"
@@ -1095,7 +1094,7 @@ const ParentSignupView = ({
               disabled={!isStep1Valid}
               className="w-full bloom-gradient text-white font-bold py-5 rounded-2xl shadow-xl shadow-indigo-100 text-lg hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-40 disabled:scale-100 disabled:grayscale flex items-center justify-center gap-2"
             >
-              {t("en") === "en" ? "Continue to Schedule" : "Continuer vers Planning"}
+              {t("auth.continueToSchedule")}
               <ChevronRight size={20} />
             </button>
             <p className="text-sm text-slate-400 pb-1">
@@ -1137,7 +1136,7 @@ const ParentSignupView = ({
               className="flex items-center gap-1 text-sm font-bold text-slate-400 hover:text-slate-800 transition-colors"
             >
               <ChevronLeft size={16} />
-              {t("en") === "en" ? "Back to Details" : "Retour aux Infos"}
+              {t("auth.backToDetails")}
             </button>
           </>
         )}
@@ -1389,7 +1388,7 @@ const TeacherSignupView = ({
                 step === 1 ? "text-brand-indigo" : "text-emerald-600"
               )}
             >
-              {t("en") === "en" ? "Your Profile" : "Votre Profil"}
+              {t("auth.yourProfile")}
             </span>
           </div>
 
@@ -1421,7 +1420,7 @@ const TeacherSignupView = ({
                 step === 2 ? "text-brand-indigo" : "text-slate-400"
               )}
             >
-              {t("en") === "en" ? "Availability" : "Disponibilités"}
+              {t("auth.availability")}
             </span>
           </div>
         </div>
@@ -1547,11 +1546,9 @@ const TeacherSignupView = ({
               </div>
 
               {/* Password mismatch hint */}
-              {fields.confirmPassword && fields.password !== fields.confirmPassword && (
+              {fields.password !== fields.confirmPassword && (
                 <p className="text-[11px] text-red-500 font-bold ml-1 -mt-4">
-                  {t("en") === "en"
-                    ? "Passwords do not match"
-                    : "Les mots de passe ne correspondent pas"}
+                  {t('auth.passwordMatch')}
                 </p>
               )}
 
@@ -1569,7 +1566,7 @@ const TeacherSignupView = ({
                     onChange={(phone) =>
                       setFields((prev) => ({
                         ...prev,
-                        telephone: phone,
+                        telephone: phone.startsWith('+') ? phone : `+${phone}`,
                       }))
                     }
                     inputClass="!w-full !h-14 !rounded-2xl !border !border-slate-300 !pl-14 text-base"
@@ -1725,7 +1722,7 @@ const TeacherSignupView = ({
                             {isSelected && (
                               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                 <span className="text-[10px] font-black text-white uppercase tracking-tighter leading-none">
-                                  Available
+                                  {t('auth.available')}
                                 </span>
                               </div>
                             )}
@@ -1766,7 +1763,7 @@ const TeacherSignupView = ({
               disabled={!isStep1Valid}
               className="w-full bloom-gradient text-white font-bold py-5 rounded-2xl shadow-xl shadow-indigo-100 text-lg hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-40 disabled:scale-100 disabled:grayscale flex items-center justify-center gap-2"
             >
-              {t("en") === "en" ? "Continue to Availability" : "Continuer vers Disponibilités"}
+              {t("auth.continueToAvailability")}
               <ChevronRight size={20} />
             </button>
             <p className="text-sm text-slate-400 pb-1">
@@ -1808,7 +1805,7 @@ const TeacherSignupView = ({
               className="flex items-center gap-1 text-sm font-bold text-slate-400 hover:text-slate-800 transition-colors"
             >
               <ChevronLeft size={16} />
-              {t("en") === "en" ? "Back to Profile" : "Retour au Profil"}
+              {t("auth.backToProfile")}
             </button>
           </>
         )}

@@ -41,12 +41,12 @@ export const ResetPassword = ({
     e.preventDefault();
     
     if (password.length < 6) {
-      setError(t('en') === 'en' ? 'Password must be at least 6 characters' : 'Le mot de passe doit comporter au moins 6 caractères');
+      setError(t('auth.passwordMin'));
       return;
     }
 
     if (password !== confirmPassword) {
-      setError(t('en') === 'en' ? 'Passwords do not match' : 'Les mots de passe ne correspondent pas');
+      setError(t('auth.passwordMatch'));
       return;
     }
 
@@ -73,11 +73,10 @@ export const ResetPassword = ({
           const firstError = Object.values(response.errors)[0][0];
           setError(firstError);
         } else {
-          setError(response.message || (t('en') === 'en' ? 'Failed to reset password' : 'Échec de la réinitialisation du mot de passe'));
+          setError(response.message || t('auth.failedReset'));
         }
       }
     } catch (err) {
-        console.log(err);
       setError(t('auth.errorUnexpected'));
     } finally {
       setLoading(false);
@@ -133,10 +132,10 @@ export const ResetPassword = ({
           <div className="text-center mb-10">
             <div className="flex items-center justify-center gap-2 mb-6">
               <div className="w-10 h-10 bloom-gradient rounded-xl flex items-center justify-center text-white font-bold">B</div>
-              <span className="text-2xl font-bold tracking-tight text-brand-slate-ink uppercase">Bloom Academy</span>
+              <span className="text-2xl font-bold tracking-tight text-brand-slate-ink uppercase">Bloom {t('nav.academy') || 'Academy'}</span>
             </div>
             <h1 className="text-3xl font-extrabold text-brand-slate-ink">{t('auth.resetPassword')}</h1>
-            <p className="text-slate-500 mt-2 font-medium">{t('en') === 'en' ? 'Create a new secure password' : 'Créez un nouveau mot de passe sécurisé'}</p>
+            <p className="text-slate-500 mt-2 font-medium">{t('auth.newSecurePassword')}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">

@@ -4,6 +4,7 @@ import { apiService } from '@/src/services/apiService';
 import { cn } from '@/src/lib/utils';
 import { BASE_URL } from '@/src/lib/config';
 import { motion, AnimatePresence } from 'motion/react';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface Material {
   id: number;
@@ -32,6 +33,7 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useLanguage();
 
   const fetchMaterials = async () => {
     try {
@@ -42,7 +44,7 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({
       }
     } catch (err) {
       console.error("Failed to fetch materials:", err);
-      setError("Failed to load lesson materials.");
+      setError(t('material.failedLoad'));
     } finally {
       setIsLoading(false);
     }
@@ -57,7 +59,7 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({
     if (!file) return;
 
     if (file.type !== 'application/pdf') {
-      setError("Only PDF files are allowed.");
+      setError(t('class.onlyImagesPDF'));
       return;
     }
 
@@ -85,17 +87,17 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({
         if (res.success) {
           fetchMaterials();
         } else {
-          setError(res.message || "Upload failed. Please try again.");
+          setError(res.message || t('material.uploadFailed'));
         }
       } else {
-        setError("Upload failed. Status: " + xhr.status);
+        setError(t('material.uploadFailed') + " Status: " + xhr.status);
       }
       setIsUploading(false);
       setUploadProgress(0);
     };
 
     xhr.onerror = () => {
-      setError("An error occurred during upload.");
+      setError(t('material.errorDuringUpload'));
       setIsUploading(false);
       setUploadProgress(0);
     };
@@ -133,8 +135,8 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({
             <FileText size={20} />
           </div>
           <div>
-            <h3 className="text-white font-black text-sm uppercase tracking-widest">Lesson Materials</h3>
-            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Upload & Share PDFs</p>
+            <h3 className="text-white font-black text-sm uppercase tracking-widest">{t('material.lessonMaterials')}</h3>
+            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">{t('material.uploadShare')}</p>
           </div>
         </div>
         <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors">
@@ -146,12 +148,12 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-40">
             <Loader2 className="animate-spin text-brand-purple mb-3" size={32} />
-            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Loading Materials...</p>
+            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">{t('material.loading')}</p>
           </div>
         ) : materials.length === 0 ? (
           <div className="text-center py-12 px-6 border-2 border-dashed border-white/5 rounded-3xl">
             <p className="text-slate-600 text-xs font-bold uppercase tracking-widest leading-relaxed">
-              No materials uploaded yet. Upload a PDF to start sharing with your students.
+              {t('material.noMaterials')}
             </p>
           </div>
         ) : (
@@ -190,7 +192,7 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({
                         : "bg-brand-purple text-white hover:bg-brand-purple-dark shadow-lg shadow-purple-500/20"
                     )}
                   >
-                    {m.is_active ? 'Stop Sharing' : 'Share Live'}
+                    {m.is_active ? t('material.stopSharing') : t('material.shareLive')}
                   </button>
                 </div>
               </div>
@@ -198,7 +200,7 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({
               {m.is_active && (
                 <div className="mt-4 pt-3 border-t border-brand-purple/20 flex items-center gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Actively Sharing</span>
+                  <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">{t('material.activelySharing')}</span>
                 </div>
               )}
             </motion.div>
@@ -236,7 +238,7 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({
               <FileUp className="text-white" size={20} />
             )}
             <span className="text-white font-black text-xs uppercase tracking-widest">
-              {isUploading ? `Uploading ${uploadProgress}%` : 'Upload New Material'}
+              {isUploading ? `${t('material.uploading')} ${uploadProgress}%` : t('material.uploadNew')}
             </span>
           </div>
 

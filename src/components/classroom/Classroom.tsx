@@ -23,7 +23,9 @@ import { cn } from '@/src/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { BadgeReward, Badge } from '../BadgeReward';
 import { ChatPanel, ChatMessage } from '../ChatPanel';
+import { LanguageSwitcher } from '../LanguageSwitcher';
 import { MessageSquare } from 'lucide-react';
+import { useLanguage } from '@/src/context/LanguageContext';
 
 interface ClassroomProps {
   user: User;
@@ -33,6 +35,7 @@ interface ClassroomProps {
 export type ClassroomMode = 'whiteboard' | 'pdf' | 'none';
 
 export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
+  const { t } = useLanguage();
   const location = useLocation();
   const { channelName } = useParams<{ channelName: string }>();
   const [isInClass, setIsInClass] = useState(false);
@@ -985,7 +988,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="max-w-4xl w-full bg-slate-900/80 backdrop-blur-3xl rounded-[3.5rem] border border-white/10 p-8 sm:p-12 flex flex-col items-center relative z-10 shadow-2xl"
+          className="max-w-6xl w-full bg-slate-900/80 backdrop-blur-3xl rounded-[3.5rem] border border-white/10 p-8 sm:p-12 flex flex-col items-center relative z-10 shadow-2xl"
         >
           {/* Preview Section */}
           <div className="w-full flex flex-col md:flex-row gap-10 items-center justify-center mb-10">
@@ -1004,7 +1007,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                     <div className="w-20 h-20 rounded-full bg-slate-700/50 flex items-center justify-center text-slate-400">
                       <VideoOff size={40} />
                     </div>
-                    <p className="text-slate-500 font-black text-xs uppercase tracking-[0.2em]">Camera is Off</p>
+                    <p className="text-slate-500 font-black text-xs uppercase tracking-[0.2em]">{t("class.cameraOff")}</p>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -1028,7 +1031,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                   </div>
                 )}
                 <span className="text-[10px] font-black text-white uppercase tracking-widest ml-2 mb-0.5">
-                  {isMuted ? 'Muted' : 'Voice Active'}
+                  {isMuted ? t("class.muted") : t("class.voiceActive")}
                 </span>
               </div>
             </div>
@@ -1037,15 +1040,15 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
             <div className="w-full md:w-1/2 text-center md:text-left space-y-6">
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-brand-purple/10 rounded-full border border-brand-purple/20 mb-2">
                 <Sparkles className="text-brand-purple" size={14} />
-                <span className="text-[10px] font-black text-brand-purple uppercase tracking-widest">Pre-Meeting Check</span>
+                <span className="text-[10px] font-black text-brand-purple uppercase tracking-widest">{t("class.preMeetingCheck")}</span>
               </div>
               
               <h1 className="text-4xl sm:text-5xl font-black text-white tracking-tight leading-tight">
-                Ready to <span className="text-transparent bg-clip-text bloom-gradient">Bloom?</span>
+                {t("class.readyToBloom")} <span className="text-transparent bg-clip-text bloom-gradient">Bloom?</span>
               </h1>
               
               <p className="text-slate-400 text-lg font-medium leading-relaxed">
-                Check your equipment before joining {user.role === 2 ? 'your classroom' : 'the magical adventure'}.
+                {user.role === 2 ? t("class.checkEquipmentTeacher") : t("class.checkEquipmentStudent")}
               </p>
 
               <AnimatePresence>
@@ -1093,9 +1096,9 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                 disabled={isLoading}
                 className="flex-1 min-w-[200px] h-16 group relative flex items-center justify-center gap-4 bg-brand-purple rounded-[1.5rem] transition-all hover:scale-[1.02] active:scale-98 disabled:opacity-50 overflow-hidden shadow-2xl shadow-purple-500/20"
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                 {isLoading ? <Loader2 className="animate-spin text-white" size={24} /> : <Sparkles className="text-white" size={24} />}
-                <span className="text-white font-black text-lg tracking-widest uppercase">Join Class</span>
+                <span className="text-white font-black text-lg tracking-widest uppercase">{t("class.joinClass")}</span>
               </button>
             </div>
           </div>
@@ -1105,7 +1108,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
           onClick={onExit}
             className="text-slate-500 font-black text-xs uppercase tracking-[0.3em] hover:text-white transition-colors py-2 px-4 rounded-full border border-transparent hover:border-white/10 hover:bg-white/5"
           >
-            Leave Terminal
+            {t("class.leaveTerminal")}
           </button>
         </motion.div>
       </div>
@@ -1118,7 +1121,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       <nav className="h-16 bg-slate-900 border-b border-white/5 flex items-center justify-between px-6 shrink-0 z-50">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bloom-gradient rounded-lg flex items-center justify-center text-white font-bold border border-white/10 shadow-lg">M</div>
-          <span className="text-white font-black text-sm tracking-[0.2em] uppercase">Meta Class</span>
+          <span className="text-white font-black text-sm tracking-[0.2em] uppercase mr-4">{t("class.metaClass")}</span>
+          <LanguageSwitcher darkMode />
         </div>
         
         <div className="flex items-center gap-4">
@@ -1134,7 +1138,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
             )}
           >
             <MessageSquare size={14} />
-            Chat
+            {t("class.chat")}
           </button>
           
           {user.role === 2 ? (
@@ -1149,7 +1153,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                 )}
               >
                 <MonitorPlay size={14} />
-                Whiteboard
+                {t("class.whiteboard")}
               </button>
 
               <button
@@ -1173,7 +1177,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                 )}
               >
                 < BookOpen size={14} />
-                Resources
+                {t("class.resources")}
               </button>
 
 {/* 
@@ -1204,7 +1208,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                     className="px-6 py-2 bg-slate-700/50 text-slate-300 border border-white/10 font-black text-[10px] uppercase tracking-[0.2em] rounded-full hover:bg-slate-600 hover:text-white transition-all shadow-lg active:scale-95 flex items-center gap-2"
                   >
                   <X size={14} />
-                  Hide Boards
+                  {t("class.hideBoards")}
                 </button>
               )}
 
@@ -1212,7 +1216,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                 onClick={handleEndClass}
                 className="px-6 py-2 bg-red-600/20 text-red-500 border border-red-500/30 font-black text-[10px] uppercase tracking-[0.2em] rounded-full hover:bg-red-600 hover:text-white transition-all shadow-lg active:scale-95"
               >
-                End Class
+                {t("class.endClass")}
               </button>
             </>
           ) : (
@@ -1220,7 +1224,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                 onClick={handleEndClass}
                 className="px-6 py-2 bg-red-600/20 text-red-500 border border-red-500/30 font-black text-[10px] uppercase tracking-[0.2em] rounded-full hover:bg-red-600 hover:text-white transition-all shadow-lg active:scale-95"
               >
-                End Class
+                {t("class.endClass")}
             </button>
           )}
 
@@ -1307,10 +1311,10 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                   />
                 ) : (
                   <div className="w-full h-full bg-slate-900 flex flex-col items-center justify-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-slate-500">
+                    <div className="w-12 h-12 rounded-full bg-slate-900 flex items-center justify-center text-slate-500/30">
                       <VideoOff size={24} />
                     </div>
-                    <p className="text-slate-500 text-xs font-black uppercase tracking-widest">Waiting for Teacher</p>
+                    <p className="text-slate-500 text-xs font-black uppercase tracking-widest">{t("class.waitingForTeacher")}</p>
                   </div>
                 )
               )}
@@ -1345,7 +1349,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                     hasVideo={!!remoteUsers[0].videoTrack}
                     hasAudio={!!remoteUsers[0].audioTrack}
                     role="audience"
-                    name="Student"
+                    name={t("class.student")}
                     isLarge={true}
                     showRewardButton={true}
                     onReward={() => setShowBadgePicker(true)}
@@ -1356,7 +1360,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                     <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-slate-500">
                       <VideoOff size={24} />
                     </div>
-                    <p className="text-slate-500 text-xs font-black uppercase tracking-widest">Waiting for Student</p>
+                    <p className="text-slate-500 text-xs font-black uppercase tracking-widest">{t("class.waitingForStudent")}</p>
                   </div>
                 )
               ) : (
@@ -1503,11 +1507,11 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                   <div className="w-20 h-20 rounded-full bg-brand-indigo/10 flex items-center justify-center text-brand-indigo mb-6">
                     <Monitor size={40} />
                   </div>
-                  <h4 className="text-xl font-black text-white uppercase tracking-widest mb-4">Classroom Content Area</h4>
+                  <h4 className="text-xl font-black text-white uppercase tracking-widest mb-4">{t("class.contentArea")}</h4>
                   <p className="text-slate-500 text-sm max-w-sm font-medium">
                     {user.role === 2 
-                      ? "Click 'Whiteboard' or 'Resources' to start sharing materials with your student."
-                      : "Waiting for the teacher to share learning materials or activate the whiteboard..."}
+                      ? t("class.contentAreaTeacher")
+                      : t("class.contentAreaStudent")}
                   </p>
                 </motion.div>
               )}
@@ -1562,7 +1566,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                     uid={remoteUsers[0].uid}
                     videoTrack={remoteUsers[0].videoTrack}
                     audioTrack={remoteUsers[0].audioTrack}
-                    name="Teacher"
+                    name={t("class.teacher")}
                     hasVideo={!!remoteUsers[0].videoTrack}
                     hasAudio={!!remoteUsers[0].audioTrack}
                     role="host"
@@ -1573,7 +1577,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                     <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-500">
                       <VideoOff size={20} />
                     </div>
-                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Waiting for Teacher</p>
+                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">{t("class.waitingForTeacher")}</p>
                   </div>
                 )
               )}
@@ -1591,7 +1595,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                     hasVideo={!!remoteUsers[0].videoTrack}
                     hasAudio={!!remoteUsers[0].audioTrack}
                     role="audience"
-                    name="Student"
+                    name={t("class.student")}
                     isLarge={true}
                     showRewardButton={user.role === 2}
                     onReward={() => setShowBadgePicker(true)}
@@ -1602,7 +1606,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                     <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-500">
                       <VideoOff size={20} />
                     </div>
-                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Waiting for Student</p>
+                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">{t("class.waitingForStudent")}</p>
                   </div>
                 )
               ) : (

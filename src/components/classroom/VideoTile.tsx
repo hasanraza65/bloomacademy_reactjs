@@ -3,6 +3,7 @@ import { CameraOff, MicOff, User as UserIcon, Mic, Video, VideoOff } from 'lucid
 import { cn } from '@/src/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { Badge, BADGE_CONFIG } from '../BadgeReward';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface VideoTileProps {
   uid: string | number;
@@ -44,6 +45,7 @@ export const VideoTile: React.FC<VideoTileProps> = ({
   earnedBadges = []
 }) => {
   const videoRef = useRef<HTMLDivElement>(null);
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (videoTrack && videoRef.current) {
@@ -81,7 +83,7 @@ export const VideoTile: React.FC<VideoTileProps> = ({
             <UserIcon size={40} />
           </div>
           <p className="text-slate-500 font-bold text-sm tracking-widest uppercase">
-            {role === 'host' ? 'TEACHER' : 'STUDENT'}
+            {role === 'host' ? t('class.teacher').toUpperCase() : t('class.student').toUpperCase()}
           </p>
         </div>
       )}
@@ -93,7 +95,7 @@ export const VideoTile: React.FC<VideoTileProps> = ({
           isScreen ? "bg-brand-purple/20 border-brand-purple/30" : "bg-black/40 border-white/10"
         )}>
           <span className="text-xs font-bold text-white tracking-wide">
-            {isScreen ? "Sharing Screen" : (name || (isLocal ? 'Me' : `User ${uid}`))}
+            {isScreen ? t('class.sharingScreen') : (name || (isLocal ? t('class.me') : `${t('class.user')} ${uid}`))}
           </span>
           {showRewardButton && onReward && (
             <button
@@ -102,7 +104,7 @@ export const VideoTile: React.FC<VideoTileProps> = ({
                 onReward();
               }}
               className="ml-1 w-6 h-6 rounded-full bg-brand-purple text-[10px] flex items-center justify-center shadow-lg hover:scale-110 active:scale-95 transition-transform border border-white/20"
-              title="Reward Student"
+              title={t('badge.rewardTitle')}
             >
               🏅
             </button>

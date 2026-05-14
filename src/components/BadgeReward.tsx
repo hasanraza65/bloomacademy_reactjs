@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BASE_URL } from '@/src/lib/config';
+import { useLanguage } from '../context/LanguageContext';
 
 interface BadgeRewardProps {
   isTeacher: boolean;
@@ -45,6 +46,7 @@ export const BadgeReward: React.FC<BadgeRewardProps> = ({
   const [currentCelebration, setCurrentCelebration] = useState<Badge | null>(null);
   const lastBadgeIdRef = useRef<number | null>(null);
   const isPollingRef = useRef(false);
+  const { t } = useLanguage();
 
   useEffect(() => {
     console.log('[BadgeReward] showPicker state:', showPicker);
@@ -277,7 +279,7 @@ export const BadgeReward: React.FC<BadgeRewardProps> = ({
                   className="absolute bottom-20 right-0 w-80 bg-slate-900 border border-white/10 rounded-[2.5rem] p-6 shadow-2xl overflow-hidden"
                 >
                   <div className="absolute inset-0 bg-gradient-to-br from-brand-purple/10 to-transparent pointer-events-none" />
-                  <h3 className="text-white font-black text-xs uppercase tracking-widest mb-4 relative z-10">Reward {studentName}</h3>
+                  <h3 className="text-white font-black text-xs uppercase tracking-widest mb-4 relative z-10">{t('badge.reward')} {studentName}</h3>
                   <div className="grid grid-cols-2 gap-3 relative z-10">
                     {Object.entries(BADGE_CONFIG).map(([key, config]) => (
                       <button
@@ -312,6 +314,7 @@ export const BadgeReward: React.FC<BadgeRewardProps> = ({
 };
 
 const Celebration: React.FC<{ badge: Badge, isTeacher: boolean, studentName: string }> = ({ badge, isTeacher, studentName }) => {
+  const { t } = useLanguage();
   const config = BADGE_CONFIG[badge.badge_type] || BADGE_CONFIG.star;
 
   return (
@@ -381,8 +384,8 @@ const Celebration: React.FC<{ badge: Badge, isTeacher: boolean, studentName: str
           </h2>
           <p className="text-xl font-bold text-white/80 tracking-wide bg-black/40 backdrop-blur-md px-6 py-2 rounded-full border border-white/10">
             {isTeacher 
-              ? `You gave ${studentName} a badge! 🎉` 
-              : `Your teacher gave you a badge! 🎉`}
+              ? `${t('badge.youGave')} ${studentName} ! 🎉` 
+              : `${t('badge.teacherGave')} ! 🎉`}
           </p>
         </motion.div>
       </div>

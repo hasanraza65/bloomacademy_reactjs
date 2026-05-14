@@ -13,6 +13,7 @@ import {
 import { cn } from '@/src/lib/utils';
 import { UserRole, User, ClassroomData } from '@/src/types';
 import { useLanguage } from '../context/LanguageContext';
+import { LanguageSwitcher } from './LanguageSwitcher';
 
 interface DashboardProps {
   role: UserRole;
@@ -32,7 +33,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, user, myClasses, isL
       <aside className="hidden lg:flex w-72 bg-white border-r border-slate-100 flex-col p-8 soft-shadow">
         <div className="flex items-center gap-2 mb-12">
           <div className="w-8 h-8 bloom-gradient rounded-lg flex items-center justify-center text-white font-bold">B</div>
-          <span className="text-xl font-bold tracking-tight text-slate-800">Bloom Buddies Academy</span>
+          <span className="text-xl font-bold tracking-tight text-slate-800">Bloom Buddies {t('nav.academy') || 'Academy'}</span>
         </div>
 
         <nav className="space-y-2 flex-1">
@@ -60,27 +61,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, user, myClasses, isL
           </div>
           
           <div className="flex items-center gap-4">
-             {/* Language Switcher */}
-             <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1 mr-2">
-              <button 
-                onClick={() => setLanguage('fr')}
-                className={cn(
-                  "px-2 py-1 rounded-md text-[10px] font-black uppercase transition-all",
-                  language === 'fr' ? "bg-white text-brand-indigo shadow-sm" : "text-slate-400 hover:text-slate-600"
-                )}
-              >
-                FR
-              </button>
-              <button 
-                onClick={() => setLanguage('en')}
-                className={cn(
-                  "px-2 py-1 rounded-md text-[10px] font-black uppercase transition-all",
-                  language === 'en' ? "bg-white text-brand-indigo shadow-sm" : "text-slate-400 hover:text-slate-600"
-                )}
-              >
-                EN
-              </button>
-            </div>
+             <LanguageSwitcher />
 
              <button className="p-2.5 text-slate-400 hover:bg-slate-50 rounded-xl transition-colors relative">
                 <Bell size={22} />
@@ -108,7 +89,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, user, myClasses, isL
                     <div className="absolute inset-0 blur-xl bg-brand-indigo/20 animate-pulse rounded-full" />
                   </div>
                   <p className="text-slate-400 font-bold animate-pulse tracking-wide uppercase text-xs">
-                    Fetching your sessions...
+                    {t('dash.fetching')}
                   </p>
                </div>
              ) : myClasses.length > 0 ? (
@@ -145,7 +126,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, user, myClasses, isL
                                <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-brand-indigo group-hover/btn:bg-brand-indigo group-hover/btn:text-white transition-colors">
                                  <Play fill="currentColor" size={20} className="ml-1" />
                                </div>
-                               {role === 3 ? t('dash.joinClass') : "Manage Class"}
+                               {role === 3 ? t('dash.joinClass') : t('class.manageClass')}
                             </Link>
 
                             {role === 3 ? (
@@ -155,7 +136,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, user, myClasses, isL
                                       <GraduationCap size={20} />
                                    </div>
                                    <div className="text-left">
-                                      <p className="text-[10px] font-black uppercase tracking-widest opacity-60 leading-none mb-1">Teacher</p>
+                                      <p className="text-[10px] font-black uppercase tracking-widest opacity-60 leading-none mb-1">{t("class.teacher")}</p>
                                       <p className="text-sm font-bold">{classroom.teacher.firstName} {classroom.teacher.lastName}</p>
                                    </div>
                                 </div>
@@ -167,7 +148,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, user, myClasses, isL
                                       <Users size={20} />
                                    </div>
                                    <div className="text-left">
-                                      <p className="text-[10px] font-black uppercase tracking-widest opacity-60 leading-none mb-1">Student</p>
+                                      <p className="text-[10px] font-black uppercase tracking-widest opacity-60 leading-none mb-1">{t("class.student")}</p>
                                       <p className="text-sm font-bold">{classroom.child.child_name || "Assigned Student"}</p>
                                    </div>
                                 </div>
@@ -194,7 +175,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, user, myClasses, isL
                         <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-brand-indigo group-hover/btn:bg-brand-indigo group-hover/btn:text-white transition-colors">
                           <Play fill="currentColor" size={20} className="ml-1" />
                         </div>
-                        {role === 3 ? t('dash.joinClass') : "Manage Class"}
+                        {role === 3 ? t('dash.joinClass') : t('class.manageClass')}
                      </Link>
                   </div>
                </div>

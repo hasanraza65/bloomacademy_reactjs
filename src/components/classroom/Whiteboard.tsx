@@ -6,6 +6,7 @@ import { cn } from '@/src/lib/utils';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
+import { useLanguage } from '../../context/LanguageContext';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
@@ -72,6 +73,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
   const [pageSize, setPageSize] = useState<{ width: number; height: number } | null>(null);
   const [loading, setLoading] = useState(true);
+  const { t } = useLanguage();
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [localPdfUrl, setLocalPdfUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -312,12 +314,12 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
               setDownloadProgress(100);
             }
           } else if (!isCancelled) {
-            setError('Failed to download material. Please try again.');
+            setError(t('whiteboard.failedDownload'));
           }
         };
 
         xhr.onerror = () => {
-          if (!isCancelled) setError('Network error occurred while fetching material.');
+          if (!isCancelled) setError(t('whiteboard.networkError'));
         };
 
         xhr.send();
@@ -562,7 +564,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
       setLoading(false);
     } catch (err: any) {
       console.error('[WB] joinRoom FAILED:', err?.message, err?.stack || '');
-      const msg = err?.message || 'Failed to join whiteboard';
+      const msg = err?.message || t('whiteboard.failedJoin');
       setError(msg);
       setLoading(false);
       onConnectionError?.(msg);
@@ -885,15 +887,15 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
             </div>
 
             <h4 className="text-2xl font-black text-white uppercase tracking-[0.2em] mb-4">
-              {loading ? 'Initializing Whiteboard' : (downloadProgress < 100 ? 'Downloading Material' : 'Loading Material')}
+              {loading ? t('whiteboard.initializing') : (downloadProgress < 100 ? t('whiteboard.downloadingMaterial') : t('whiteboard.loadingMaterial'))}
             </h4>
             
             <p className="text-slate-400 text-xs font-bold uppercase tracking-[0.15em] mb-8 leading-relaxed">
               {loading 
-                ? 'Preparing your magical canvas for a productive session...'
+                ? t('whiteboard.preparingCanvas')
                 : (downloadProgress < 100 
-                  ? 'Retrieving the shared book from the cloud library...'
-                  : 'Rendering the shared material across all magical devices...')}
+                  ? t('whiteboard.retrievingBook')
+                  : t('whiteboard.renderingMaterial'))}
             </p>
 
             <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden mb-4 shadow-inner">
@@ -911,7 +913,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
             <div className="flex items-center justify-center gap-2">
                <div className="w-1.5 h-1.5 rounded-full bg-brand-purple animate-pulse" />
                <span className="text-[10px] font-black text-brand-purple uppercase tracking-[0.3em]">
-                 {loading ? 'Connecting...' : (downloadProgress < 100 ? `Downloading ${downloadProgress}%` : 'Rendering...')}
+                 {loading ? t('whiteboard.connecting') : (downloadProgress < 100 ? `${t('whiteboard.downloading')} ${downloadProgress}%` : t('whiteboard.rendering'))}
                </span>
             </div>
 
@@ -927,7 +929,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
                   className="px-8 py-3 bg-brand-purple text-white font-black text-xs uppercase tracking-[0.2em] rounded-full hover:scale-105 active:scale-95 transition-all shadow-xl shadow-purple-500/30 flex items-center gap-2"
                 >
                   <RefreshCw size={14} />
-                  Retry Connection
+                  {t('whiteboard.retryConnection')}
                 </button>
               </div>
             )}
@@ -945,14 +947,11 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
             onClick={() => {
               setError(null);
               setLoading(true);
-              // Trigger a re-join by briefly clearing then setting a local state if needed, 
-              // but here we can just call joinRoom again if we had it in scope.
-              // Since it's in a useEffect, we can just toggle a local 'retry' counter.
               setWbRetryCount(prev => prev + 1);
             }}
             className="bg-white text-red-500 px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all"
           >
-            Retry Connection
+            {t('whiteboard.retryConnection')}
           </button>
         </div>
       )}
@@ -1060,7 +1059,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
             <ChevronLeft size={20} />
           </button>
           <span className="text-white font-black text-[10px] uppercase tracking-widest min-w-[100px] text-center">
-            Page {currentPage} / {numPages}
+            {t('whiteboard.page')} {currentPage} / {numPages}
           </span>
           <button disabled={currentPage >= numPages} onClick={() => onPageChange?.(currentPage + 1)} className="p-2 text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-colors">
             <ChevronRight size={20} />
@@ -1128,7 +1127,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
                     exit={{ opacity: 0, scale: 0.8, x: 20 }}
                     className="absolute left-full ml-3 top-0 flex items-center gap-2 bg-slate-900 border border-white/10 p-1.5 rounded-xl shadow-2xl z-50 whitespace-nowrap"
                   >
-                    <span className="text-[10px] font-bold text-white/50 uppercase px-2">Clear?</span>
+                    <span className="text-[10px] font-bold text-white/50 uppercase px-2">{t('whiteboard.clearQuestion')}</span>
                     <button
                       onClick={() => {
                         clearCurrentScene();
@@ -1136,13 +1135,13 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
                       }}
                       className="px-3 py-1.5 bg-red-500 text-white text-[10px] font-black uppercase rounded-lg hover:bg-red-600 transition-colors"
                     >
-                      Yes
+                      {t('common.yes')}
                     </button>
                     <button
                       onClick={() => setShowClearConfirm(false)}
                       className="px-3 py-1.5 bg-white/5 text-white/70 text-[10px] font-black uppercase rounded-lg hover:bg-white/10 transition-colors"
                     >
-                      No
+                      {t('common.no')}
                     </button>
                   </motion.div>
                 )}

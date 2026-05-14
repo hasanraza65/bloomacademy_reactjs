@@ -254,7 +254,7 @@ export const MenagePage = ({
               <div className="w-10 h-10 bg-brand-purple rounded-xl flex items-center justify-center text-white">
                 <Sparkles size={24} />
               </div>
-              <span className="text-2xl font-extrabold tracking-tight">Bloom Buddies <span className="text-brand-purple">Academy</span></span>
+              <span className="text-2xl font-extrabold tracking-tight">Bloom Buddies <span className="text-brand-purple">{t('nav.academy') || 'Academy'}</span></span>
             </div>
             <p className="text-slate-400 max-w-lg font-medium">
               {t('menage.footer.address')}
@@ -262,7 +262,7 @@ export const MenagePage = ({
           </div>
           
           <div className="py-8 border-y border-slate-800 mb-12">
-            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mb-6">Nos Villes</p>
+            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mb-6">{t('footer.ourCities') || 'Nos Villes'}</p>
             <p className="text-slate-300 font-medium leading-relaxed max-w-4xl mx-auto">
               {t('menage.footer.cities')}
             </p>
