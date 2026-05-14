@@ -12,8 +12,14 @@ import {
 import { AuthModal } from './components/AuthModal';
 import { Dashboard } from './components/Dashboard';
 import { Classroom } from './components/classroom/Classroom';
+import { MenagePage } from './components/MenagePage';
+
 import { UserRole, AuthMode, User, ClassroomData } from './types';
 import { apiService } from './services/apiService';
+import { APIProvider } from '@vis.gl/react-google-maps';
+import { ResetPassword } from './components/ResetPassword';
+
+const GOOGLE_MAPS_API_KEY = (import.meta as any).env.VITE_GOOGLE_MAPS_API_KEY;
 
 function LandingPage({ 
   isLoggedIn, 
@@ -49,6 +55,9 @@ function LandingPage({
 }
 
 export default function App() {
+
+  
+
   const [authModal, setAuthModal] = useState<{isOpen: boolean, mode: AuthMode}>({
     isOpen: false,
     mode: 'login'
@@ -112,12 +121,33 @@ export default function App() {
   if (!isInitialized) return null;
 
   return (
-    <BrowserRouter>
-      <Routes>
+    <APIProvider apiKey={GOOGLE_MAPS_API_KEY} version="weekly" solutionChannel="gmp_mcp_codeassist_v1_aistudio">
+      <BrowserRouter>
+        <Routes>
         <Route 
           path="/" 
           element={
             <LandingPage 
+              isLoggedIn={isLoggedIn} 
+              onLogout={handleLogout} 
+              openAuth={openAuth} 
+            />
+          } 
+        />
+        <Route 
+          path="/menage" 
+          element={
+            <MenagePage 
+              isLoggedIn={isLoggedIn} 
+              onLogout={handleLogout} 
+              openAuth={openAuth} 
+            />
+          } 
+        />
+        <Route 
+          path="/reset-password" 
+          element={
+            <ResetPassword 
               isLoggedIn={isLoggedIn} 
               onLogout={handleLogout} 
               openAuth={openAuth} 
@@ -162,7 +192,8 @@ export default function App() {
       
       <NavigationHandler isLoggedIn={isLoggedIn} />
     </BrowserRouter>
-  );
+  </APIProvider>
+);
 }
 
 // Separate component to handle navigation side effects

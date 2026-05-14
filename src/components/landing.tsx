@@ -1,32 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  ChevronDown, 
-  Menu, 
-  X, 
-  Star, 
-  BookOpen, 
-  Users, 
-  Calendar, 
-  BarChart, 
-  CheckCircle2, 
+import {
+  ChevronDown,
+  Menu,
+  X,
+  Star,
+  BookOpen,
+  Users,
+  Calendar,
+  BarChart,
+  CheckCircle2,
   ArrowRight,
   Sparkles,
   GraduationCap
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 import { useLanguage } from '../context/LanguageContext';
 
 // --- Language Switcher Component ---
 const LanguageSwitcher = ({ isMobile = false }) => {
   const { language, setLanguage } = useLanguage();
-  
+
   return (
     <div className={cn("flex items-center gap-2 bg-slate-100 rounded-full p-1", isMobile && "mt-4 w-fit")}>
-      <button 
+      <button
         onClick={() => setLanguage('fr')}
         className={cn(
           "px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider transition-all",
@@ -35,7 +35,7 @@ const LanguageSwitcher = ({ isMobile = false }) => {
       >
         FR
       </button>
-      <button 
+      <button
         onClick={() => setLanguage('en')}
         className={cn(
           "px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider transition-all",
@@ -49,15 +49,15 @@ const LanguageSwitcher = ({ isMobile = false }) => {
 };
 
 // --- Navbar ---
-export const Navbar = ({ 
-  onSignUpParent, 
-  onSignUpTeacher, 
+export const Navbar = ({
+  onSignUpParent,
+  onSignUpTeacher,
   onLogin,
   isLoggedIn,
   onLogout
-}: { 
-  onSignUpParent: () => void, 
-  onSignUpTeacher: () => void, 
+}: {
+  onSignUpParent: () => void,
+  onSignUpTeacher: () => void,
   onLogin: () => void,
   isLoggedIn?: boolean,
   onLogout?: () => void
@@ -66,6 +66,8 @@ export const Navbar = ({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const { t } = useLanguage();
+  const location = useLocation();
+  const isMenagePage = location.pathname === '/menage';
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -90,71 +92,76 @@ export const Navbar = ({
 
         {/* Desktop Menu */}
         <div className="hidden md:flex items-center gap-8 font-semibold text-slate-600">
-          <a href="#features" className="hover:text-brand-purple transition-colors">{t('nav.features')}</a>
-          <a href="#how-it-works" className="hover:text-brand-purple transition-colors">{t('nav.howItWorks')}</a>
-          <a href="#testimonials" className="hover:text-brand-purple transition-colors">{t('nav.testimonials')}</a>
+          <Link to="/" className="hover:text-brand-purple transition-colors">{t('nav.home') || 'Home'}</Link>
+          <a href={isMenagePage ? "/#features" : "#features"} className="hover:text-brand-purple transition-colors">{t('nav.features')}</a>
+          <a href={isMenagePage ? "/#how-it-works" : "#how-it-works"} className="hover:text-brand-purple transition-colors">{t('nav.howItWorks')}</a>
+          <a href={isMenagePage ? "/#testimonials" : "#testimonials"} className="hover:text-brand-purple transition-colors">{t('nav.testimonials')}</a>
           <div className="h-6 w-px bg-slate-200" />
-          
+
           <LanguageSwitcher />
 
-          {isLoggedIn ? (
+          {!isMenagePage && (
             <>
-              <Link to="/dashboard" className="hover:text-brand-purple transition-colors">{t('nav.dashboard')}</Link>
-              <button 
-                onClick={onLogout}
-                className="bg-slate-100 text-slate-600 px-6 py-2.5 rounded-full font-bold hover:bg-red-50 hover:text-red-500 transition-all"
-              >
-                {t('nav.logout')}
-              </button>
-            </>
-          ) : (
-            <>
-              <button onClick={onLogin} className="hover:text-brand-purple transition-colors">{t('nav.login')}</button>
-              <div className="relative">
-                <button 
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)}
-                  className="bloom-gradient text-white px-6 py-2.5 rounded-full font-bold flex items-center gap-2 transition-all shadow-lg shadow-indigo-100 active:scale-95"
-                >
-                  {t('nav.signup')} <ChevronDown size={18} className={cn("transition-transform", isDropdownOpen && "rotate-180")} />
-                </button>
-                
-                <AnimatePresence>
-                  {isDropdownOpen && (
-                    <motion.div 
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute right-0 mt-3 w-64 bg-white rounded-2xl p-2 soft-shadow border border-slate-100 z-50"
+              {isLoggedIn ? (
+                <>
+                  <Link to="/dashboard" className="hover:text-brand-purple transition-colors">{t('nav.dashboard')}</Link>
+                  <button
+                    onClick={onLogout}
+                    className="bg-slate-100 text-slate-600 px-6 py-2.5 rounded-full font-bold hover:bg-red-50 hover:text-red-500 transition-all"
+                  >
+                    {t('nav.logout')}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button onClick={onLogin} className="hover:text-brand-purple transition-colors">{t('nav.login')}</button>
+                  <div className="relative">
+                    <button
+                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                      onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)}
+                      className="bloom-gradient text-white px-6 py-2.5 rounded-full font-bold flex items-center gap-2 transition-all shadow-lg shadow-indigo-100 active:scale-95"
                     >
-                      <button 
-                        onClick={onSignUpParent}
-                        className="w-full text-left px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-3 group"
-                      >
-                        <div className="w-8 h-8 rounded-lg bg-purple-100 text-brand-purple flex items-center justify-center group-hover:bg-brand-purple group-hover:text-white transition-colors">
-                          <Users size={16} />
-                        </div>
-                        <div>
-                          <p className="font-bold text-sm">{t('nav.signupParent')}</p>
-                          <p className="text-xs text-slate-500">{t('nav.parentDesc')}</p>
-                        </div>
-                      </button>
-                      <button 
-                        onClick={onSignUpTeacher}
-                        className="w-full text-left px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-3 group mt-1"
-                      >
-                        <div className="w-8 h-8 rounded-lg bg-blue-100 text-brand-indigo flex items-center justify-center group-hover:bg-brand-indigo group-hover:text-white transition-colors">
-                          <BookOpen size={16} />
-                        </div>
-                        <div>
-                          <p className="font-bold text-sm">{t('nav.signupTeacher')}</p>
-                          <p className="text-xs text-slate-500">{t('nav.teacherDesc')}</p>
-                        </div>
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+                      {t('nav.signup')} <ChevronDown size={18} className={cn("transition-transform", isDropdownOpen && "rotate-180")} />
+                    </button>
+
+                    <AnimatePresence>
+                      {isDropdownOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                          className="absolute right-0 mt-3 w-64 bg-white rounded-2xl p-2 soft-shadow border border-slate-100 z-50"
+                        >
+                          <button
+                            onClick={onSignUpParent}
+                            className="w-full text-left px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-3 group"
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-purple-100 text-brand-purple flex items-center justify-center group-hover:bg-brand-purple group-hover:text-white transition-colors">
+                              <Users size={16} />
+                            </div>
+                            <div>
+                              <p className="font-bold text-sm">{t('nav.signupParent')}</p>
+                              <p className="text-xs text-slate-500">{t('nav.parentDesc')}</p>
+                            </div>
+                          </button>
+                          <button
+                            onClick={onSignUpTeacher}
+                            className="w-full text-left px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-3 group mt-1"
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-blue-100 text-brand-indigo flex items-center justify-center group-hover:bg-brand-indigo group-hover:text-white transition-colors">
+                              <BookOpen size={16} />
+                            </div>
+                            <div>
+                              <p className="font-bold text-sm">{t('nav.signupTeacher')}</p>
+                              <p className="text-xs text-slate-500">{t('nav.teacherDesc')}</p>
+                            </div>
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>
@@ -168,30 +175,35 @@ export const Navbar = ({
       {/* Mobile Menu Overlay */}
       <AnimatePresence>
         {isMenuOpen && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             className="md:hidden bg-white/95 backdrop-blur-xl absolute top-full left-0 right-0 border-b border-slate-100 px-6 py-8 overflow-hidden"
           >
             <div className="flex flex-col gap-6 text-lg font-bold text-slate-700">
-              <a href="#features" onClick={() => setIsMenuOpen(false)}>{t('nav.features')}</a>
-              <a href="#how-it-works" onClick={() => setIsMenuOpen(false)}>{t('nav.howItWorks')}</a>
-              <a href="#testimonials" onClick={() => setIsMenuOpen(false)}>{t('nav.testimonials')}</a>
-              
+              <Link to="/" onClick={() => setIsMenuOpen(false)}>{t('nav.home') || 'Home'}</Link>
+              <a href={isMenagePage ? "/#features" : "#features"} onClick={() => setIsMenuOpen(false)}>{t('nav.features')}</a>
+              <a href={isMenagePage ? "/#how-it-works" : "#how-it-works"} onClick={() => setIsMenuOpen(false)}>{t('nav.howItWorks')}</a>
+              <a href={isMenagePage ? "/#testimonials" : "#testimonials"} onClick={() => setIsMenuOpen(false)}>{t('nav.testimonials')}</a>
+
               <LanguageSwitcher isMobile />
-              
-              <div className="h-px bg-slate-100" />
-              {isLoggedIn ? (
+
+              {!isMenagePage && (
                 <>
-                  <Link to="/dashboard" onClick={() => setIsMenuOpen(false)}>{t('nav.dashboard')}</Link>
-                  <button className="text-left text-red-500 py-2" onClick={() => { onLogout?.(); setIsMenuOpen(false); }}>{t('nav.logout')}</button>
-                </>
-              ) : (
-                <>
-                  <button className="text-left py-2" onClick={() => { onSignUpParent(); setIsMenuOpen(false); }}>{t('nav.signupParent')}</button>
-                  <button className="text-left py-2" onClick={() => { onSignUpTeacher(); setIsMenuOpen(false); }}>{t('nav.signupTeacher')}</button>
-                  <button className="bg-brand-indigo text-white py-4 rounded-2xl w-full text-center shadow-lg shadow-indigo-100" onClick={() => { onLogin(); setIsMenuOpen(false); }}>{t('nav.login')}</button>
+                  <div className="h-px bg-slate-100" />
+                  {isLoggedIn ? (
+                    <>
+                      <Link to="/dashboard" onClick={() => setIsMenuOpen(false)}>{t('nav.dashboard')}</Link>
+                      <button className="text-left text-red-500 py-2" onClick={() => { onLogout?.(); setIsMenuOpen(false); }}>{t('nav.logout')}</button>
+                    </>
+                  ) : (
+                    <>
+                      <button className="text-left py-2" onClick={() => { onSignUpParent(); setIsMenuOpen(false); }}>{t('nav.signupParent')}</button>
+                      <button className="text-left py-2" onClick={() => { onSignUpTeacher(); setIsMenuOpen(false); }}>{t('nav.signupTeacher')}</button>
+                      <button className="bg-brand-indigo text-white py-4 rounded-2xl w-full text-center shadow-lg shadow-indigo-100" onClick={() => { onLogin(); setIsMenuOpen(false); }}>{t('nav.login')}</button>
+                    </>
+                  )}
                 </>
               )}
             </div>
@@ -205,12 +217,13 @@ export const Navbar = ({
 // --- Hero Section ---
 export const Hero = ({ onStartTrial }: { onStartTrial: () => void }) => {
   const { t } = useLanguage();
+
   return (
     <section className="relative pt-32 pb-20 px-6 overflow-hidden min-h-[90vh] flex items-center">
       {/* Background blobs */}
       <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-brand-purple/10 blur-[120px] rounded-full animate-pulse-slow" />
       <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-brand-indigo/10 blur-[120px] rounded-full animate-pulse-slow" />
-      
+
       <div className="max-w-7xl mx-auto w-full grid lg:grid-cols-2 gap-16 items-center relative">
         <motion.div
           initial={{ opacity: 0, x: -30 }}
@@ -221,15 +234,18 @@ export const Hero = ({ onStartTrial }: { onStartTrial: () => void }) => {
             <Sparkles size={16} />
             <span>{t('hero.tag')}</span>
           </div>
-          <h1 className="text-5xl md:text-7xl font-extrabold text-slate-900 leading-[1.1] mb-8">
-            {t('hero.title').split('Learning')[0]} <br /> 
-            <span className="gradient-text">{t('hero.title').includes('Learning') ? 'Learning ' + t('hero.title').split('Learning')[1] : t('hero.title')}</span>
+          <h1 className="text-5xl md:text-4xl font-extrabold text-slate-900 leading-[1.1] mb-8">
+            {t('hero.titleLine1')}
+            <br />
+            <span className="gradient-text">
+              {t('hero.titleLine2')}
+            </span>
           </h1>
           <p className="text-xl text-slate-600 leading-relaxed mb-10 max-w-xl">
             {t('hero.desc')}
           </p>
           <div className="flex flex-col sm:flex-row items-center gap-4">
-            <button 
+            <button
               onClick={onStartTrial}
               className="w-full sm:w-auto bloom-gradient text-white px-10 py-5 rounded-2xl font-bold text-lg transition-all shadow-xl shadow-indigo-100 hover:-translate-y-1 active:scale-95"
             >
@@ -239,14 +255,14 @@ export const Hero = ({ onStartTrial }: { onStartTrial: () => void }) => {
               {t('hero.watchDemo')} <ArrowRight size={18} />
             </button>
           </div>
-          
+
           <div className="mt-12 flex items-center gap-4">
             <div className="flex -space-x-3">
               {[1, 2, 3, 4].map(i => (
                 <div key={i} className="w-12 h-12 rounded-full border-4 border-white bg-slate-200 overflow-hidden shadow-sm">
-                  <img 
-                    src={`https://picsum.photos/seed/kid${i}/100/100`} 
-                    alt="Student" 
+                  <img
+                    src={`https://picsum.photos/seed/kid${i}/100/100`}
+                    alt="Student"
                     className="w-full h-full object-cover"
                     referrerPolicy="no-referrer"
                   />
@@ -270,9 +286,9 @@ export const Hero = ({ onStartTrial }: { onStartTrial: () => void }) => {
         >
           {/* Main Visual */}
           <div className="relative z-10 rounded-[2.5rem] overflow-hidden soft-shadow border-[12px] border-white max-w-lg mx-auto transform hover:rotate-2 transition-transform duration-500">
-            <img 
-              src="https://picsum.photos/seed/learning-kids/800/1000" 
-              alt="Kid learning" 
+            <img
+              src="https://picsum.photos/seed/learning-kids/800/1000"
+              alt="Kid learning"
               className="w-full aspect-[4/5] object-cover"
               referrerPolicy="no-referrer"
             />
@@ -285,7 +301,7 @@ export const Hero = ({ onStartTrial }: { onStartTrial: () => void }) => {
           </div>
 
           {/* Decorative elements */}
-          <motion.div 
+          <motion.div
             animate={{ y: [0, -20, 0] }}
             transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
             className="absolute -top-10 -right-4 z-20 bg-white p-6 rounded-3xl soft-shadow flex flex-col items-center gap-2 border border-slate-100"
@@ -296,7 +312,7 @@ export const Hero = ({ onStartTrial }: { onStartTrial: () => void }) => {
             <p className="text-sm font-bold text-slate-800">100% Fun</p>
           </motion.div>
 
-          <motion.div 
+          <motion.div
             animate={{ y: [0, 20, 0] }}
             transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
             className="absolute -bottom-6 -left-10 z-20 bg-white p-6 rounded-3xl soft-shadow flex items-center gap-4 border border-slate-100"
@@ -363,7 +379,7 @@ export const Features = () => {
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
           {features.map((f, i) => (
-            <motion.div 
+            <motion.div
               key={i}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -372,7 +388,7 @@ export const Features = () => {
               className="p-8 rounded-[2rem] bg-slate-50 border border-transparent hover:border-slate-200 transition-all group"
             >
               <div className={cn("w-16 h-16 rounded-2xl flex items-center justify-center mb-8 shadow-sm group-hover:scale-110 transition-transform", f.bg)}>
-                 <f.icon className={cn(`text-${f.color}`)} size={32} />
+                <f.icon className={cn(`text-${f.color}`)} size={32} />
               </div>
               <h3 className="text-2xl font-bold text-slate-900 mb-4">{f.title}</h3>
               <p className="text-slate-600 leading-relaxed font-medium">
@@ -418,7 +434,7 @@ export const HowItWorks = () => {
         <div className="relative">
           {/* Connector Line */}
           <div className="hidden lg:block absolute top-[100px] left-[15%] right-[15%] h-1 border-t-4 border-dashed border-slate-200 z-0" />
-          
+
           <div className="grid lg:grid-cols-3 gap-12 relative z-10">
             {steps.map((s, i) => (
               <div key={i} className="flex flex-col items-center text-center">
@@ -472,19 +488,19 @@ export const Testimonials = () => {
             <p className="text-xl text-slate-600">{t('test.subtitle')}</p>
           </div>
           <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-2xl border border-slate-100">
-             <div className="bg-brand-yellow/10 p-2 rounded-xl text-brand-yellow">
-                <Star fill="currentColor" size={24} />
-             </div>
-             <div className="pr-4">
-                <p className="text-lg font-extrabold text-slate-900">{t('test.rating')}</p>
-                <p className="text-sm font-bold text-slate-500 uppercase">{t('test.independent')}</p>
-             </div>
+            <div className="bg-brand-yellow/10 p-2 rounded-xl text-brand-yellow">
+              <Star fill="currentColor" size={24} />
+            </div>
+            <div className="pr-4">
+              <p className="text-lg font-extrabold text-slate-900">{t('test.rating')}</p>
+              <p className="text-sm font-bold text-slate-500 uppercase">{t('test.independent')}</p>
+            </div>
           </div>
         </div>
 
         <div className="grid md:grid-cols-3 gap-8">
           {reviews.map((r, i) => (
-            <motion.div 
+            <motion.div
               key={i}
               className="bg-slate-50 p-8 rounded-[2.5rem] border border-slate-100 relative group transition-all hover:-translate-y-2"
             >
@@ -519,7 +535,7 @@ export const CTABanner = ({ onAction }: { onAction: () => void }) => {
           <p className="text-xl opacity-90 mb-10 max-w-2xl mx-auto">
             {t('cta.desc')}
           </p>
-          <button 
+          <button
             onClick={onAction}
             className="bg-white text-brand-indigo px-12 py-5 rounded-2xl font-bold text-lg hover:scale-105 active:scale-95 transition-all soft-shadow"
           >
@@ -536,62 +552,31 @@ export const Footer = () => {
   const { t } = useLanguage();
   return (
     <footer className="bg-slate-900 text-white pt-20 pb-10 px-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="grid md:grid-cols-4 gap-12 mb-16">
-          <div className="col-span-1 md:col-span-1">
-            <div className="flex items-center gap-2 mb-6">
-              <div className="w-8 h-8 bg-brand-purple rounded-lg flex items-center justify-center text-white">
-                <GraduationCap size={18} />
-              </div>
-              <span className="text-xl font-extrabold tracking-tight">Bloom Buddies Academy</span>
+      <div className="max-w-7xl mx-auto text-center">
+        <div className="flex flex-col items-center gap-6 mb-12">
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 bg-brand-purple rounded-xl flex items-center justify-center text-white">
+              <Sparkles size={24} />
             </div>
-            <p className="text-slate-400 leading-relaxed font-medium">
-              {t('footer.desc')}
-            </p>
+            <span className="text-2xl font-extrabold tracking-tight">Bloom Buddies <span className="text-brand-purple">Academy</span></span>
           </div>
-          
-          <div>
-            <h4 className="font-bold mb-6 text-slate-100">Quick Links</h4>
-            <ul className="space-y-4 text-slate-400 font-medium">
-              <li><a href="#" className="hover:text-white transition-colors">{t('nav.features')}</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">{t('nav.howItWorks')}</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Pricing</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Community</a></li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="font-bold mb-6 text-slate-100">Legal</h4>
-            <ul className="space-y-4 text-slate-400 font-medium">
-              <li><a href="#" className="hover:text-white transition-colors">Terms of Service</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Privacy Policy</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Cookie Policy</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Parent Guide</a></li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="font-bold mb-6 text-slate-100">{t('footer.newsletter')}</h4>
-            <p className="text-slate-400 mb-6 text-sm">{t('footer.newsletterDesc')}</p>
-            <div className="flex gap-2">
-              <input 
-                type="email" 
-                placeholder="Email address" 
-                className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 w-full focus:outline-none focus:border-brand-purple"
-              />
-              <button className="bg-brand-purple p-2.5 rounded-xl hover:bg-brand-purple/90">
-                <ArrowRight size={20} />
-              </button>
-            </div>
-          </div>
+          <p className="text-slate-400 max-w-lg font-medium">
+            {t('menage.footer.address')}
+          </p>
         </div>
-        
-        <div className="pt-10 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-6 text-slate-500 text-sm font-medium">
-          <p>{t('footer.rights')}</p>
+
+        <div className="py-8 border-y border-slate-800 mb-12">
+          <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mb-6">Nos Villes</p>
+          <p className="text-slate-300 font-medium leading-relaxed max-w-4xl mx-auto">
+            {t('menage.footer.cities')}
+          </p>
+        </div>
+
+        <div className="flex flex-col md:flex-row justify-between items-center gap-8 text-slate-500 text-sm font-medium">
+          <p>{t('menage.footer.copyright')}</p>
           <div className="flex gap-8">
-            <a href="#" className="hover:text-white transition-colors">Twitter</a>
-            <a href="#" className="hover:text-white transition-colors">Instagram</a>
-            <a href="#" className="hover:text-white transition-colors">LinkedIn</a>
+            <a href="https://www.facebook.com/BloomBuddiesAcademy" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Facebook</a>
+            <a href="https://www.instagram.com/bloombuddiesacademy" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Instagram</a>
           </div>
         </div>
       </div>

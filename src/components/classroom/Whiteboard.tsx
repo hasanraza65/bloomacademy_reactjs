@@ -9,6 +9,8 @@ import 'react-pdf/dist/Page/TextLayer.css';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
+import { getCachedPdfUrl, savePdfToCache, revokeCachedUrl } from '@/src/lib/pdfCache';
+
 interface WhiteboardProps {
   appId: string;
   roomUUID: string;
@@ -70,6 +72,8 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
   const [pageSize, setPageSize] = useState<{ width: number; height: number } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [localPdfUrl, setLocalPdfUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   // True once bindHtmlElement has been called — scene effects wait for this
   // so setScenePath is never called before the canvas is attached.
@@ -259,14 +263,75 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onCloseBook]);
 
-  // Track PDF changes
+  // Track PDF changes and handle caching/downloading
   useEffect(() => {
-    if (pdfUrl) {
+    let isCancelled = false;
+    let xhr: XMLHttpRequest | null = null;
+    
+    const resolvePdf = async () => {
+      if (!pdfUrl) {
+        setLocalPdfUrl(null);
+        setDownloadProgress(0);
+        return;
+      }
+
       setError(null);
-      prevPdfUrlRef.current = pdfUrl;
-    } else {
-      prevPdfUrlRef.current = null;
-    }
+      setDownloadProgress(0);
+
+      // 1. Check Cache
+      const cached = await getCachedPdfUrl(pdfUrl);
+      if (cached && !isCancelled) {
+        console.log('[Cache] Loaded from local storage:', pdfUrl);
+        setLocalPdfUrl(cached);
+        setDownloadProgress(100);
+        return;
+      }
+
+      // 2. Download with progress if not in cache
+      if (!isCancelled) {
+        xhr = new XMLHttpRequest();
+        xhr.open('GET', pdfUrl, true);
+        xhr.responseType = 'blob';
+
+        xhr.onprogress = (event) => {
+          if (event.lengthComputable && !isCancelled) {
+            const percent = Math.round((event.loaded / event.total) * 100);
+            setDownloadProgress(percent);
+          }
+        };
+
+        xhr.onload = async () => {
+          if (xhr?.status === 200 && !isCancelled) {
+            const blob = xhr.response;
+            // Store in cache for next time
+            await savePdfToCache(pdfUrl, blob);
+            
+            if (!isCancelled) {
+              const url = URL.createObjectURL(blob);
+              setLocalPdfUrl(url);
+              setDownloadProgress(100);
+            }
+          } else if (!isCancelled) {
+            setError('Failed to download material. Please try again.');
+          }
+        };
+
+        xhr.onerror = () => {
+          if (!isCancelled) setError('Network error occurred while fetching material.');
+        };
+
+        xhr.send();
+      }
+    };
+
+    resolvePdf();
+    prevPdfUrlRef.current = pdfUrl;
+
+    return () => {
+      isCancelled = true;
+      if (xhr) xhr.abort();
+      if (localPdfUrl) revokeCachedUrl(localPdfUrl);
+    };
   }, [pdfUrl]);
 
   // ─── Whiteboard scene (no PDF active) ────────────────────────────────────
@@ -539,6 +604,9 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
         console.log('[WB] Bind OK — currentScene:', (room as any).state?.sceneState?.scenePath);
         (room as any).refreshViewSize?.();
 
+        // Disable internal whiteboard zoom/pan to allow browser scrolling
+        room.disableCameraTransform = true;
+
         if (isTeacher) {
           await room.setWritable(true);
           room.disableDeviceInputs = false;
@@ -576,13 +644,13 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     (room as any).disableOperations = isLocked;
   }, [isLocked, room, isTeacher]);
 
-  // When a PDF is active, keep the whiteboard camera locked at scale:1.
-  useEffect(() => {
+    // When a PDF is active, keep the whiteboard camera locked at scale:zoom.
+    useEffect(() => {
     if (!room || !pdfUrl) return;
 
     const snap = () => {
       try {
-        (room as any).moveCamera?.({ scale: 1, centerX: 0, centerY: 0, animationMode: 'immediately' });
+        (room as any).moveCamera?.({ scale: zoom, centerX: 0, centerY: 0, animationMode: 'immediately' });
       } catch (_) {}
     };
 
@@ -593,7 +661,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
         const cam = (room as any).state?.cameraState;
         const hasDrifted =
           cam &&
-          (Math.abs((cam.scale ?? 1) - 1) > 0.02 ||
+          (Math.abs((cam.scale ?? zoom) - zoom) > 0.02 ||
             Math.abs(cam.centerX ?? 0) > 2 ||
             Math.abs(cam.centerY ?? 0) > 2);
         if (hasDrifted) snap();
@@ -611,6 +679,16 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   const isApplyingToolRef = useRef(false);
 
   const getScaledStrokeWidth = (baseWidth: number) => baseWidth;
+
+  // Reset camera to 1 when switching out of PDF mode (Whiteboard mode)
+  useEffect(() => {
+    if (!room) return;
+    if (!pdfUrl) {
+      try {
+        (room as any).moveCamera?.({ scale: 1, centerX: 0, centerY: 0, animationMode: 'immediately' });
+      } catch (_) {}
+    }
+  }, [room, pdfUrl]);
 
   const applyTool = (tool: string) => {
     if (!room || isApplyingToolRef.current || !isBound) {
@@ -767,26 +845,93 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   return (
     <div className="relative w-full h-full bg-slate-100 rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
 
-      {loading && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/50 backdrop-blur-sm z-50">
-          <Loader2 className="animate-spin text-white mb-4" size={48} />
-          <p className="text-white font-black text-sm tracking-widest uppercase">Connecting to Whiteboard</p>
-          {error && (
-            <div className="mt-6 flex flex-col items-center gap-4">
-              <p className="text-red-400 font-black text-xs max-w-xs text-center">{error}</p>
-              <button 
-                onClick={() => {
-                  setError(null);
-                  setLoading(true);
-                  setWbRetryCount(prev => prev + 1);
-                }}
-                className="px-6 py-2 bg-brand-purple text-white font-black text-[10px] uppercase tracking-widest rounded-full hover:scale-105 active:scale-95 transition-all shadow-lg flex items-center gap-2"
-              >
-                <RefreshCw size={12} />
-                Retry Connection
-              </button>
+      {(loading || (pdfUrl && !localPdfUrl)) && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/60 backdrop-blur-md z-50 p-12 text-center overflow-hidden">
+          {/* Background decoration */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-brand-purple/20 blur-[120px] rounded-full pointer-events-none" />
+          
+          <div className="relative z-10 w-full max-w-sm">
+            <div className="w-24 h-24 rounded-3xl bg-slate-800/50 flex items-center justify-center mb-8 mx-auto border border-white/10 shadow-2xl relative group overflow-hidden">
+              <div className="absolute inset-0 bg-brand-purple/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+              {downloadProgress > 0 && downloadProgress < 100 ? (
+                <div className="relative w-16 h-16 flex items-center justify-center">
+                  <svg className="w-full h-full -rotate-90">
+                    <circle
+                      cx="32"
+                      cy="32"
+                      r="28"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      fill="transparent"
+                      className="text-white/5"
+                    />
+                    <circle
+                      cx="32"
+                      cy="32"
+                      r="28"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      fill="transparent"
+                      strokeDasharray={175.9}
+                      strokeDashoffset={175.9 - (175.9 * downloadProgress) / 100}
+                      className="text-brand-purple transition-all duration-300"
+                    />
+                  </svg>
+                  <span className="absolute text-[10px] font-black text-white">{downloadProgress}%</span>
+                </div>
+              ) : (
+                <Loader2 className="animate-spin text-brand-purple relative z-10" size={48} />
+              )}
             </div>
-          )}
+
+            <h4 className="text-2xl font-black text-white uppercase tracking-[0.2em] mb-4">
+              {loading ? 'Initializing Whiteboard' : (downloadProgress < 100 ? 'Downloading Material' : 'Loading Material')}
+            </h4>
+            
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-[0.15em] mb-8 leading-relaxed">
+              {loading 
+                ? 'Preparing your magical canvas for a productive session...'
+                : (downloadProgress < 100 
+                  ? 'Retrieving the shared book from the cloud library...'
+                  : 'Rendering the shared material across all magical devices...')}
+            </p>
+
+            <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden mb-4 shadow-inner">
+              <motion.div 
+                initial={false}
+                animate={{ width: `${loading ? 100 : downloadProgress}%` }}
+                className={cn(
+                  "h-full bg-gradient-to-r from-transparent via-brand-purple to-transparent shadow-[0_0_15px_rgba(139,92,246,0.6)]",
+                  loading && "animate-pulse"
+                )}
+                style={loading ? { width: '100%' } : {}}
+              />
+            </div>
+            
+            <div className="flex items-center justify-center gap-2">
+               <div className="w-1.5 h-1.5 rounded-full bg-brand-purple animate-pulse" />
+               <span className="text-[10px] font-black text-brand-purple uppercase tracking-[0.3em]">
+                 {loading ? 'Connecting...' : (downloadProgress < 100 ? `Downloading ${downloadProgress}%` : 'Rendering...')}
+               </span>
+            </div>
+
+            {error && (
+              <div className="mt-10 flex flex-col items-center gap-4 animate-in fade-in slide-in-from-bottom-4">
+                <p className="text-red-400 font-black text-[10px] max-w-xs text-center uppercase tracking-widest bg-red-500/10 px-4 py-2 rounded-xl border border-red-500/20">{error}</p>
+                <button 
+                  onClick={() => {
+                    setError(null);
+                    setLoading(true);
+                    setWbRetryCount(prev => prev + 1);
+                  }}
+                  className="px-8 py-3 bg-brand-purple text-white font-black text-xs uppercase tracking-[0.2em] rounded-full hover:scale-105 active:scale-95 transition-all shadow-xl shadow-purple-500/30 flex items-center gap-2"
+                >
+                  <RefreshCw size={14} />
+                  Retry Connection
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -818,14 +963,15 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
       <div
         ref={pdfContainerRef}
         onScroll={handleScroll}
-        className="absolute inset-0 bg-slate-200 z-0 overflow-auto flex items-start p-12"
+        className="absolute inset-0 bg-slate-200 z-0 overflow-auto flex items-start p-12 custom-scrollbar"
       >
         <div
           className="relative flex-shrink-0 bg-white shadow-2xl mx-auto"
           style={{
             width: pdfUrl ? scaledPdfWidth : '100%',
             height: pdfUrl ? scaledPdfHeight : '100%',
-            minHeight: !pdfUrl ? '100%' : 'auto'
+            minHeight: !pdfUrl ? '100%' : 'auto',
+            pointerEvents: 'auto'
           }}
         >
           <div
@@ -839,10 +985,10 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
             }}
           >
             {/* PDF Page Layer (Z-0) */}
-            {pdfUrl && containerSize.width > 0 && (
+            {localPdfUrl && containerSize.width > 0 && (
               <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <Document
-                  file={pdfUrl}
+                  file={localPdfUrl}
                   options={pdfOptions}
                   onLoadSuccess={({ numPages }) => setNumPages(numPages)}
                   onLoadError={(err) => {
@@ -865,9 +1011,17 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
             {/* Whiteboard Overlay Layer (Z-10) */}
             <div
               ref={containerRef}
-              className="netless-container absolute inset-0 z-10 touch-none"
+              onWheel={(e) => {
+                // If in PDF mode, manually propagate scroll to parent
+                if (pdfUrl && pdfContainerRef.current) {
+                  pdfContainerRef.current.scrollTop += e.deltaY;
+                  pdfContainerRef.current.scrollLeft += e.deltaX;
+                }
+              }}
+              className="netless-container absolute inset-0 z-10"
               style={{
                 pointerEvents: 'all',
+                touchAction: pdfUrl ? 'pan-y pinch-zoom' : 'none',
                 cursor: currentTool === 'pencil' ? 'crosshair' : 'default',
                 background: pdfUrl ? 'transparent' : 'white',
               }}

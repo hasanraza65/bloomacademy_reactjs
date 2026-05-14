@@ -7,7 +7,8 @@ import {
   X, 
   Download, 
   FileText, 
-  Image as ImageIcon 
+  Image as ImageIcon,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
@@ -32,6 +33,8 @@ interface ChatPanelProps {
   onSendMessage: (text: string, attachmentFile?: File | null) => void;
   onClose: () => void;
   isRTMReady: boolean;
+  isUploading?: boolean;
+  uploadProgress?: number;
 }
 
 const EMOJIS = [
@@ -47,7 +50,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   currentUserRole,
   onSendMessage,
   onClose,
-  isRTMReady
+  isRTMReady,
+  isUploading = false,
+  uploadProgress = 0,
 }) => {
   const [inputText, setInputText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -239,6 +244,25 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             >
               <X size={14} />
             </button>
+          </div>
+        )}
+
+        {isUploading && (
+          <div className="mb-3 p-3 bg-brand-purple/10 border border-brand-purple/20 rounded-xl">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Loader2 className="animate-spin text-brand-purple" size={12} />
+                <span className="text-[10px] font-black text-white uppercase tracking-widest">Uploading File...</span>
+              </div>
+              <span className="text-[10px] font-black text-brand-purple uppercase tracking-widest">{uploadProgress}%</span>
+            </div>
+            <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+               <motion.div 
+                 initial={{ width: 0 }}
+                 animate={{ width: `${uploadProgress}%` }}
+                 className="h-full bg-brand-purple rounded-full shadow-[0_0_10px_rgba(139,92,246,0.5)]"
+               />
+            </div>
           </div>
         )}
 

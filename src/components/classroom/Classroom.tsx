@@ -172,6 +172,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
 
   // Chat State
   const [showChat, setShowChat] = useState(false);
+  const [isChatUploading, setIsChatUploading] = useState(false);
+  const [chatUploadProgress, setChatUploadProgress] = useState(0);
 
   const toggleChat = () => {
     const newState = !showChat;
@@ -632,6 +634,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
   useEffect(() => {
     if (classroomMode === 'whiteboard') {
       updateShowWhiteboard(true);
+      setZoom(1);
       // We keep activeMaterial in state so it persists when switching back to PDF
     } else if (classroomMode === 'pdf') {
       updateShowWhiteboard(true);
@@ -818,25 +821,46 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
 
     if (file) {
       try {
+        setIsChatUploading(true);
+        setChatUploadProgress(0);
+        
         const formData = new FormData();
         formData.append('file', file);
-        // Change 3 — Fixed endpoint (removed api/ prefix)
-        const res = await fetch(`${BASE_URL}chat/upload`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          },
-          body: formData,
+
+        const xhr = new XMLHttpRequest();
+        const token = localStorage.getItem('auth_token');
+
+        const uploadPromise = new Promise((resolve, reject) => {
+          xhr.upload.addEventListener('progress', (event) => {
+            if (event.lengthComputable) {
+              const percent = Math.round((event.loaded / event.total) * 100);
+              setChatUploadProgress(percent);
+            }
+          });
+
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve(JSON.parse(xhr.responseText));
+            } else {
+              reject(new Error('Upload failed'));
+            }
+          };
+
+          xhr.onerror = () => reject(new Error('Network error'));
+          
+          xhr.open('POST', `${BASE_URL}chat/upload`);
+          xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+          xhr.send(formData);
         });
-        if (res.ok) {
-          const data = await res.json();
-          attachmentUrl = data.url;
-          attachmentName = data.name;
-        } else {
-          console.error("File upload failed");
-        }
+
+        const data: any = await uploadPromise;
+        attachmentUrl = data.url;
+        attachmentName = data.name;
       } catch (e) {
         console.error("File upload error", e);
+      } finally {
+        setIsChatUploading(false);
+        setChatUploadProgress(0);
       }
     }
 
@@ -1303,6 +1327,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                     isRTMReady={isRTMReady}
                     onSendMessage={handleSendMessage}
                     onClose={toggleChat}
+                    isUploading={isChatUploading}
+                    uploadProgress={chatUploadProgress}
                   />
                 </div>
               )}
@@ -1500,6 +1526,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                   isRTMReady={isRTMReady}
                   onSendMessage={handleSendMessage}
                   onClose={toggleChat}
+                  isUploading={isChatUploading}
+                  uploadProgress={chatUploadProgress}
                 />
               </div>
             )}

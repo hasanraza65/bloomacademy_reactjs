@@ -203,5 +203,29 @@ export const apiService = {
       },
     });
     return response.json();
+  },
+
+    async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${BASE_URL}forgot-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+    });
+    return response.json();
+  },
+
+  async resetPassword(payload: any): Promise<{ success: boolean; message: string; errors?: Record<string, string[]> }> {
+    const response = await fetch(`${BASE_URL}reset-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+    return response.json();
   }
 };

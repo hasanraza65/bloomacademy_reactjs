@@ -50,7 +50,7 @@ export interface LoginResponse {
   errors?: Record<string, string[]>;
 }
 
-export type AuthMode = 'login' | 'signup-parent' | 'signup-teacher';
+export type AuthMode = 'login' | 'signup-parent' | 'signup-teacher' | 'forgot-password';
 
 export interface ClassroomConnection {
   classroom_id: number;

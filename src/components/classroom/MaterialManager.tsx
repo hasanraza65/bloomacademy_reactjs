@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FileText, Upload, Play, X, Loader2, CheckCircle2, FileUp } from 'lucide-react';
 import { apiService } from '@/src/services/apiService';
 import { cn } from '@/src/lib/utils';
+import { BASE_URL } from '@/src/lib/config';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface Material {
@@ -29,6 +30,7 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({
   const [materials, setMaterials] = useState<Material[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const fetchMaterials = async () => {
@@ -63,22 +65,47 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({
     formData.append('file', file);
     formData.append('title', file.name.replace('.pdf', ''));
 
-    try {
-      setIsUploading(true);
-      setError(null);
-      const res = await apiService.uploadClassroomMaterial(classroomId, formData);
-      if (res.success) {
-        fetchMaterials();
-      } else {
-        setError("Upload failed. Please try again.");
+    setIsUploading(true);
+    setUploadProgress(0);
+    setError(null);
+
+    const xhr = new XMLHttpRequest();
+    const token = localStorage.getItem('auth_token');
+    
+    xhr.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable) {
+        const percent = Math.round((event.loaded / event.total) * 100);
+        setUploadProgress(percent);
       }
-    } catch (err) {
-      console.error("Upload error:", err);
-      setError("An error occurred during upload.");
-    } finally {
+    });
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        const res = JSON.parse(xhr.responseText);
+        if (res.success) {
+          fetchMaterials();
+        } else {
+          setError(res.message || "Upload failed. Please try again.");
+        }
+      } else {
+        setError("Upload failed. Status: " + xhr.status);
+      }
       setIsUploading(false);
-      if (e.target) e.target.value = '';
-    }
+      setUploadProgress(0);
+    };
+
+    xhr.onerror = () => {
+      setError("An error occurred during upload.");
+      setIsUploading(false);
+      setUploadProgress(0);
+    };
+
+    xhr.open('POST', `${BASE_URL}classrooms/${classroomId}/materials/upload`);
+    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    xhr.setRequestHeader('Accept', 'application/json');
+    xhr.send(formData);
+
+    if (e.target) e.target.value = '';
   };
 
   const handleToggleActivate = async (material: Material) => {
@@ -187,27 +214,42 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({
           </div>
         )}
         
-        <label className={cn(
-          "relative flex items-center justify-center gap-3 w-full h-14 bg-brand-indigo rounded-2xl cursor-pointer overflow-hidden transition-all hover:scale-[1.02] active:scale-98 shadow-xl shadow-indigo-500/20",
-          isUploading && "opacity-50 cursor-not-allowed"
+        <div className={cn(
+          "relative flex flex-col gap-2 w-full p-4 bg-brand-indigo rounded-2xl cursor-pointer overflow-hidden transition-all hover:scale-[1.02] active:scale-98 shadow-xl shadow-indigo-500/20",
+          isUploading && "opacity-90 cursor-not-allowed"
         )}>
-          <input
-            type="file"
-            accept=".pdf"
-            onChange={handleFileUpload}
-            disabled={isUploading}
-            className="hidden"
-          />
-          <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent pointer-events-none" />
-          {isUploading ? (
-            <Loader2 className="animate-spin text-white" size={20} />
-          ) : (
-            <FileUp className="text-white" size={20} />
+          {!isUploading && (
+            <input
+              type="file"
+              accept=".pdf"
+              onChange={handleFileUpload}
+              className="absolute inset-0 opacity-0 cursor-pointer"
+            />
           )}
-          <span className="text-white font-black text-xs uppercase tracking-widest">
-            {isUploading ? 'Uploading...' : 'Upload New Material'}
-          </span>
-        </label>
+
+          <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent pointer-events-none" />
+          
+          <div className="flex items-center justify-center gap-3 w-full">
+            {isUploading ? (
+              <Loader2 className="animate-spin text-white" size={20} />
+            ) : (
+              <FileUp className="text-white" size={20} />
+            )}
+            <span className="text-white font-black text-xs uppercase tracking-widest">
+              {isUploading ? `Uploading ${uploadProgress}%` : 'Upload New Material'}
+            </span>
+          </div>
+
+          {isUploading && (
+            <div className="mt-2 w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${uploadProgress}%` }}
+                className="h-full bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,0.5)]"
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
