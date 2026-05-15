@@ -1,9 +1,12 @@
-import React, { useState, useRef, useEffect, forwardRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { useMapsLibrary } from '@vis.gl/react-google-maps';
+import React, { useState, useRef, useEffect, forwardRef } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { useMapsLibrary } from "@vis.gl/react-google-maps";
+// @ts-ignore
+import tzlookup from "tz-lookup";
 
-import PhoneInput from 'react-phone-input-2';
-import 'react-phone-input-2/lib/style.css';
+
+import PhoneInput from "react-phone-input-2";
+import "react-phone-input-2/lib/style.css";
 import {
   X,
   Camera,
@@ -23,38 +26,116 @@ import {
   Calendar as CalendarIcon,
   Phone,
   Check,
-
-} from 'lucide-react';
-import { cn } from '@/src/lib/utils';
-import { DAYS, TIME_SLOTS, AuthMode, ChildData, INITIAL_SCHEDULE, DaySchedule, UserRole, User as UserType } from '@/src/types';
-import { apiService } from '@/src/services/apiService';
-import { useLanguage } from '../context/LanguageContext';
+} from "lucide-react";
+import { cn } from "@/src/lib/utils";
+import {
+  DAYS,
+  TIME_SLOTS,
+  AuthMode,
+  ChildData,
+  INITIAL_SCHEDULE,
+  DaySchedule,
+  UserRole,
+  User as UserType,
+} from "@/src/types";
+import { apiService } from "@/src/services/apiService";
+import { useLanguage } from "../context/LanguageContext";
+import Logo from '../public/images/logo.png'
 
 const COUNTRIES = [
-  { code: '+1', name: 'USA', flag: '🇺🇸' },
-  { code: '+44', name: 'UK', flag: '🇬🇧' },
-  { code: '+92', name: 'PK', flag: '🇵🇰' },
-  { code: '+91', name: 'IN', flag: '🇮🇳' },
-  { code: '+971', name: 'UAE', flag: '🇦🇪' },
-  { code: '+61', name: 'AUS', flag: '🇦🇺' },
-  { code: '+1', name: 'CAN', flag: '🇨🇦' },
-  { code: '+49', name: 'GER', flag: '🇩🇪' },
-  { code: '+33', name: 'FRA', flag: '🇫🇷' },
+  { code: "+1", name: "USA", flag: "🇺🇸" },
+  { code: "+44", name: "UK", flag: "🇬🇧" },
+  { code: "+92", name: "PK", flag: "🇵🇰" },
+  { code: "+91", name: "IN", flag: "🇮🇳" },
+  { code: "+971", name: "UAE", flag: "🇦🇪" },
+  { code: "+61", name: "AUS", flag: "🇦🇺" },
+  { code: "+1", name: "CAN", flag: "🇨🇦" },
+  { code: "+49", name: "GER", flag: "🇩🇪" },
+  { code: "+33", name: "FRA", flag: "🇫🇷" },
 ];
 
-const CountrySelector = ({ value, onChange }: { value: string, onChange: (val: string) => void }) => {
+const TIMEZONES = [
+  { value: "Pacific/Midway", label: "(UTC-11:00) Midway Island" },
+  { value: "Pacific/Honolulu", label: "(UTC-10:00) Hawaii" },
+  { value: "America/Anchorage", label: "(UTC-09:00) Alaska" },
+  { value: "America/Los_Angeles", label: "(UTC-08:00) Pacific Time (US)" },
+  { value: "America/Denver", label: "(UTC-07:00) Mountain Time (US)" },
+  { value: "America/Chicago", label: "(UTC-06:00) Central Time (US)" },
+  { value: "America/New_York", label: "(UTC-05:00) Eastern Time (US)" },
+  { value: "America/Halifax", label: "(UTC-04:00) Atlantic Time" },
+  { value: "America/St_Johns", label: "(UTC-03:30) Newfoundland" },
+  {
+    value: "America/Argentina/Buenos_Aires",
+    label: "(UTC-03:00) Buenos Aires",
+  },
+  { value: "America/Sao_Paulo", label: "(UTC-03:00) São Paulo" },
+  { value: "Atlantic/Azores", label: "(UTC-01:00) Azores" },
+
+  { value: "Europe/London", label: "(UTC+00:00) London" },
+  { value: "Europe/Paris", label: "(UTC+01:00) Central European Time" },
+  { value: "Europe/Berlin", label: "(UTC+01:00) Berlin" },
+  { value: "Europe/Rome", label: "(UTC+01:00) Rome" },
+  { value: "Europe/Madrid", label: "(UTC+01:00) Madrid" },
+  { value: "Europe/Amsterdam", label: "(UTC+01:00) Amsterdam" },
+  { value: "Europe/Zurich", label: "(UTC+01:00) Zurich" },
+  { value: "Europe/Stockholm", label: "(UTC+01:00) Stockholm" },
+  { value: "Europe/Warsaw", label: "(UTC+01:00) Warsaw" },
+  { value: "Europe/Athens", label: "(UTC+02:00) Athens" },
+  { value: "Europe/Helsinki", label: "(UTC+02:00) Helsinki" },
+  { value: "Europe/Istanbul", label: "(UTC+03:00) Istanbul" },
+  { value: "Europe/Moscow", label: "(UTC+03:00) Moscow" },
+
+  { value: "Africa/Cairo", label: "(UTC+02:00) Cairo" },
+  { value: "Africa/Johannesburg", label: "(UTC+02:00) Johannesburg" },
+
+  { value: "Asia/Jerusalem", label: "(UTC+02:00) Jerusalem" },
+  { value: "Asia/Baghdad", label: "(UTC+03:00) Baghdad" },
+  { value: "Asia/Tehran", label: "(UTC+03:30) Tehran" },
+  { value: "Asia/Dubai", label: "(UTC+04:00) Dubai" },
+  { value: "Asia/Kabul", label: "(UTC+04:30) Kabul" },
+  { value: "Asia/Karachi", label: "(UTC+05:00) Pakistan Standard Time" },
+  { value: "Asia/Kolkata", label: "(UTC+05:30) India Standard Time" },
+  { value: "Asia/Kathmandu", label: "(UTC+05:45) Kathmandu" },
+  { value: "Asia/Dhaka", label: "(UTC+06:00) Dhaka" },
+  { value: "Asia/Bangkok", label: "(UTC+07:00) Bangkok" },
+  { value: "Asia/Jakarta", label: "(UTC+07:00) Jakarta" },
+  { value: "Asia/Singapore", label: "(UTC+08:00) Singapore" },
+  { value: "Asia/Hong_Kong", label: "(UTC+08:00) Hong Kong" },
+  { value: "Asia/Shanghai", label: "(UTC+08:00) China Standard Time" },
+  { value: "Asia/Taipei", label: "(UTC+08:00) Taipei" },
+  { value: "Asia/Seoul", label: "(UTC+09:00) Seoul" },
+  { value: "Asia/Tokyo", label: "(UTC+09:00) Japan Standard Time" },
+
+  { value: "Australia/Perth", label: "(UTC+08:00) Perth" },
+  { value: "Australia/Adelaide", label: "(UTC+09:30) Adelaide" },
+  { value: "Australia/Sydney", label: "(UTC+10:00) Sydney" },
+
+  { value: "Pacific/Auckland", label: "(UTC+12:00) Auckland" },
+];
+
+const CountrySelector = ({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const selectedCountry = COUNTRIES.find(c => c.code === value) || COUNTRIES[0];
+  const selectedCountry =
+    COUNTRIES.find((c) => c.code === value) || COUNTRIES[0];
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   return (
@@ -65,8 +146,16 @@ const CountrySelector = ({ value, onChange }: { value: string, onChange: (val: s
         className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-slate-100 rounded-xl transition-all border border-transparent active:scale-95"
       >
         <span className="text-lg leading-none">{selectedCountry.flag}</span>
-        <span className="text-[12px] font-bold text-slate-600 font-mono leading-none">{selectedCountry.code}</span>
-        <ChevronRight size={12} className={cn("text-slate-300 transition-transform", isOpen ? "-rotate-90" : "rotate-90")} />
+        <span className="text-[12px] font-bold text-slate-600 font-mono leading-none">
+          {selectedCountry.code}
+        </span>
+        <ChevronRight
+          size={12}
+          className={cn(
+            "text-slate-300 transition-transform",
+            isOpen ? "-rotate-90" : "rotate-90",
+          )}
+        />
       </button>
 
       <AnimatePresence>
@@ -88,17 +177,25 @@ const CountrySelector = ({ value, onChange }: { value: string, onChange: (val: s
                   }}
                   className={cn(
                     "w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all text-left",
-                    value === c.code ? "bg-indigo-50 text-brand-indigo" : "hover:bg-slate-50 text-slate-600"
+                    value === c.code
+                      ? "bg-indigo-50 text-brand-indigo"
+                      : "hover:bg-slate-50 text-slate-600",
                   )}
                 >
                   <div className="flex items-center gap-3">
                     <span className="text-xl">{c.flag}</span>
                     <div>
-                      <p className="text-[11px] font-bold leading-tight uppercase tracking-wide">{c.name}</p>
-                      <p className="text-[10px] opacity-60 leading-tight font-mono">{c.code}</p>
+                      <p className="text-[11px] font-bold leading-tight uppercase tracking-wide">
+                        {c.name}
+                      </p>
+                      <p className="text-[10px] opacity-60 leading-tight font-mono">
+                        {c.code}
+                      </p>
                     </div>
                   </div>
-                  {value === c.code && <div className="w-1.5 h-1.5 rounded-full bg-brand-indigo shadow-[0_0_8px_rgba(99,102,241,0.5)]" />}
+                  {value === c.code && (
+                    <div className="w-1.5 h-1.5 rounded-full bg-brand-indigo shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
+                  )}
                 </button>
               ))}
             </div>
@@ -114,30 +211,44 @@ type FormInputProps = React.InputHTMLAttributes<HTMLInputElement> & {
   icon: any;
 };
 
-const FormInput = forwardRef<HTMLInputElement, FormInputProps>(({ label, icon: Icon, ...props }, ref) => (
-  <div className="space-y-2">
-    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">{label}</label>
-    <div className="relative group">
-      <div className="absolute left-4 top-1/2 -translate-y-1/2 transition-colors group-focus-within:text-brand-indigo text-slate-300">
-        <Icon size={18} />
+const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
+  ({ label, icon: Icon, ...props }, ref) => (
+    <div className="space-y-2">
+      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+        {label}
+      </label>
+      <div className="relative group">
+        <div className="absolute left-4 top-1/2 -translate-y-1/2 transition-colors group-focus-within:text-brand-indigo text-slate-300">
+          <Icon size={18} />
+        </div>
+        <input
+          ref={ref}
+          autoComplete="off"
+          {...props}
+          className={cn("input-field !pl-14 h-14 text-base", props.className)}
+        />
       </div>
-      <input
-        ref={ref}
-        autoComplete="off"
-        {...props}
-        className={cn(
-          "input-field !pl-14 h-14 text-base",
-          props.className
-        )}
-      />
     </div>
-  </div>
-));
+  ),
+);
 
-FormInput.displayName = 'FormInput';
+FormInput.displayName = "FormInput";
 
-const CityAutocomplete = ({ value, onChange, onPlaceSelected, label, placeholder }: { value: string, onChange: (val: string) => void, onPlaceSelected?: (place: google.maps.places.PlaceResult) => void, label: string, placeholder: string }) => {
-  const placesLib = useMapsLibrary('places');
+const CityAutocomplete = ({
+  value,
+  onChange,
+  onPlaceSelected,
+  label,
+  placeholder,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  // @ts-ignore
+  onPlaceSelected?: (place: google.maps.places.PlaceResult) => void;
+  label: string;
+  placeholder: string;
+}) => {
+  const placesLib = useMapsLibrary("places");
   const inputRef = useRef<HTMLInputElement>(null);
   const onChangeRef = useRef(onChange);
   const onPlaceSelectedRef = useRef(onPlaceSelected);
@@ -154,13 +265,16 @@ const CityAutocomplete = ({ value, onChange, onPlaceSelected, label, placeholder
     if (!placesLib || !inputRef.current) return;
 
     const options = {
-      types: ['geocode'], // Use geocode for more broad address matching
-      fields: ['address_components', 'formatted_address', 'geometry'],
+      types: ["geocode"], // Use geocode for more broad address matching
+      fields: ["address_components", "formatted_address", "geometry"],
     };
 
-    const autocompleteInstance = new placesLib.Autocomplete(inputRef.current, options);
+    const autocompleteInstance = new placesLib.Autocomplete(
+      inputRef.current,
+      options,
+    );
 
-    const listener = autocompleteInstance.addListener('place_changed', () => {
+    const listener = autocompleteInstance.addListener("place_changed", () => {
       const place = autocompleteInstance.getPlace();
       if (place.formatted_address) {
         onChangeRef.current(place.formatted_address);
@@ -174,10 +288,11 @@ const CityAutocomplete = ({ value, onChange, onPlaceSelected, label, placeholder
     });
 
     return () => {
+      //@ts-ignore
       google.maps.event.removeListener(listener);
       // Clean up the pac-container elements if they exist
-      const pacContainers = document.querySelectorAll('.pac-container');
-      pacContainers.forEach(container => container.remove());
+      const pacContainers = document.querySelectorAll(".pac-container");
+      pacContainers.forEach((container) => container.remove());
     };
   }, [placesLib]);
 
@@ -206,7 +321,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   onClose,
   initialMode,
-  onComplete
+  onComplete,
 }) => {
   const [mode, setMode] = useState<AuthMode>(initialMode);
 
@@ -216,13 +331,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const renderContent = () => {
     switch (mode) {
-      case 'login':
-        return <LoginView onSwitch={(m) => setMode(m)} onComplete={onComplete} />;
-      case 'signup-parent':
-        return <ParentSignupView onSwitch={(m) => setMode(m)} onComplete={onComplete} />;
-      case 'signup-teacher':
-        return <TeacherSignupView onSwitch={(m) => setMode(m)} onComplete={onComplete} />;
-      case 'forgot-password':
+      case "login":
+        return (
+          <LoginView onSwitch={(m) => setMode(m)} onComplete={onComplete} />
+        );
+      case "signup-parent":
+        return (
+          <ParentSignupView
+            onSwitch={(m) => setMode(m)}
+            onComplete={onComplete}
+          />
+        );
+      case "signup-teacher":
+        return (
+          <TeacherSignupView
+            onSwitch={(m) => setMode(m)}
+            onComplete={onComplete}
+          />
+        );
+      case "forgot-password":
         return <ForgotView onSwitch={(m) => setMode(m)} />;
       default:
         return null;
@@ -249,7 +376,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             transition={{ duration: 0.4, ease: "circOut" }}
             className={cn(
               "relative bg-white w-full max-h-[95vh] overflow-y-auto card-rounded soft-shadow flex flex-col z-50",
-              (mode === 'login' || mode === 'forgot-password') ? "max-w-[500px]" : "max-w-[1200px]"
+              mode === "login" || mode === "forgot-password"
+                ? "max-w-[500px]"
+                : "max-w-[1200px]",
             )}
           >
             <button
@@ -268,9 +397,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 };
 
 // --- Login View ---
-const LoginView = ({ onSwitch, onComplete }: { onSwitch: (m: AuthMode) => void, onComplete: (role: UserRole, user: UserType) => void }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+const LoginView = ({
+  onSwitch,
+  onComplete,
+}: {
+  onSwitch: (m: AuthMode) => void;
+  onComplete: (role: UserRole, user: UserType) => void;
+}) => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -285,17 +420,18 @@ const LoginView = ({ onSwitch, onComplete }: { onSwitch: (m: AuthMode) => void, 
       const response = await apiService.login({ email, password });
       if (response.success && response.user) {
         if (response.token) {
-          localStorage.setItem('auth_token', response.token);
+          localStorage.setItem("auth_token", response.token);
         }
-        setSuccess(response.message || t('auth.loginSuccess'));
+        setSuccess(response.message || t("auth.loginSuccess"));
         setTimeout(() => {
+          // @ts-ignore
           onComplete(response.user.role, response.user);
         }, 1500);
       } else {
-        setError(response.message || t('auth.loginFailed'));
+        setError(response.message || t("auth.loginFailed"));
       }
     } catch (err) {
-      setError(t('auth.errorUnexpected'));
+      setError(t("auth.errorUnexpected"));
     } finally {
       setLoading(false);
     }
@@ -305,11 +441,18 @@ const LoginView = ({ onSwitch, onComplete }: { onSwitch: (m: AuthMode) => void, 
     <div className="flex flex-col h-full p-10 md:p-14 justify-center">
       <div className="mb-10 text-center">
         <div className="flex items-center justify-center gap-2 mb-4">
-          <div className="w-10 h-10 bloom-gradient rounded-xl flex items-center justify-center text-white font-bold">B</div>
-          <span className="text-2xl font-bold tracking-tight text-brand-slate-ink">Bloom Buddies Academy</span>
+          {/* <div className="w-10 h-10 bloom-gradient rounded-xl flex items-center justify-center text-white font-bold">
+            B
+          </div>
+          <span className="text-2xl font-bold tracking-tight text-brand-slate-ink">
+            Bloom Buddies Academy
+          </span> */}
+          <img src={Logo} alt="Bloom Buddies Academy" className="w-84 h-auto" />
         </div>
-        <h2 className="text-3xl font-extrabold text-brand-slate-ink">{t('auth.welcome')}</h2>
-        <p className="text-slate-500 mt-2">{t('auth.loginDesc')}</p>
+        <h2 className="text-3xl font-extrabold text-brand-slate-ink">
+          {t("auth.welcome")}
+        </h2>
+        <p className="text-slate-500 mt-2">{t("auth.loginDesc")}</p>
       </div>
 
       <form className="space-y-6" onSubmit={handleSubmit}>
@@ -326,7 +469,7 @@ const LoginView = ({ onSwitch, onComplete }: { onSwitch: (m: AuthMode) => void, 
         )}
 
         <FormInput
-          label={t('auth.email')}
+          label={t("auth.email")}
           icon={Mail}
           type="email"
           required
@@ -337,17 +480,22 @@ const LoginView = ({ onSwitch, onComplete }: { onSwitch: (m: AuthMode) => void, 
 
         <div className="space-y-2">
           <div className="flex justify-between items-center px-1">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('auth.password')}</label>
-            <button 
-              type="button" 
-              onClick={() => onSwitch('forgot-password')}
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+              {t("auth.password")}
+            </label>
+            <button
+              type="button"
+              onClick={() => onSwitch("forgot-password")}
               className="text-[11px] font-bold text-brand-indigo hover:underline"
             >
-              {t('auth.forgot')}
+              {t("auth.forgot")}
             </button>
           </div>
           <div className="relative group">
-            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-brand-indigo transition-colors" size={18} />
+            <Lock
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-brand-indigo transition-colors"
+              size={18}
+            />
             <input
               type="password"
               required
@@ -367,17 +515,29 @@ const LoginView = ({ onSwitch, onComplete }: { onSwitch: (m: AuthMode) => void, 
           {loading ? (
             <>
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              {t('auth.loading')}
+              {t("auth.loading")}
             </>
-          ) : t('auth.login')}
+          ) : (
+            t("auth.login")
+          )}
         </button>
       </form>
 
       <div className="mt-10 pt-8 border-t border-slate-100 flex flex-col items-center gap-4">
-        <p className="text-sm text-slate-500">{t('auth.noAccount')}</p>
+        <p className="text-sm text-slate-500">{t("auth.noAccount")}</p>
         <div className="flex gap-4">
-          <button onClick={() => onSwitch('signup-parent')} className="text-xs font-bold text-brand-indigo bg-indigo-50 px-4 py-2 rounded-full hover:bg-brand-indigo hover:text-white transition-all capitalize">{t('nav.signupParent')}</button>
-          <button onClick={() => onSwitch('signup-teacher')} className="text-xs font-bold text-brand-purple bg-purple-50 px-4 py-2 rounded-full hover:bg-brand-purple hover:text-white transition-all capitalize">{t('nav.signupTeacher')}</button>
+          <button
+            onClick={() => onSwitch("signup-parent")}
+            className="text-xs font-bold text-brand-indigo bg-indigo-50 px-4 py-2 rounded-full hover:bg-brand-indigo hover:text-white transition-all capitalize"
+          >
+            {t("nav.signupParent")}
+          </button>
+          <button
+            onClick={() => onSwitch("signup-teacher")}
+            className="text-xs font-bold text-brand-purple bg-purple-50 px-4 py-2 rounded-full hover:bg-brand-purple hover:text-white transition-all capitalize"
+          >
+            {t("nav.signupTeacher")}
+          </button>
         </div>
       </div>
     </div>
@@ -386,7 +546,7 @@ const LoginView = ({ onSwitch, onComplete }: { onSwitch: (m: AuthMode) => void, 
 
 // --- Forgot Password View ---
 const ForgotView = ({ onSwitch }: { onSwitch: (m: AuthMode) => void }) => {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -400,12 +560,12 @@ const ForgotView = ({ onSwitch }: { onSwitch: (m: AuthMode) => void }) => {
     try {
       const response = await apiService.forgotPassword(email);
       if (response.success) {
-        setSuccess(response.message || t('auth.checkEmail'));
+        setSuccess(response.message || t("auth.checkEmail"));
       } else {
-        setError(response.message || t('auth.failedResetLink'));
+        setError(response.message || t("auth.failedResetLink"));
       }
     } catch (err) {
-      setError(t('auth.errorUnexpected'));
+      setError(t("auth.errorUnexpected"));
     } finally {
       setLoading(false);
     }
@@ -415,11 +575,17 @@ const ForgotView = ({ onSwitch }: { onSwitch: (m: AuthMode) => void }) => {
     <div className="flex flex-col h-full p-10 md:p-14 justify-center">
       <div className="mb-10 text-center">
         <div className="flex items-center justify-center gap-2 mb-4">
-          <div className="w-10 h-10 bloom-gradient rounded-xl flex items-center justify-center text-white font-bold">B</div>
-          <span className="text-2xl font-bold tracking-tight text-brand-slate-ink">{t('common.brandName')}</span>
+          <div className="w-10 h-10 bloom-gradient rounded-xl flex items-center justify-center text-white font-bold">
+            B
+          </div>
+          <span className="text-2xl font-bold tracking-tight text-brand-slate-ink">
+            {t("common.brandName")}
+          </span>
         </div>
-        <h2 className="text-3xl font-extrabold text-brand-slate-ink">{t('auth.forgot')}</h2>
-        <p className="text-slate-500 mt-2">{t('auth.forgotDesc')}</p>
+        <h2 className="text-3xl font-extrabold text-brand-slate-ink">
+          {t("auth.forgot")}
+        </h2>
+        <p className="text-slate-500 mt-2">{t("auth.forgotDesc")}</p>
       </div>
 
       <form className="space-y-6" onSubmit={handleSubmit}>
@@ -436,7 +602,7 @@ const ForgotView = ({ onSwitch }: { onSwitch: (m: AuthMode) => void }) => {
         )}
 
         <FormInput
-          label={t('auth.email')}
+          label={t("auth.email")}
           icon={Mail}
           type="email"
           required
@@ -453,19 +619,21 @@ const ForgotView = ({ onSwitch }: { onSwitch: (m: AuthMode) => void }) => {
           {loading ? (
             <>
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              {t('auth.loading')}
+              {t("auth.loading")}
             </>
-          ) : t('auth.sendResetLink')}
+          ) : (
+            t("auth.sendResetLink")
+          )}
         </button>
       </form>
 
       <div className="mt-10 pt-8 border-t border-slate-100 flex flex-col items-center">
-        <button 
-          onClick={() => onSwitch('login')} 
+        <button
+          onClick={() => onSwitch("login")}
           className="flex items-center gap-2 text-sm font-bold text-brand-indigo hover:gap-3 transition-all"
         >
           <ChevronLeft size={16} />
-          {t('auth.backToLogin')}
+          {t("auth.backToLogin")}
         </button>
       </div>
     </div>
@@ -549,7 +717,9 @@ const ParentSignupView = ({
       email: parentFields.email,
       password: parentFields.password,
       password_confirmation: parentFields.confirmPassword,
-      telephone: parentFields.telephone.startsWith('+') ? parentFields.telephone : `+${parentFields.telephone}`,
+      telephone: parentFields.telephone.startsWith("+")
+        ? parentFields.telephone
+        : `+${parentFields.telephone}`,
       city: parentFields.city,
       children: formattedChildren,
     };
@@ -584,7 +754,9 @@ const ParentSignupView = ({
 
         setSuccess(
           response.message ||
-          (t("en") === "en" ? "Registration successful!" : "Inscription réussie !")
+            (t("en") === "en"
+              ? "Registration successful!"
+              : "Inscription réussie !"),
         );
         setError(null);
 
@@ -598,7 +770,9 @@ const ParentSignupView = ({
         } else {
           setError(
             response.message ||
-            (t("en") === "en" ? "Registration failed" : "Échec de l'inscription")
+              (t("en") === "en"
+                ? "Registration failed"
+                : "Échec de l'inscription"),
           );
         }
         setSuccess(null);
@@ -607,7 +781,7 @@ const ParentSignupView = ({
       setError(
         t("en") === "en"
           ? "An unexpected error occurred. Please try again."
-          : "Une erreur inattendue est survenue. Veuillez réessayer."
+          : "Une erreur inattendue est survenue. Veuillez réessayer.",
       );
     } finally {
       setLoading(false);
@@ -630,7 +804,11 @@ const ParentSignupView = ({
     });
   };
 
-  const updateChildField = (index: number, field: keyof ChildData, value: string) => {
+  const updateChildField = (
+    index: number,
+    field: keyof ChildData,
+    value: string,
+  ) => {
     setChildren((prev) => {
       const next = [...prev];
       next[index] = { ...next[index], [field]: value };
@@ -647,13 +825,17 @@ const ParentSignupView = ({
         schedule: child.schedule.map((d) =>
           d.day === dayName
             ? {
-              ...d,
-              slots: [
-                ...d.slots,
-                { id: Math.random().toString(36).substr(2, 9), startTime: "", endTime: "" },
-              ],
-            }
-            : d
+                ...d,
+                slots: [
+                  ...d.slots,
+                  {
+                    id: Math.random().toString(36).substr(2, 9),
+                    startTime: "",
+                    endTime: "",
+                  },
+                ],
+              }
+            : d,
         ),
       };
       return next;
@@ -664,7 +846,7 @@ const ParentSignupView = ({
     dayName: string,
     slotId: string,
     field: "startTime" | "endTime",
-    value: string
+    value: string,
   ) => {
     setChildren((prev) => {
       const next = [...prev];
@@ -674,35 +856,42 @@ const ParentSignupView = ({
         schedule: child.schedule.map((d) =>
           d.day === dayName
             ? {
-              ...d,
-              slots: d.slots.map((s) => {
-                if (s.id !== slotId) return s;
-                let nextSlot = { ...s, [field]: value };
+                ...d,
+                slots: d.slots.map((s) => {
+                  if (s.id !== slotId) return s;
+                  let nextSlot = { ...s, [field]: value };
 
-                if (field === "startTime" && value) {
-                  const [h, m] = value.split(":").map(Number);
-                  const nextH = (h + 1) % 24;
-                  nextSlot.endTime = `${nextH.toString().padStart(2, "0")}:${m
-                    .toString()
-                    .padStart(2, "0")}`;
-                }
-
-                if (nextSlot.startTime && nextSlot.endTime) {
-                  const [sh, sm] = nextSlot.startTime.split(":").map(Number);
-                  const [eh, em] = nextSlot.endTime.split(":").map(Number);
-                  const startMins = sh * 60 + sm;
-                  const endMins = eh * 60 + em;
-                  if (endMins - startMins < 30 && endMins > startMins && field === "endTime") {
-                    const forceMins = startMins + 30;
-                    nextSlot.endTime = `${Math.floor(forceMins / 60)
+                  if (field === "startTime" && value) {
+                    const [h, m] = value.split(":").map(Number);
+                    const nextH = (h + 1) % 24;
+                    nextSlot.endTime = `${nextH.toString().padStart(2, "0")}:${m
                       .toString()
-                      .padStart(2, "0")}:${(forceMins % 60).toString().padStart(2, "0")}`;
+                      .padStart(2, "0")}`;
                   }
-                }
-                return nextSlot;
-              }),
-            }
-            : d
+
+                  if (nextSlot.startTime && nextSlot.endTime) {
+                    const [sh, sm] = nextSlot.startTime.split(":").map(Number);
+                    const [eh, em] = nextSlot.endTime.split(":").map(Number);
+                    const startMins = sh * 60 + sm;
+                    const endMins = eh * 60 + em;
+                    if (
+                      endMins - startMins < 30 &&
+                      endMins > startMins &&
+                      field === "endTime"
+                    ) {
+                      const forceMins = startMins + 30;
+                      nextSlot.endTime = `${Math.floor(forceMins / 60)
+                        .toString()
+                        .padStart(
+                          2,
+                          "0",
+                        )}:${(forceMins % 60).toString().padStart(2, "0")}`;
+                    }
+                  }
+                  return nextSlot;
+                }),
+              }
+            : d,
         ),
       };
       return next;
@@ -716,14 +905,14 @@ const ParentSignupView = ({
       next[activeChildIndex] = {
         ...child,
         schedule: child.schedule.map((d) =>
-          d.day === dayName ? { ...d, slots: d.slots.filter((s) => s.id !== slotId) } : d
+          d.day === dayName
+            ? { ...d, slots: d.slots.filter((s) => s.id !== slotId) }
+            : d,
         ),
       };
       return next;
     });
   };
-
-
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
@@ -731,15 +920,16 @@ const ParentSignupView = ({
       {/* ── Header + Step Indicator ─────────────────────────────────────────── */}
       <div className="shrink-0 px-8 md:px-12 pt-8 pb-6 bg-slate-50/50 border-b border-slate-100">
         <div className="flex items-center gap-2 mb-5">
-          <div className="w-10 h-10 bloom-gradient rounded-xl flex items-center justify-center text-white font-bold">
+          {/* <div className="w-10 h-10 bloom-gradient rounded-xl flex items-center justify-center text-white font-bold">
             B
           </div>
           <span className="text-xl font-bold tracking-tight text-brand-slate-ink">
             Bloom Buddies Academy
-          </span>
+          </span> */}
+          <img src={Logo} alt="Bloom Buddies Academy" className="w-84 h-auto transform -translate-x-2" />
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 sm:w-1/2 mx-auto">
           {/* Step 1 pill */}
           <div className="flex items-center gap-2">
             <div
@@ -747,7 +937,7 @@ const ParentSignupView = ({
                 "w-8 h-8 rounded-full flex items-center justify-center text-sm font-black transition-all",
                 step === 1
                   ? "bloom-gradient text-white shadow-lg shadow-indigo-200"
-                  : "bg-emerald-500 text-white"
+                  : "bg-emerald-500 text-white",
               )}
             >
               {step > 1 ? <Check size={14} /> : "1"}
@@ -755,10 +945,10 @@ const ParentSignupView = ({
             <span
               className={cn(
                 "text-xs font-bold uppercase tracking-widest transition-colors",
-                step === 1 ? "text-brand-indigo" : "text-emerald-600"
+                step === 1 ? "text-brand-indigo" : "text-emerald-600",
               )}
             >
-              {t('auth.yourDetails')}
+              {/* {t("auth.yourDetails")} */}
             </span>
           </div>
 
@@ -767,7 +957,7 @@ const ParentSignupView = ({
             <div
               className={cn(
                 "absolute inset-y-0 left-0 bg-emerald-400 transition-all duration-500",
-                step > 1 ? "w-full" : "w-0"
+                step > 1 ? "w-full" : "w-0",
               )}
             />
           </div>
@@ -779,7 +969,7 @@ const ParentSignupView = ({
                 "w-8 h-8 rounded-full flex items-center justify-center text-sm font-black transition-all",
                 step === 2
                   ? "bloom-gradient text-white shadow-lg shadow-indigo-200"
-                  : "bg-slate-200 text-slate-400"
+                  : "bg-slate-200 text-slate-400",
               )}
             >
               2
@@ -787,10 +977,10 @@ const ParentSignupView = ({
             <span
               className={cn(
                 "text-xs font-bold uppercase tracking-widest transition-colors",
-                step === 2 ? "text-brand-indigo" : "text-slate-400"
+                step === 2 ? "text-brand-indigo" : "text-slate-400",
               )}
             >
-              {t("auth.childrenSchedule")}
+              {/* {t("auth.childrenSchedule")} */}
             </span>
           </div>
         </div>
@@ -798,15 +988,14 @@ const ParentSignupView = ({
 
       {/* ── Scrollable Body ──────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto no-scrollbar">
-
         {/* ════════════════ STEP 1 ════════════════ */}
         {step === 1 && (
           <div className="px-8 md:px-12 py-8">
             <div className="mb-8">
               <h2 className="text-3xl font-extrabold text-brand-slate-ink">
-                {t("auth.parentReg")}
+                {t("auth.registration")}
               </h2>
-              <p className="text-slate-500 mt-1">{t("auth.loginDesc")}</p>
+              <p className="text-slate-500 mt-1">{t("nav.iamaParent")}</p>
             </div>
 
             <div className="space-y-6">
@@ -822,10 +1011,13 @@ const ParentSignupView = ({
                   icon={UserIcon}
                   type="text"
                   required
-                  placeholder="Jane"
+                  placeholder="Julie"
                   value={parentFields.firstName}
                   onChange={(e) =>
-                    setParentFields((prev) => ({ ...prev, firstName: e.target.value }))
+                    setParentFields((prev) => ({
+                      ...prev,
+                      firstName: e.target.value,
+                    }))
                   }
                 />
                 <FormInput
@@ -833,10 +1025,13 @@ const ParentSignupView = ({
                   icon={UserIcon}
                   type="text"
                   required
-                  placeholder="Doe"
+                  placeholder="Jorgensen"
                   value={parentFields.lastName}
                   onChange={(e) =>
-                    setParentFields((prev) => ({ ...prev, lastName: e.target.value }))
+                    setParentFields((prev) => ({
+                      ...prev,
+                      lastName: e.target.value,
+                    }))
                   }
                 />
               </div>
@@ -846,10 +1041,13 @@ const ParentSignupView = ({
                 icon={Mail}
                 type="email"
                 required
-                placeholder="jane.doe@example.com"
+                placeholder="Julie.Jorgensen@gmail.com"
                 value={parentFields.email}
                 onChange={(e) =>
-                  setParentFields((prev) => ({ ...prev, email: e.target.value }))
+                  setParentFields((prev) => ({
+                    ...prev,
+                    email: e.target.value,
+                  }))
                 }
               />
 
@@ -862,7 +1060,10 @@ const ParentSignupView = ({
                   placeholder="••••••••"
                   value={parentFields.password}
                   onChange={(e) =>
-                    setParentFields((prev) => ({ ...prev, password: e.target.value }))
+                    setParentFields((prev) => ({
+                      ...prev,
+                      password: e.target.value,
+                    }))
                   }
                 />
                 <FormInput
@@ -883,28 +1084,25 @@ const ParentSignupView = ({
 
               {/* Password mismatch hint */}
               {parentFields.password !== parentFields.confirmPassword && (
-                  <p className="text-[11px] text-red-500 font-bold ml-1 -mt-4">
-                    {t('auth.passwordMatch')}
-                  </p>
-                )}
+                <p className="text-[11px] text-red-500 font-bold ml-1 -mt-4">
+                  {t("auth.passwordMatch")}
+                </p>
+              )}
 
               <div className="grid grid-cols-2 gap-6">
-
                 <div className="space-y-2">
                   <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">
                     {t("auth.telephone")}
                   </label>
 
-
-
                   <PhoneInput
-                    country={'us'}
+                    country={"fr"}
                     enableSearch={true}
                     value={parentFields.telephone}
                     onChange={(phone) =>
                       setParentFields((prev) => ({
                         ...prev,
-                        telephone: phone.startsWith('+') ? phone : `+${phone}`,
+                        telephone: phone.startsWith("+") ? phone : `+${phone}`,
                       }))
                     }
                     inputClass="!w-full !h-14 !rounded-2xl !border !border-slate-300 !pl-14"
@@ -916,7 +1114,7 @@ const ParentSignupView = ({
 
                 <CityAutocomplete
                   label={t("auth.city")}
-                  placeholder="New York"
+                  placeholder="Paris"
                   value={parentFields.city}
                   onChange={(val) =>
                     setParentFields((prev) => ({ ...prev, city: val }))
@@ -932,9 +1130,9 @@ const ParentSignupView = ({
           <div className="px-8 md:px-12 py-8">
             <div className="mb-8">
               <h2 className="text-3xl font-extrabold text-brand-slate-ink">
-                {t("auth.learningWindow")}
+                {t("auth.registration")}
               </h2>
-              <p className="text-slate-500 mt-1">{t("auth.scheduleDesc")}</p>
+              <p className="text-slate-500 mt-1">{t("nav.iamaParent")}</p>
             </div>
 
             {error && (
@@ -952,16 +1150,20 @@ const ParentSignupView = ({
             {/* Number of children */}
             <div className="mb-6">
               <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                {t("auth.numChildren")}
+                {t("auth.number-of-students")}
               </label>
               <select
                 value={numChildren}
                 onChange={handleNumChildrenChange}
                 className="input-field h-14 mt-2"
               >
-                {[1, 2, 3, 4, 5].map((n) => (
+
+                {[1, 2, 3, 4].map((n) => (
                   <option key={n} value={n}>
-                    {n} {n === 1 ? t("class.child") : (t("en") === "en" ? "Children" : "Enfants")}
+                    {n}{" "}
+                    {n === 1
+                      ? t("class.student")
+                      : t("class.students")}
                   </option>
                 ))}
               </select>
@@ -976,7 +1178,7 @@ const ParentSignupView = ({
                   className="p-4 bg-white rounded-2xl soft-shadow border border-slate-100"
                 >
                   <label className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest font-mono block mb-2">
-                    {t("class.child")} {idx + 1}
+                    {t("class.student")} {idx + 1}
                   </label>
                   <div className="relative group">
                     <CalendarIcon
@@ -986,7 +1188,9 @@ const ParentSignupView = ({
                     <input
                       type="date"
                       value={child.dob}
-                      onChange={(e) => updateChildField(idx, "dob", e.target.value)}
+                      onChange={(e) =>
+                        updateChildField(idx, "dob", e.target.value)
+                      }
                       className="input-field h-10 text-xs bg-slate-50 border-transparent focus:bg-white !pl-9 w-full"
                     />
                   </div>
@@ -1001,11 +1205,11 @@ const ParentSignupView = ({
                   key={idx}
                   onClick={() => setActiveChildIndex(idx)}
                   className={cn(
-                    "px-6 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap",
-                    activeChildIndex === idx ? "tab-active" : "tab-inactive"
+                    "px-6 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap capitalize",
+                    activeChildIndex === idx ? "tab-active" : "tab-inactive",
                   )}
                 >
-                  {t("class.child")} {idx + 1}
+                  {t("class.student")} {idx + 1}
                 </button>
               ))}
             </div>
@@ -1014,15 +1218,15 @@ const ParentSignupView = ({
               {children[activeChildIndex].schedule.map((day) => (
                 <div
                   key={day.day}
-                  className="p-5 rounded-2xl bg-slate-50/50 border border-slate-100/50 transition-all hover:bg-white hover:soft-shadow hover:border-brand-indigo/20 group"
+                  className="p-5 rounded-2xl bg-slate-50/50 border border-indigo-200 transition-all hover:bg-white hover:soft-shadow hover:border-brand-indigo/20 group"
                 >
-                  <div className="flex justify-between items-center mb-4">
+                  <div className="flex justify-between items-center">
                     <span className="text-sm font-extrabold text-slate-800 uppercase tracking-widest">
                       {t(`days.${day.day}`)}
                     </span>
                     <button
                       onClick={() => addTimeSlot(day.day)}
-                      className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-500 hover:text-brand-indigo hover:border-brand-indigo hover:shadow-lg hover:shadow-indigo-50 transition-all font-bold text-[11px] uppercase tracking-wider"
+                      className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-xl text-slate-500 text-white bg-indigo-500 hover:border-brand-indigo hover:shadow-lg hover:shadow-indigo-50 transition-all font-bold text-[11px] uppercase tracking-wider"
                     >
                       <Plus size={14} /> {t("auth.addSlot")}
                     </button>
@@ -1030,39 +1234,49 @@ const ParentSignupView = ({
 
                   <div className="flex wrap items-center gap-3">
                     {day.slots.length === 0 ? (
-                      <div className="text-[11px] font-bold text-slate-300 uppercase tracking-widest italic py-2">
-                        {t("auth.noSlots")}
+                      <div className="text-[11px] font-bold text-slate-300 uppercase tracking-widest italic">
+                        {/* {t("auth.noSlots")} */}
                       </div>
                     ) : (
                       day.slots.map((slot) => (
                         <div
                           key={slot.id}
-                          className="flex items-center gap-3 bg-white border border-slate-100 p-2 pl-4 pr-2 rounded-2xl soft-shadow-sm hover:border-brand-indigo/30 transition-colors"
+                          className="flex items-center gap-3 bg-white border border-slate-200 p-2 pl-4 pr-2 rounded-lg soft-shadow-sm hover:border-brand-indigo/30 transition-colors"
                         >
                           <div className="flex items-center gap-2">
                             <div className="space-y-0.5">
-                              <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest leading-none">
+                              <p className="text-xs font-bold text-slate-700 tracking-widest leading-none">
                                 {t("auth.start")}
                               </p>
                               <input
                                 type="time"
                                 value={slot.startTime}
                                 onChange={(e) =>
-                                  updateTimeSlot(day.day, slot.id, "startTime", e.target.value)
+                                  updateTimeSlot(
+                                    day.day,
+                                    slot.id,
+                                    "startTime",
+                                    e.target.value,
+                                  )
                                 }
                                 className="bg-transparent text-xs font-bold text-brand-indigo outline-none cursor-pointer"
                               />
                             </div>
                             <div className="w-4 h-px bg-slate-100" />
                             <div className="space-y-0.5">
-                              <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest leading-none">
+                              <p className="text-xs font-bold text-slate-700 tracking-widest leading-none">
                                 {t("auth.end")}
                               </p>
                               <input
                                 type="time"
                                 value={slot.endTime}
                                 onChange={(e) =>
-                                  updateTimeSlot(day.day, slot.id, "endTime", e.target.value)
+                                  updateTimeSlot(
+                                    day.day,
+                                    slot.id,
+                                    "endTime",
+                                    e.target.value,
+                                  )
                                 }
                                 className="bg-transparent text-xs font-bold text-brand-indigo outline-none cursor-pointer"
                               />
@@ -1070,7 +1284,7 @@ const ParentSignupView = ({
                           </div>
                           <button
                             onClick={() => removeTimeSlot(day.day, slot.id)}
-                            className="p-2 bg-red-50 text-red-300 hover:text-red-500 hover:bg-red-100 rounded-xl transition-all"
+                            className="p-2 bg-red-200 text-red-400 hover:text-white hover:bg-red-500 rounded-md transition-all"
                           >
                             <Trash2 size={14} />
                           </button>
@@ -1094,7 +1308,7 @@ const ParentSignupView = ({
               disabled={!isStep1Valid}
               className="w-full bloom-gradient text-white font-bold py-5 rounded-2xl shadow-xl shadow-indigo-100 text-lg hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-40 disabled:scale-100 disabled:grayscale flex items-center justify-center gap-2"
             >
-              {t("auth.continueToSchedule")}
+              {t("auth.continue")}
               <ChevronRight size={20} />
             </button>
             <p className="text-sm text-slate-400 pb-1">
@@ -1104,7 +1318,7 @@ const ParentSignupView = ({
                 onClick={() => onSwitch("login")}
                 className="text-brand-indigo font-bold hover:underline"
               >
-                {t("auth.loginNow")}
+                {t("auth.login")}
               </button>
             </p>
           </>
@@ -1126,7 +1340,7 @@ const ParentSignupView = ({
                     {t("auth.loading")}
                   </>
                 ) : (
-                  t("auth.createParent")
+                  t("nav.signup")
                 )}
               </button>
             </form>
@@ -1136,7 +1350,7 @@ const ParentSignupView = ({
               className="flex items-center gap-1 text-sm font-bold text-slate-400 hover:text-slate-800 transition-colors"
             >
               <ChevronLeft size={16} />
-              {t("auth.backToDetails")}
+              {t("auth.back")}
             </button>
           </>
         )}
@@ -1144,7 +1358,6 @@ const ParentSignupView = ({
     </div>
   );
 };
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TeacherSignupView — 2-step multi-step form
@@ -1225,7 +1438,9 @@ const TeacherSignupView = ({
       email: fields.email,
       password: fields.password,
       password_confirmation: fields.confirmPassword,
-      telephone: fields.telephone.startsWith('+') ? fields.telephone : `+${fields.telephone}`,
+      telephone: fields.telephone.startsWith("+")
+        ? fields.telephone
+        : `+${fields.telephone}`,
       dob: fields.dob,
       city: fields.city,
       timezone: fields.timezone,
@@ -1263,7 +1478,9 @@ const TeacherSignupView = ({
 
         setSuccess(
           response.message ||
-          (t("en") === "en" ? "Registration successful!" : "Inscription réussie !")
+            (t("en") === "en"
+              ? "Registration successful!"
+              : "Inscription réussie !"),
         );
         setError(null);
 
@@ -1277,7 +1494,9 @@ const TeacherSignupView = ({
         } else {
           setError(
             response.message ||
-            (t("en") === "en" ? "Registration failed" : "Échec de l'inscription")
+              (t("en") === "en"
+                ? "Registration failed"
+                : "Échec de l'inscription"),
           );
         }
         setSuccess(null);
@@ -1286,7 +1505,7 @@ const TeacherSignupView = ({
       setError(
         t("en") === "en"
           ? "An unexpected error occurred. Please try again."
-          : "Une erreur inattendue est survenue. Veuillez réessayer."
+          : "Une erreur inattendue est survenue. Veuillez réessayer.",
       );
     } finally {
       setLoading(false);
@@ -1317,59 +1536,102 @@ const TeacherSignupView = ({
 
   const handleMouseUp = () => setIsDragging(false);
 
-  const handleCitySelected = (place: google.maps.places.PlaceResult) => {
-    if (!place.address_components) return;
+  // const handleCitySelected = (place: google.maps.places.PlaceResult) => {
+  //   if (!place.address_components) return;
 
-    // Auto-select timezone based on country or state
-    const country = place.address_components.find(c => c.types.includes('country'))?.short_name;
+  //   // Auto-select timezone based on country or state
+  //   const country = place.address_components.find((c) =>
+  //     c.types.includes("country"),
+  //   )?.short_name;
 
-    let guessedTimezone = '';
+  //   let guessedTimezone = "";
 
-    switch (country) {
-      case 'PK': guessedTimezone = 'PKT'; break;
-      case 'IN': guessedTimezone = 'IST'; break;
-      case 'JP': guessedTimezone = 'JST'; break;
-      case 'AU': guessedTimezone = 'AEST'; break;
-      case 'GB': guessedTimezone = 'BST'; break;
-      case 'FR':
-      case 'DE':
-      case 'IT':
-      case 'ES':
-      case 'NL':
-      case 'BE':
-        guessedTimezone = 'CET';
-        break;
-      case 'US':
-      case 'CA':
-        // Check for Eastern timezone states/provinces (simplified)
-        const state = place.address_components.find(c => c.types.includes('administrative_area_level_1'))?.short_name;
-        const estStates = ['NY', 'FL', 'PA', 'OH', 'GA', 'NC', 'MI', 'VA', 'NJ', 'MA', 'ON', 'QC'];
-        if (state && estStates.includes(state)) {
-          guessedTimezone = 'EST';
-        }
-        break;
-    }
+  //   switch (country) {
+  //     case "PK":
+  //       guessedTimezone = "PKT";
+  //       break;
+  //     case "IN":
+  //       guessedTimezone = "IST";
+  //       break;
+  //     case "JP":
+  //       guessedTimezone = "JST";
+  //       break;
+  //     case "AU":
+  //       guessedTimezone = "AEST";
+  //       break;
+  //     case "GB":
+  //       guessedTimezone = "BST";
+  //       break;
+  //     case "FR":
+  //     case "DE":
+  //     case "IT":
+  //     case "ES":
+  //     case "NL":
+  //     case "BE":
+  //       guessedTimezone = "CET";
+  //       break;
+  //     case "US":
+  //     case "CA":
+  //       // Check for Eastern timezone states/provinces (simplified)
+  //       const state = place.address_components.find((c) =>
+  //         c.types.includes("administrative_area_level_1"),
+  //       )?.short_name;
+  //       const estStates = [
+  //         "NY",
+  //         "FL",
+  //         "PA",
+  //         "OH",
+  //         "GA",
+  //         "NC",
+  //         "MI",
+  //         "VA",
+  //         "NJ",
+  //         "MA",
+  //         "ON",
+  //         "QC",
+  //       ];
+  //       if (state && estStates.includes(state)) {
+  //         guessedTimezone = "EST";
+  //       }
+  //       break;
+  //   }
 
-    if (guessedTimezone) {
-      setFields(prev => ({ ...prev, timezone: guessedTimezone }));
-    }
-  };
+  //   if (guessedTimezone) {
+  //     setFields((prev) => ({ ...prev, timezone: guessedTimezone }));
+  //   }
+  // };
 
   // ── Render ───────────────────────────────────────────────────────────────────
+
+  // @ts-ignore
+  const handleCitySelected = (place: google.maps.places.PlaceResult) => {
+    const lat = place.geometry?.location?.lat();
+    const lng = place.geometry?.location?.lng();
+
+    if (lat == null || lng == null) return;
+
+    const timezone = tzlookup(lat, lng);
+
+    setFields((prev) => ({
+      ...prev,
+      timezone,
+    }));
+  };
   return (
     <div className="flex flex-col h-full" onMouseUp={handleMouseUp}>
       {/* ── Header + Step Indicator ─────────────────────────────────────────── */}
       <div className="shrink-0 px-8 md:px-12 pt-8 pb-6 bg-slate-50/50 border-b border-slate-100">
         <div className="flex items-center gap-2 mb-5">
-          <div className="w-10 h-10 bloom-gradient rounded-xl flex items-center justify-center text-white font-bold">
+          {/* <div className="w-10 h-10 bloom-gradient rounded-xl flex items-center justify-center text-white font-bold">
             B
           </div>
           <span className="text-xl font-bold tracking-tight text-brand-slate-ink">
             Bloom Buddies Academy
-          </span>
+          </span> */}
+          <img src={Logo} alt="Bloom Buddies Academy" className="w-84 h-auto transform -translate-x-2" />
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 sm:w-1/2 mx-auto">
           {/* Step 1 pill */}
           <div className="flex items-center gap-2">
             <div
@@ -1377,7 +1639,7 @@ const TeacherSignupView = ({
                 "w-8 h-8 rounded-full flex items-center justify-center text-sm font-black transition-all",
                 step === 1
                   ? "bloom-gradient text-white shadow-lg shadow-indigo-200"
-                  : "bg-emerald-500 text-white"
+                  : "bg-emerald-500 text-white",
               )}
             >
               {step > 1 ? <Check size={14} /> : "1"}
@@ -1385,10 +1647,10 @@ const TeacherSignupView = ({
             <span
               className={cn(
                 "text-xs font-bold uppercase tracking-widest transition-colors",
-                step === 1 ? "text-brand-indigo" : "text-emerald-600"
+                step === 1 ? "text-brand-indigo" : "text-emerald-600",
               )}
             >
-              {t("auth.yourProfile")}
+              {/* {t("auth.yourProfile")} */}
             </span>
           </div>
 
@@ -1397,7 +1659,7 @@ const TeacherSignupView = ({
             <div
               className={cn(
                 "absolute inset-y-0 left-0 bg-emerald-400 transition-all duration-500",
-                step > 1 ? "w-full" : "w-0"
+                step > 1 ? "w-full" : "w-0",
               )}
             />
           </div>
@@ -1409,7 +1671,7 @@ const TeacherSignupView = ({
                 "w-8 h-8 rounded-full flex items-center justify-center text-sm font-black transition-all",
                 step === 2
                   ? "bloom-gradient text-white shadow-lg shadow-indigo-200"
-                  : "bg-slate-200 text-slate-400"
+                  : "bg-slate-200 text-slate-400",
               )}
             >
               2
@@ -1417,10 +1679,10 @@ const TeacherSignupView = ({
             <span
               className={cn(
                 "text-xs font-bold uppercase tracking-widest transition-colors",
-                step === 2 ? "text-brand-indigo" : "text-slate-400"
+                step === 2 ? "text-brand-indigo" : "text-slate-400",
               )}
             >
-              {t("auth.availability")}
+              {/* {t("auth.availability")} */}
             </span>
           </div>
         </div>
@@ -1428,33 +1690,38 @@ const TeacherSignupView = ({
 
       {/* ── Scrollable Body ──────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto no-scrollbar">
-
         {/* ════════════════ STEP 1 ════════════════ */}
         {step === 1 && (
           <div className="px-8 md:px-12 py-8">
-            <div className="mb-8">
+            <div className="mb-4">
               <h2 className="text-3xl font-extrabold text-brand-slate-ink">
-                {t("auth.teacherOnboarding")}
+                {t("auth.registration")}
               </h2>
-              <p className="text-slate-500 mt-1">{t("auth.teacherOnboardingDesc")}</p>
+              <p className="text-slate-500 mt-1">{t("nav.iamaTeacher")}</p>
             </div>
 
             <div className="space-y-6">
               {error && (
-                <div className="p-4 bg-red-50 text-red-600 rounded-2xl text-sm font-bold border border-red-100 animate-shake">
+                <div className="p-4 bg-red-50 text-red-600 rounded-lg text-sm font-bold border border-red-100 animate-shake">
                   {error}
                 </div>
               )}
 
               {/* Profile photo */}
-              <div className="flex flex-col items-center mb-2">
+              <div className="flex flex-col items-center mb-8 gap-2">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  {t("auth.profilePhoto")}
+                </p>
                 <div className="relative group">
                   <div
                     onClick={() => fileInputRef.current?.click()}
                     className="w-32 h-32 rounded-[2.5rem] bg-white soft-shadow flex items-center justify-center border-2 border-dashed border-slate-200 overflow-hidden group-hover:border-brand-purple transition-all cursor-pointer"
                   >
                     {profilePic ? (
-                      <img src={profilePic} className="w-full h-full object-cover" />
+                      <img
+                        src={profilePic}
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
                       <Camera className="text-slate-200" size={40} />
                     )}
@@ -1474,15 +1741,13 @@ const TeacherSignupView = ({
                       const file = e.target.files?.[0];
                       if (file) {
                         const reader = new FileReader();
-                        reader.onloadend = () => setProfilePic(reader.result as string);
+                        reader.onloadend = () =>
+                          setProfilePic(reader.result as string);
                         reader.readAsDataURL(file);
                       }
                     }}
                   />
                 </div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-4">
-                  {t("auth.profilePhoto")}
-                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-6">
@@ -1491,10 +1756,13 @@ const TeacherSignupView = ({
                   icon={UserIcon}
                   type="text"
                   required
-                  placeholder="John"
+                  placeholder="Julie"
                   value={fields.firstName}
                   onChange={(e) =>
-                    setFields((prev) => ({ ...prev, firstName: e.target.value }))
+                    setFields((prev) => ({
+                      ...prev,
+                      firstName: e.target.value,
+                    }))
                   }
                 />
                 <FormInput
@@ -1502,7 +1770,7 @@ const TeacherSignupView = ({
                   icon={UserIcon}
                   type="text"
                   required
-                  placeholder="Swift"
+                  placeholder="Jorgensen"
                   value={fields.lastName}
                   onChange={(e) =>
                     setFields((prev) => ({ ...prev, lastName: e.target.value }))
@@ -1515,9 +1783,11 @@ const TeacherSignupView = ({
                 icon={Mail}
                 type="email"
                 required
-                placeholder="john@bloom.academy"
+                placeholder="Julie.Jorgensen@gmail.com"
                 value={fields.email}
-                onChange={(e) => setFields((prev) => ({ ...prev, email: e.target.value }))}
+                onChange={(e) =>
+                  setFields((prev) => ({ ...prev, email: e.target.value }))
+                }
               />
 
               <div className="grid grid-cols-2 gap-6">
@@ -1540,7 +1810,10 @@ const TeacherSignupView = ({
                   placeholder="••••••••"
                   value={fields.confirmPassword}
                   onChange={(e) =>
-                    setFields((prev) => ({ ...prev, confirmPassword: e.target.value }))
+                    setFields((prev) => ({
+                      ...prev,
+                      confirmPassword: e.target.value,
+                    }))
                   }
                 />
               </div>
@@ -1548,25 +1821,24 @@ const TeacherSignupView = ({
               {/* Password mismatch hint */}
               {fields.password !== fields.confirmPassword && (
                 <p className="text-[11px] text-red-500 font-bold ml-1 -mt-4">
-                  {t('auth.passwordMatch')}
+                  {t("auth.passwordMatch")}
                 </p>
               )}
 
               <div className="grid grid-cols-2 gap-6">
-
                 <div className="space-y-2">
                   <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">
                     {t("auth.telephone")}
                   </label>
 
                   <PhoneInput
-                    country={'us'}
+                    country={"gb"}
                     enableSearch={true}
                     value={fields.telephone}
                     onChange={(phone) =>
                       setFields((prev) => ({
                         ...prev,
-                        telephone: phone.startsWith('+') ? phone : `+${phone}`,
+                        telephone: phone.startsWith("+") ? phone : `+${phone}`,
                       }))
                     }
                     inputClass="!w-full !h-14 !rounded-2xl !border !border-slate-300 !pl-14 text-base"
@@ -1576,18 +1848,20 @@ const TeacherSignupView = ({
                 </div>
 
                 <FormInput
-                  label={t("auth.teacherDob")}
+                  label={t("auth.whatIsYourDOB")}
                   icon={CalendarIcon}
                   type="date"
                   required
                   value={fields.dob}
-                  onChange={(e) => setFields((prev) => ({ ...prev, dob: e.target.value }))}
+                  onChange={(e) =>
+                    setFields((prev) => ({ ...prev, dob: e.target.value }))
+                  }
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-6">
                 <CityAutocomplete
-                  label={t("auth.city")}
+                  label={t("auth.wheredoyoulive")}
                   placeholder="San Francisco"
                   value={fields.city}
                   onChange={(val) =>
@@ -1606,20 +1880,24 @@ const TeacherSignupView = ({
                     />
                     <select
                       required
+                      disabled={true}
                       className="input-field h-14 !pl-14 cursor-pointer appearance-none bg-white font-medium"
+                      name="timezone"
                       value={fields.timezone}
                       onChange={(e) =>
-                        setFields((prev) => ({ ...prev, timezone: e.target.value }))
+                        setFields((prev) => ({
+                          ...prev,
+                          timezone: e.target.value,
+                        }))
                       }
                     >
                       <option value="">{t("auth.selectTimezone")}</option>
-                      <option value="PKT">(UTC+5) Pakistan Standard Time</option>
-                      <option value="CET">(UTC+1) Central European Time</option>
-                      <option value="EST">(UTC-5) Eastern Time (US)</option>
-                      <option value="BST">(UTC+1) British Summer Time</option>
-                      <option value="IST">(UTC+5:30) India Standard Time</option>
-                      <option value="JST">(UTC+9) Japan Standard Time</option>
-                      <option value="AEST">(UTC+10) Australian Eastern Standard Time</option>
+
+                      {TIMEZONES.map((tz) => (
+                        <option key={tz.value} value={tz.value}>
+                          {tz.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -1634,7 +1912,9 @@ const TeacherSignupView = ({
                   <span
                     className={cn(
                       "text-[10px] font-bold",
-                      aboutMe.length >= 250 ? "text-emerald-500" : "text-amber-500"
+                      aboutMe.length >= 250
+                        ? "text-emerald-500"
+                        : "text-amber-500",
                     )}
                   >
                     {aboutMe.length}/350
@@ -1662,11 +1942,9 @@ const TeacherSignupView = ({
           <div className="px-8 md:px-12 py-8 select-none">
             <div className="mb-6">
               <h2 className="text-3xl font-extrabold text-brand-slate-ink">
-                {t("auth.weeklyAvailability")}
+                {t("auth.registration")}
               </h2>
-              <p className="text-xs text-slate-400 mt-1 uppercase tracking-widest font-bold">
-                {t("auth.teacherStep2")}
-              </p>
+              <p className="text-slate-500 mt-1">{t("nav.iamaTeacher")}</p>
             </div>
 
             {error && (
@@ -1680,6 +1958,10 @@ const TeacherSignupView = ({
                 {success}
               </div>
             )}
+
+            <label className="text-[11px] font-bold mb-2 text-slate-400 uppercase tracking-widest">
+              {t("class.whatisyouravailabilitytoteach")}
+            </label>
 
             <div className="border border-slate-100 rounded-3xl bg-slate-50/30 overflow-auto">
               <table className="w-full border-separate border-spacing-1 min-w-[700px]">
@@ -1716,13 +1998,13 @@ const TeacherSignupView = ({
                               "h-10 rounded-xl cursor-pointer transition-all duration-300 border relative overflow-hidden",
                               isSelected
                                 ? "bg-emerald-500 border-emerald-500 shadow-[0_4px_12px_rgba(16,185,129,0.2)]"
-                                : "bg-white/50 border-transparent hover:bg-white hover:border-slate-200"
+                                : "bg-white/50 border-transparent hover:bg-white hover:border-slate-200",
                             )}
                           >
                             {isSelected && (
                               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                 <span className="text-[10px] font-black text-white uppercase tracking-tighter leading-none">
-                                  {t('auth.available')}
+                                  {t("auth.available")}
                                 </span>
                               </div>
                             )}
@@ -1763,7 +2045,7 @@ const TeacherSignupView = ({
               disabled={!isStep1Valid}
               className="w-full bloom-gradient text-white font-bold py-5 rounded-2xl shadow-xl shadow-indigo-100 text-lg hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-40 disabled:scale-100 disabled:grayscale flex items-center justify-center gap-2"
             >
-              {t("auth.continueToAvailability")}
+              {t("auth.continue")}
               <ChevronRight size={20} />
             </button>
             <p className="text-sm text-slate-400 pb-1">
@@ -1773,7 +2055,7 @@ const TeacherSignupView = ({
                 onClick={() => onSwitch("login")}
                 className="text-brand-indigo font-bold hover:underline"
               >
-                {t("auth.loginNow")}
+                {t("auth.login")}
               </button>
             </p>
           </>
@@ -1795,7 +2077,7 @@ const TeacherSignupView = ({
                     {t("auth.loading")}
                   </>
                 ) : (
-                  t("auth.createTeacher")
+                  t("nav.signup")
                 )}
               </button>
             </form>
@@ -1805,7 +2087,7 @@ const TeacherSignupView = ({
               className="flex items-center gap-1 text-sm font-bold text-slate-400 hover:text-slate-800 transition-colors"
             >
               <ChevronLeft size={16} />
-              {t("auth.backToProfile")}
+              {t("auth.back")}
             </button>
           </>
         )}

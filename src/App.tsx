@@ -18,6 +18,8 @@ import { UserRole, AuthMode, User, ClassroomData } from './types';
 import { apiService } from './services/apiService';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { ResetPassword } from './components/ResetPassword';
+import ScrollToTop from "./ScrollToTop";
+
 
 const GOOGLE_MAPS_API_KEY = (import.meta as any).env.VITE_GOOGLE_MAPS_API_KEY;
 
@@ -123,6 +125,7 @@ export default function App() {
   return (
     <APIProvider apiKey={GOOGLE_MAPS_API_KEY} version="weekly" solutionChannel="gmp_mcp_codeassist_v1_aistudio">
       <BrowserRouter>
+        <ScrollToTop />
         <Routes>
         <Route 
           path="/" 

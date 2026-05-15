@@ -25,6 +25,8 @@ const translations: Record<Language, Record<string, string>> = {
     'nav.teacherDesc': 'Pour les éducateurs',
     'nav.dashboard': 'Tableau de bord',
     'nav.logout': 'Déconnexion',
+    'nav.iamaParent': 'Je suis un parent',
+    'nav.iamaTeacher': 'Je suis un professeur',
 
     // Hero
     'hero.tag': 'Apprentissage moderne pour les futurs leaders',
@@ -35,7 +37,7 @@ const translations: Record<Language, Record<string, string>> = {
     'hero.startTrial': 'Essai Gratuit',
     'hero.watchDemo': 'Voir la démo',
     'hero.trusted': 'Approuvé par plus de 5 000 parents heureux',
-    'hero.nextClass': 'Prochain cours : La magie des maths',
+    'hero.nextClass': `Prochain cours : La magie d'anglais` ,
     'hero.startingIn': 'Commence dans 15 minutes',
 
     // Features
@@ -102,6 +104,7 @@ const translations: Record<Language, Record<string, string>> = {
     'auth.loading': 'Chargement...',
     'auth.login': 'Se connecter',
     'auth.parentReg': 'Inscription Parent',
+    'auth.registration' : 'Inscription',
     'auth.teacherReg': 'Inscription Enseignant',
     'auth.teacherOnboarding': 'Intégration des Enseignants',
     'auth.teacherOnboardingDesc': 'Partagez votre expertise avec la prochaine génération',
@@ -131,6 +134,7 @@ const translations: Record<Language, Record<string, string>> = {
     'auth.syncHours': 'Synchronisez vos heures d\'enseignement',
     'auth.clearSelection': 'Effacer la sélection',
     'auth.slotsSelected': 'créneaux sélectionnés',
+    'auth.number-of-students': `Nombre d'élèves`,
 
     // Dashboard
     'dash.welcome': 'Bon retour,',
@@ -194,6 +198,7 @@ const translations: Record<Language, Record<string, string>> = {
     'auth.passwordMatch': 'Les mots de passe ne correspondent pas',
     'auth.failedReset': 'Échec de la réinitialisation du mot de passe',
     'auth.newSecurePassword': 'Créez un nouveau mot de passe sécurisé',
+    'auth.continue': 'Continuer',
 
     // Classroom
     'class.cameraOff': 'Caméra désactivée',
@@ -215,13 +220,14 @@ const translations: Record<Language, Record<string, string>> = {
     'class.classroomContent': 'Zone de contenu de la classe',
     'class.waitingTeacher': 'En attente de l\'enseignant',
     'class.waitingStudent': 'En attente de l\'élève',
-    'class.student': 'Élève',
+    'class.student': 'élève',
     'class.teacher': 'Enseignant',
     'class.settingUpWhiteboard': 'Configuration du tableau blanc',
     'class.setupFailed': 'Échec de la configuration',
     'class.whiteboardNotReady': 'Tableau blanc non prêt',
     'class.manageClass': 'Gérer le cours',
     'class.child': 'Enfant',
+    'class.students': 'élèves',
     'class.studentSession': 'Session de l\'élève',
     'class.onlyImagesPDF': 'Seuls les images et les PDF sont autorisés.',
 
@@ -331,6 +337,13 @@ const translations: Record<Language, Record<string, string>> = {
     'days.friday': 'Vendredi',
     'days.saturday': 'Samedi',
     'days.sunday': 'Dimanche',
+    'auth.start': 'Début',
+    'auth.end': 'Fin',
+    'auth.back': 'Retour',
+    "auth.whatIsYourDOB": 'Quelle est votre date de naissance ?',
+    "auth.wheredoyoulive": 'Vous habitez dans quelle ville ?',
+    "auth.available" : 'Disponible',
+    "class.whatisyouravailabilitytoteach": 'Quelles sont vos disponibilités pour enseigner ?',
   },
   en: {
     // Navbar
@@ -346,6 +359,9 @@ const translations: Record<Language, Record<string, string>> = {
     'nav.teacherDesc': 'For educators',
     'nav.dashboard': 'Dashboard',
     'nav.logout': 'Logout',
+    'nav.iamaParent': `I'm a parent`,
+    'nav.iamaTeacher': `I'm a professor`,
+
 
     // Hero
     'hero.tag': 'Modern Learning for Next-Gen Leaders',
@@ -356,7 +372,7 @@ const translations: Record<Language, Record<string, string>> = {
     'hero.startTrial': 'Start Free Trial',
     'hero.watchDemo': 'Watch Class Demo',
     'hero.trusted': 'Trusted by 5,000+ happy parents',
-    'hero.nextClass': 'Next Class: Magic of Math',
+    'hero.nextClass': 'Next Class: Magic of English',
     'hero.startingIn': 'Starting in 15 minutes',
 
     // Features
@@ -423,6 +439,7 @@ const translations: Record<Language, Record<string, string>> = {
     'auth.loading': 'Loading...',
     'auth.login': 'Log In',
     'auth.parentReg': 'Parent Registration',
+    'auth.registration' : 'Registration',
     'auth.teacherReg': 'Teacher Onboarding',
     'auth.teacherOnboarding': 'Teacher Onboarding',
     'auth.teacherOnboardingDesc': 'Share your expertise with the next generation',
@@ -452,6 +469,7 @@ const translations: Record<Language, Record<string, string>> = {
     'auth.syncHours': 'Sync your teaching hours',
     'auth.clearSelection': 'Clear Selection',
     'auth.slotsSelected': 'slots selected',
+    'auth.number-of-students': `Number of students`,
 
     // Dashboard
     'dash.welcome': 'Welcome back,',
@@ -536,13 +554,14 @@ const translations: Record<Language, Record<string, string>> = {
     'class.classroomContent': 'Classroom Content Area',
     'class.waitingTeacher': 'Waiting for Teacher',
     'class.waitingStudent': 'Waiting for Student',
-    'class.student': 'Student',
+    'class.student': 'student',
     'class.teacher': 'Teacher',
     'class.settingUpWhiteboard': 'Setting Up Whiteboard',
     'class.setupFailed': 'Setup Failed',
     'class.whiteboardNotReady': 'Whiteboard Not Ready',
     'class.manageClass': 'Manage Class',
     'class.child': 'Child',
+    'class.students': 'Students',
     'class.studentSession': 'Session of the student',
     'class.onlyImagesPDF': 'Only images and PDFs are allowed.',
 
@@ -649,7 +668,7 @@ const translations: Record<Language, Record<string, string>> = {
     'auth.noSlots': 'No slots defined for this day.',
     'auth.start': 'Start',
     'auth.end': 'End',
-    'auth.continueToSchedule': 'Continue to Schedule',
+    'auth.continue': 'Continue',
     'auth.backToDetails': 'Back to Details',
     'auth.available': 'Available',
     'auth.backToProfile': 'Back to Profile',
@@ -660,6 +679,10 @@ const translations: Record<Language, Record<string, string>> = {
     'days.friday': 'Friday',
     'days.saturday': 'Saturday',
     'days.sunday': 'Sunday',
+    'auth.back': 'Back',
+    "auth.whatIsYourDOB": 'What is your date of birth?',
+    "auth.wheredoyoulive": 'In what city do you live?',
+    "class.whatisyouravailabilitytoteach": 'What is your availability to teach?',
   }
 };
 

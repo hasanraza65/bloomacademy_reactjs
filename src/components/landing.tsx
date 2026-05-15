@@ -20,6 +20,9 @@ import { Link, useLocation } from 'react-router-dom';
 
 import { useLanguage } from '../context/LanguageContext';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import hero from '../public/images/hero.jpeg'
+
+import logo from '../public/images/logo.png'
 
 // --- Navbar ---
 export const Navbar = ({
@@ -55,12 +58,13 @@ export const Navbar = ({
     )}>
       <div className="max-w-[1600px] mx-auto flex items-center justify-between">
         <div className="flex items-center gap-2 cursor-pointer group shrink-0">
-          <div className="w-10 h-10 bloom-gradient rounded-xl flex items-center justify-center text-white soft-shadow group-hover:scale-110 transition-transform">
+          {/* <div className="w-10 h-10 bloom-gradient rounded-xl flex items-center justify-center text-white soft-shadow group-hover:scale-110 transition-transform">
             <GraduationCap size={24} />
-          </div>
-          <span className="text-2xl font-extrabold tracking-tight text-slate-800 whitespace-nowrap">
+          </div> */}
+          {/* <span className="text-2xl font-extrabold tracking-tight text-slate-800 whitespace-nowrap">
             Bloom Buddies <span className="text-brand-purple">{t('nav.academy') || 'Academy'}</span>
-          </span>
+          </span> */}
+          <img src={logo} alt="Bloom Buddies Academy" className="w-84 h-auto" />
         </div>
 
         {/* Desktop Menu */}
@@ -113,8 +117,8 @@ export const Navbar = ({
                               <Users size={16} />
                             </div>
                             <div>
-                              <p className="font-bold text-sm">{t('nav.signupParent')}</p>
-                              <p className="text-xs text-slate-500">{t('nav.parentDesc')}</p>
+                              <p className="font-bold text-sm">{t('nav.iamaParent')}</p>
+                              {/* <p className="text-xs text-slate-500">{t('nav.parentDesc')}</p> */}
                             </div>
                           </button>
                           <button
@@ -125,8 +129,8 @@ export const Navbar = ({
                               <BookOpen size={16} />
                             </div>
                             <div>
-                              <p className="font-bold text-sm">{t('nav.signupTeacher')}</p>
-                              <p className="text-xs text-slate-500">{t('nav.teacherDesc')}</p>
+                              <p className="font-bold text-sm">{t('nav.iamaTeacher')}</p>
+                              {/* <p className="text-xs text-slate-500">{t('nav.teacherDesc')}</p> */}
                             </div>
                           </button>
                         </motion.div>
@@ -260,9 +264,9 @@ export const Hero = ({ onStartTrial }: { onStartTrial: () => void }) => {
           {/* Main Visual */}
           <div className="relative z-10 rounded-[2.5rem] overflow-hidden soft-shadow border-[12px] border-white max-w-lg mx-auto transform hover:rotate-2 transition-transform duration-500">
             <img
-              src="https://picsum.photos/seed/learning-kids/800/1000"
+              src={hero}
               alt="Kid learning"
-              className="w-full aspect-[4/5] object-cover"
+              className="w-full aspect-[5/4] object-cover"
               referrerPolicy="no-referrer"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent flex items-end p-8">
@@ -528,10 +532,11 @@ export const Footer = () => {
       <div className="max-w-7xl mx-auto text-center">
         <div className="flex flex-col items-center gap-6 mb-12">
           <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-brand-purple rounded-xl flex items-center justify-center text-white">
+            {/* <div className="w-10 h-10 bg-brand-purple rounded-xl flex items-center justify-center text-white">
               <Sparkles size={24} />
-            </div>
-            <span className="text-2xl font-extrabold tracking-tight">Bloom Buddies <span className="text-brand-purple">{t('nav.academy') || 'Academy'}</span></span>
+            </div> */}
+            {/* <span className="text-2xl font-extrabold tracking-tight">Bloom Buddies <span className="text-brand-purple">{t('nav.academy') || 'Academy'}</span></span> */}
+            <img src={logo} alt="Bloom Buddies Academy" className="w-84 h-auto" />
           </div>
           <p className="text-slate-400 max-w-lg font-medium">
             {t('menage.footer.address')}

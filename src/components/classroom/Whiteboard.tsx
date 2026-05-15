@@ -1173,16 +1173,16 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
             </button>
           )}
 
-          {isTeacher && <div className="h-px bg-white/10 my-1" />}
+          {/* {isTeacher && <div className="h-px bg-white/10 my-1" />} */}
 
           {/* Close button */}
-          <button
+          {/* <button
             onClick={() => onModeChange?.('none')}
             title="Hide Board"
             className="p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95 text-slate-400 hover:text-white hover:bg-white/10"
           >
             <X size={20} />
-          </button>
+          </button> */}
 
         </div>
       )}

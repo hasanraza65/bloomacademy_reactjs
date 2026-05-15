@@ -63,10 +63,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ role, user, myClasses, isL
           <div className="flex items-center gap-4">
              <LanguageSwitcher />
 
-             <button className="p-2.5 text-slate-400 hover:bg-slate-50 rounded-xl transition-colors relative">
+             {/* <button className="p-2.5 text-slate-400 hover:bg-slate-50 rounded-xl transition-colors relative">
                 <Bell size={22} />
                 <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 border-2 border-white rounded-full" />
-             </button>
+             </button> */}
              <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 p-0.5 overflow-hidden">
                 <img 
                   src={user.avatar || `https://picsum.photos/seed/${user.email}/100/100`} 
