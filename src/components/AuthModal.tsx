@@ -302,6 +302,7 @@ const CityAutocomplete = ({
       label={label}
       icon={MapPin}
       type="text"
+      className="h-13"
       required
       placeholder={placeholder}
       value={value}
@@ -439,7 +440,7 @@ const LoginView = ({
 
   return (
     <div className="flex flex-col h-full p-10 md:p-14 justify-center">
-      <div className="mb-10 text-center">
+      <div className="mb-6 md:mb-10 text-center">
         <div className="flex items-center justify-center gap-2 mb-4">
           {/* <div className="w-10 h-10 bloom-gradient rounded-xl flex items-center justify-center text-white font-bold">
             B
@@ -447,7 +448,7 @@ const LoginView = ({
           <span className="text-2xl font-bold tracking-tight text-brand-slate-ink">
             Bloom Buddies Academy
           </span> */}
-          <img src={Logo} alt="Bloom Buddies Academy" className="w-84 h-auto" />
+          <img src={Logo} alt="Bloom Buddies Academy" className="w-84 h-auto pointer-events-none" />
         </div>
         <h2 className="text-3xl font-extrabold text-brand-slate-ink">
           {t("auth.welcome")}
@@ -472,6 +473,7 @@ const LoginView = ({
           icon={Mail}
           type="email"
           required
+          className="h-13 text-base"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="name@example.com"
@@ -500,7 +502,7 @@ const LoginView = ({
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="input-field !pl-14 h-14 text-base"
+              className="input-field !pl-14 h-13 text-base"
               placeholder="••••••••"
             />
           </div>
@@ -509,7 +511,7 @@ const LoginView = ({
         <button
           type="submit"
           disabled={loading}
-          className="w-full bloom-gradient text-white font-bold py-5 rounded-2xl shadow-xl shadow-indigo-100 text-lg hover:scale-[1.01] active:scale-95 transition-all mt-4 disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full bloom-gradient text-white font-bold py-3 md:py-5 rounded-2xl shadow-xl shadow-indigo-100 text-lg hover:scale-[1.01] active:scale-95 transition-all mt-4 disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {loading ? (
             <>
@@ -522,7 +524,7 @@ const LoginView = ({
         </button>
       </form>
 
-      <div className="mt-10 pt-8 border-t border-slate-100 flex flex-col items-center gap-4">
+      <div className="mt-2 md:mt-4 pt-8 border-t border-slate-100 flex flex-col items-center gap-4">
         <p className="text-sm text-slate-500">{t("auth.noAccount")}</p>
         <div className="flex gap-4">
           <button
@@ -918,7 +920,7 @@ const ParentSignupView = ({
   return (
     <div className="flex flex-col h-full">
       {/* ── Header + Step Indicator ─────────────────────────────────────────── */}
-      <div className="shrink-0 px-8 md:px-12 pt-8 pb-6 bg-slate-50/50 border-b border-slate-100">
+      <div className="shrink-0 px-8 md:px-12 pt-8 pb-2 bg-slate-50/50 border-b border-slate-100">
         <div className="flex items-center gap-2 mb-5">
           {/* <div className="w-10 h-10 bloom-gradient rounded-xl flex items-center justify-center text-white font-bold">
             B
@@ -990,8 +992,8 @@ const ParentSignupView = ({
       <div className="flex-1 overflow-y-auto no-scrollbar">
         {/* ════════════════ STEP 1 ════════════════ */}
         {step === 1 && (
-          <div className="px-8 md:px-12 py-8">
-            <div className="mb-8">
+          <div className="px-8 md:px-12 py-6">
+            <div className="mb-6">
               <h2 className="text-3xl font-extrabold text-brand-slate-ink">
                 {t("auth.registration")}
               </h2>
@@ -1010,6 +1012,7 @@ const ParentSignupView = ({
                   label={t("auth.firstName")}
                   icon={UserIcon}
                   type="text"
+                  className="h-13"
                   required
                   placeholder="Julie"
                   value={parentFields.firstName}
@@ -1025,6 +1028,7 @@ const ParentSignupView = ({
                   icon={UserIcon}
                   type="text"
                   required
+                  className="h-13"
                   placeholder="Jorgensen"
                   value={parentFields.lastName}
                   onChange={(e) =>
@@ -1040,6 +1044,7 @@ const ParentSignupView = ({
                 label={t("auth.email")}
                 icon={Mail}
                 type="email"
+                className="h-13"
                 required
                 placeholder="Julie.Jorgensen@gmail.com"
                 value={parentFields.email}
@@ -1056,6 +1061,7 @@ const ParentSignupView = ({
                   label={t("auth.password")}
                   icon={Lock}
                   type="password"
+                  className="h-13"
                   required
                   placeholder="••••••••"
                   value={parentFields.password}
@@ -1070,6 +1076,7 @@ const ParentSignupView = ({
                   label={t("auth.confirmPassword")}
                   icon={Lock}
                   type="password"
+                  className="h-13"
                   required
                   placeholder="••••••••"
                   value={parentFields.confirmPassword}
@@ -1105,7 +1112,7 @@ const ParentSignupView = ({
                         telephone: phone.startsWith("+") ? phone : `+${phone}`,
                       }))
                     }
-                    inputClass="!w-full !h-14 !rounded-2xl !border !border-slate-300 !pl-14"
+                    inputClass="!w-full !h-13 !rounded-2xl !border !border-slate-300 !pl-14"
                     buttonClass="!border-none !bg-transparent"
                     containerClass="!w-full"
                     dropdownClass="!fixed !z-[9999]"

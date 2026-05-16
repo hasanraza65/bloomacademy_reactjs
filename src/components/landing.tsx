@@ -64,11 +64,11 @@ export const Navbar = ({
           {/* <span className="text-2xl font-extrabold tracking-tight text-slate-800 whitespace-nowrap">
             Bloom Buddies <span className="text-brand-purple">{t('nav.academy') || 'Academy'}</span>
           </span> */}
-          <img src={logo} alt="Bloom Buddies Academy" className="w-84 h-auto" />
+          <img src={logo} alt="Bloom Buddies Academy" className="w-64 sm:w-84 h-auto" />
         </div>
 
         {/* Desktop Menu */}
-        <div className="hidden md:flex items-center gap-6 lg:gap-8 font-semibold text-slate-600">
+        <div className="hidden lg:flex items-center gap-6 lg:gap-8 font-semibold text-slate-600">
           <Link to="/" className="hover:text-brand-purple transition-colors whitespace-nowrap">{t('nav.home') || 'Home'}</Link>
           <a href={isMenagePage ? "/#features" : "#features"} className="hover:text-brand-purple transition-colors whitespace-nowrap">{t('nav.features')}</a>
           <a href={isMenagePage ? "/#how-it-works" : "#how-it-works"} className="hover:text-brand-purple transition-colors whitespace-nowrap">{t('nav.howItWorks')}</a>
@@ -144,7 +144,7 @@ export const Navbar = ({
         </div>
 
         {/* Mobile Menu Button */}
-        <button className="md:hidden text-slate-800" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+        <button className="lg:hidden text-slate-800" onClick={() => setIsMenuOpen(!isMenuOpen)}>
           {isMenuOpen ? <X size={28} /> : <Menu size={28} />}
         </button>
       </div>
@@ -154,15 +154,15 @@ export const Navbar = ({
         {isMenuOpen && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
+            animate={{ opacity: 1, height: '100dvh' }}
             exit={{ opacity: 0, height: 0 }}
             className="md:hidden bg-white/95 backdrop-blur-xl absolute top-full left-0 right-0 border-b border-slate-100 px-6 py-8 overflow-hidden"
           >
             <div className="flex flex-col gap-6 text-lg font-bold text-slate-700">
-              <Link to="/" onClick={() => setIsMenuOpen(false)}>{t('nav.home') || 'Home'}</Link>
-              <a href={isMenagePage ? "/#features" : "#features"} onClick={() => setIsMenuOpen(false)}>{t('nav.features')}</a>
-              <a href={isMenagePage ? "/#how-it-works" : "#how-it-works"} onClick={() => setIsMenuOpen(false)}>{t('nav.howItWorks')}</a>
-              <a href={isMenagePage ? "/#testimonials" : "#testimonials"} onClick={() => setIsMenuOpen(false)}>{t('nav.testimonials')}</a>
+              <Link className="hover:text-brand-purple transition-colors whitespace-nowrap text-[16px]" to="/" onClick={() => setIsMenuOpen(false)}>{t('nav.home') || 'Home'}</Link>
+              <a className="hover:text-brand-purple transition-colors whitespace-nowrap text-[16px]" href={isMenagePage ? "/#features" : "#features"} onClick={() => setIsMenuOpen(false)}>{t('nav.features')}</a>
+              <a className="hover:text-brand-purple transition-colors whitespace-nowrap text-[16px]" href={isMenagePage ? "/#how-it-works" : "#how-it-works"} onClick={() => setIsMenuOpen(false)}>{t('nav.howItWorks')}</a>
+              <a className="hover:text-brand-purple transition-colors whitespace-nowrap text-[16px]" href={isMenagePage ? "/#testimonials" : "#testimonials"} onClick={() => setIsMenuOpen(false)}>{t('nav.testimonials')}</a>
 
               <LanguageSwitcher isMobile />
 
@@ -176,8 +176,8 @@ export const Navbar = ({
                     </>
                   ) : (
                     <>
-                      <button className="text-left py-2" onClick={() => { onSignUpParent(); setIsMenuOpen(false); }}>{t('nav.signupParent')}</button>
-                      <button className="text-left py-2" onClick={() => { onSignUpTeacher(); setIsMenuOpen(false); }}>{t('nav.signupTeacher')}</button>
+                      <button className="hover:text-brand-purple transition-colors whitespace-nowrap text-[16px] text-left" onClick={() => { onSignUpParent(); setIsMenuOpen(false); }}>{t('nav.signupParent')}</button>
+                      <button className="hover:text-brand-purple transition-colors whitespace-nowrap text-[16px] text-left" onClick={() => { onSignUpTeacher(); setIsMenuOpen(false); }}>{t('nav.signupTeacher')}</button>
                       <button className="bg-brand-indigo text-white py-4 rounded-2xl w-full text-center shadow-lg shadow-indigo-100" onClick={() => { onLogin(); setIsMenuOpen(false); }}>{t('nav.login')}</button>
                     </>
                   )}
@@ -292,7 +292,7 @@ export const Hero = ({ onStartTrial }: { onStartTrial: () => void }) => {
           <motion.div
             animate={{ y: [0, 20, 0] }}
             transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-            className="absolute -bottom-6 -left-10 z-20 bg-white p-6 rounded-3xl soft-shadow flex items-center gap-4 border border-slate-100"
+            className="absolute -bottom-6 -left-2 sm:-left-10 z-20 bg-white p-6 rounded-3xl soft-shadow flex items-center gap-4 border border-slate-100"
           >
             <div className="w-14 h-14 bg-teal-100 rounded-full flex items-center justify-center text-brand-teal">
               <BookOpen size={28} />
