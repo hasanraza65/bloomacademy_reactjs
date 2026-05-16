@@ -135,8 +135,7 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({
             <FileText size={20} />
           </div>
           <div>
-            <h3 className="text-white font-black text-sm uppercase tracking-widest">{t('material.lessonMaterials')}</h3>
-            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">{t('material.uploadShare')}</p>
+            <h3 className="text-white font-black text-md capitalize tracking-widest">{t('material.books')}</h3>
           </div>
         </div>
         <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors">
@@ -148,7 +147,7 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-40">
             <Loader2 className="animate-spin text-brand-purple mb-3" size={32} />
-            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">{t('material.loading')}</p>
+            <p className="text-slate-500 text-sm font-black tracking-widest">{t('material.loading')}</p>
           </div>
         ) : materials.length === 0 ? (
           <div className="text-center py-12 px-6 border-2 border-dashed border-white/5 rounded-3xl">
@@ -178,7 +177,7 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({
                   </div>
                   <div className="overflow-hidden">
                     <h4 className="text-white font-black text-xs uppercase tracking-widest truncate">{m.title}</h4>
-                    <p className="text-slate-500 text-[9px] font-bold truncate leading-none mt-1">{m.file_name}</p>
+                    {/* <p className="text-slate-500 text-[9px] font-bold truncate leading-none mt-1">{m.file_name}</p> */}
                   </div>
                 </div>
 
@@ -186,23 +185,16 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({
                   <button
                     onClick={() => handleToggleActivate(m)}
                     className={cn(
-                      "px-4 py-2 rounded-full font-black text-[9px] uppercase tracking-widest transition-all active:scale-95",
+                      "px-4 py-2 min-w-max cursor-pointer rounded-full font-bold text-sm tracking-widest transition-all active:scale-95",
                       m.is_active
                         ? "bg-red-500/20 text-red-500 border border-red-500/30 hover:bg-red-500 hover:text-white"
                         : "bg-brand-purple text-white hover:bg-brand-purple-dark shadow-lg shadow-purple-500/20"
                     )}
                   >
-                    {m.is_active ? t('material.stopSharing') : t('material.shareLive')}
+                    <span>{m.is_active ? t('material.closeBook') : t('material.openBook')}</span>
                   </button>
                 </div>
               </div>
-
-              {m.is_active && (
-                <div className="mt-4 pt-3 border-t border-brand-purple/20 flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">{t('material.activelySharing')}</span>
-                </div>
-              )}
             </motion.div>
           ))
         )}
@@ -237,7 +229,7 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({
             ) : (
               <FileUp className="text-white" size={20} />
             )}
-            <span className="text-white font-black text-xs uppercase tracking-widest">
+            <span className="text-white font-black text-sm capitalize tracking-widest">
               {isUploading ? `${t('material.uploading')} ${uploadProgress}%` : t('material.uploadNew')}
             </span>
           </div>

@@ -10,7 +10,7 @@ import AgoraRTC, {
 // Disable Agora SDK logging
 AgoraRTC.setLogLevel(4);
 
-import { Sparkles, Loader2, AlertCircle, Mic, MicOff, Video, VideoOff, Monitor, MonitorPlay, Pencil, BookOpen, X, RefreshCw } from 'lucide-react';
+import { Sparkles, Loader2, AlertCircle, Mic, MicOff, Video, VideoOff, Monitor, MonitorPlay, Pencil, BookOpen, X, RefreshCw, Star } from 'lucide-react';
 import { ClassroomConnection, AgoraParticipant, User } from '@/src/types';
 import { apiService } from '@/src/services/apiService';
 import { BASE_URL, SITE_ROOT, getFileUrl } from '@/src/lib/config';
@@ -35,7 +35,7 @@ interface ClassroomProps {
 export type ClassroomMode = 'whiteboard' | 'pdf' | 'none';
 
 export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
-  const { t } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   const location = useLocation();
   const { channelName } = useParams<{ channelName: string }>();
   const [isInClass, setIsInClass] = useState(false);
@@ -44,7 +44,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
   
   // Classroom Mode
   const [classroomMode, setClassroomMode] = useState<ClassroomMode>('whiteboard');
-  
+
   // Agora State
   const clientRef = useRef<IAgoraRTCClient | null>(null);
   const [localTracks, setLocalTracks] = useState<{ video?: ILocalVideoTrack; audio?: ILocalAudioTrack }>({});
@@ -79,7 +79,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
   const showWhiteboardRef = useRef(false);
 
   const updateWhiteboardData = (data: any) => {
-    console.log('[Classroom] updateWhiteboardData called with:', data ? { uuid: data.roomUUID } : 'null');
+    // console.log('[Classroom] updateWhiteboardData called with:', data ? { uuid: data.roomUUID } : 'null');
     whiteboardDataRef.current = data;
     setWhiteboardData(data);
     if (typeof window !== 'undefined') {
@@ -415,19 +415,19 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       const roomToken = payload.whiteboard_room_token || payload.whiteboard_token || payload.room_token || payload.roomToken || payload.token;
 
       if (uuid && roomToken) {
-        console.log('[Classroom] initAgora — found whiteboard data in payload, updating...');
+        // console.log('[Classroom] initAgora — found whiteboard data in payload, updating...');
         updateWhiteboardData({
           appId: wbAppId,
           roomUUID: uuid,
           roomToken: roomToken,
         });
-        console.log('[Classroom] whiteboard from startClass — appId:', wbAppId, '| uuid:', uuid);
+        // console.log('[Classroom] whiteboard from startClass — appId:', wbAppId, '| uuid:', uuid);
       } else if (user.role === 2) {
         // Teacher handles their own whiteboard initialization via setupWhiteboard()
         // We only clear if we specifically want to reset, but not every time initAgora runs.
-        console.log('[Classroom] initAgora — teacher role, skipping auto-clear of whiteboard');
+        // console.log('[Classroom] initAgora — teacher role, skipping auto-clear of whiteboard');
       } else {
-        console.log('[Classroom] initAgora — no whiteboard data in payload, clearing for student...');
+        // console.log('[Classroom] initAgora — no whiteboard data in payload, clearing for student...');
         updateWhiteboardData(null);
       }
     } catch (err: any) {
@@ -657,7 +657,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
     
     // If we already have data and it's valid, don't re-initialize unless forced
     if (whiteboardDataRef.current && !forceRefresh) {
-       console.log('[WB] setupWhiteboard — already initialized, skipping.');
+      //  console.log('[WB] setupWhiteboard — already initialized, skipping.');
        return;
     }
 
@@ -668,7 +668,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
           const data = JSON.parse(savedData);
           if (data.roomUUID && data.roomToken) {
             updateWhiteboardData(data);
-            console.log('[WB] setupWhiteboard — restored from localStorage');
+            // console.log('[WB] setupWhiteboard — restored from localStorage');
             return;
           }
         } catch (e) {
@@ -681,9 +681,9 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
     setIsWhiteboardLoading(true);
     setWhiteboardSetupError(null);
     try {
-      console.log('[WB] setupWhiteboard — calling start-whiteboard API...');
+      // console.log('[WB] setupWhiteboard — calling start-whiteboard API...');
       const res = await apiService.startWhiteboardSession(channelName || '');
-      console.log('[WB] setupWhiteboard — API Response:', res);
+      // console.log('[WB] setupWhiteboard — API Response:', res);
       
       const data = (res as any).data || res;
       const wbAppId = (import.meta as any).env.VITE_WHITEBOARD_APP_ID;
@@ -692,14 +692,14 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
       
       if (uuid && roomToken) {
         updateWhiteboardData({ appId: wbAppId, roomUUID: uuid, roomToken });
-        console.log('[WB] setupWhiteboard — SUCCESS:', { uuid, roomToken: '***' });
+        // console.log('[WB] setupWhiteboard — SUCCESS:', { uuid, roomToken: '***' });
       } else {
         const errorMsg = (res as any).message || 'Invalid response from server (missing UUID/Token)';
-        console.warn('[WB] setupWhiteboard — FAILED:', errorMsg, data);
+        // console.warn('[WB] setupWhiteboard — FAILED:', errorMsg, data);
         setWhiteboardSetupError(errorMsg);
       }
     } catch (err: any) {
-      console.error('[WB] setupWhiteboard — EXCEPTION:', err);
+      // console.error('[WB] setupWhiteboard — EXCEPTION:', err);
       setWhiteboardSetupError(err?.message || 'Connection failed');
     } finally {
       setIsWhiteboardLoading(false);
@@ -718,6 +718,9 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
   const handleJoinClass = async () => {
     setIsLoading(true);
     setError(null);
+
+
+
     try {
       // Teachers start a class, students join an existing one
       const res = user.role === 2 
@@ -736,6 +739,10 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
         const errorMsg = anyRes.message || anyRes.error || anyRes.data?.message;
         setError(errorMsg || "Classroom details not found. The class might not be active yet.");
       }
+      if(language === 'fr') {
+        setLanguage('en');
+        window.localStorage.setItem('language', 'en');
+      } 
     } catch (err: any) {
       // 
 
@@ -1039,16 +1046,22 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
             {/* Info & CTA */}
             <div className="w-full md:w-1/2 text-center md:text-left space-y-6">
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-brand-purple/10 rounded-full border border-brand-purple/20 mb-2">
-                <Sparkles className="text-brand-purple" size={14} />
-                <span className="text-[10px] font-black text-brand-purple uppercase tracking-widest">{t("class.preMeetingCheck")}</span>
+                <Star className="text-brand-purple" size={14} />
+                <span className="text-[10px] font-black text-brand-purple uppercase tracking-widest">
+                  {
+                    user.role === 2 ?
+                    t("class.readytoteach") :
+                    t("class.readytolearn")
+                  }
+                </span>
               </div>
               
-              <h1 className="text-4xl sm:text-5xl font-black text-white tracking-tight leading-tight">
+              {/* <h1 className="text-4xl sm:text-5xl font-black text-white tracking-tight leading-tight">
                 {t("class.readyToBloom")} <span className="text-transparent bg-clip-text bloom-gradient">Bloom?</span>
-              </h1>
+              </h1> */}
               
-              <p className="text-slate-400 text-lg font-medium leading-relaxed">
-                {user.role === 2 ? t("class.checkEquipmentTeacher") : t("class.checkEquipmentStudent")}
+              <p className="text-slate-400 text-lg font-medium leading-relaxed md:w-2/3">
+                {user.role === 2 ? t("class.teachingequipmentverification") : t("class.learningequipmentverification")}
               </p>
 
               <AnimatePresence>
@@ -1097,8 +1110,14 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                 className="flex-1 min-w-[200px] h-16 group relative flex items-center justify-center gap-4 bg-brand-purple rounded-[1.5rem] transition-all hover:scale-[1.02] active:scale-98 disabled:opacity-50 overflow-hidden shadow-2xl shadow-purple-500/20"
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                {isLoading ? <Loader2 className="animate-spin text-white" size={24} /> : <Sparkles className="text-white" size={24} />}
-                <span className="text-white font-black text-lg tracking-widest uppercase">{t("class.joinClass")}</span>
+                {isLoading ? <Loader2 className="animate-spin text-white" size={24} /> : ""}
+                <span className="text-white font-black text-lg tracking-widest">
+                  {
+                    language === 'en' ?
+                    <span className="capitalize">{t("class.enterclass")}</span> :  
+                    <span className="">{t("class.enterclass")}</span>  
+                  }
+                </span>
               </button>
             </div>
           </div>
@@ -1106,9 +1125,11 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
 
         <button 
           onClick={onExit}
-            className="text-slate-500 font-black text-xs uppercase tracking-[0.3em] hover:text-white transition-colors py-2 px-4 rounded-full border border-transparent hover:border-white/10 hover:bg-white/5"
+            className="font-bold text-xs bg-red-500/5 tracking-[0.2em] text-red-400 opacity-80 transition-colors py-2 px-4 rounded-full border border-red-400 hover:bg-red-400 hover:text-white hover:border-red-400"
           >
-            {t("class.leaveTerminal")}
+            {
+              language === 'en' ? <span className="uppercase">{t("class.exitclass")}</span> : <span className="uppercase">{t("class.exitclass")}</span>
+            }
           </button>
         </motion.div>
       </div>
@@ -1122,7 +1143,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bloom-gradient rounded-lg flex items-center justify-center text-white font-bold border border-white/10 shadow-lg">M</div>
           <span className="text-white font-black text-sm tracking-[0.2em] uppercase mr-4">{t("class.metaClass")}</span>
-          <LanguageSwitcher darkMode />
+          {/* <LanguageSwitcher darkMode /> */}
         </div>
         
         <div className="flex items-center gap-4">
@@ -1158,15 +1179,27 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
 
               <button
                 onClick={() => {
-                  if (classroomMode === 'pdf' && activeMaterial) {
-                    // Already in PDF mode with a book — do nothing, already showing
+                  if ( classroomMode === 'pdf') {
+                    setShowMaterialManager(true);
+                    return;
+                  }
+                  if (!activeMaterial) {
+                    setShowMaterialManager(true);
                     return;
                   }
                   setClassroomMode('pdf');
-                  if (!activeMaterial) {
-                    // No book selected yet — open picker
-                    setShowMaterialManager(true);
-                  }
+
+                  
+
+                  // if (classroomMode === 'pdf' && activeMaterial) {
+                  //   // Already in PDF mode with a book — do nothing, already showing
+                  //   return;
+                  // }
+                  // setClassroomMode('pdf');
+                  // if (!activeMaterial) {
+                  //   // No book selected yet — open picker
+                  //   setShowMaterialManager(true);
+                  // }
                   // If activeMaterial exists, just switch to pdf mode — book loads automatically
                 }}
                 className={cn(
@@ -1177,7 +1210,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                 )}
               >
                 < BookOpen size={14} />
-                {t("class.resources")}
+                {t("class.book")}
               </button>
 
 {/* 
@@ -1208,7 +1241,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                     className="px-6 py-2 bg-slate-700/50 text-slate-300 border border-white/10 font-black text-[10px] uppercase tracking-[0.2em] rounded-full hover:bg-slate-600 hover:text-white transition-all shadow-lg active:scale-95 flex items-center gap-2"
                   >
                   <X size={14} />
-                  {t("class.hideBoards")}
+                  {t("class.hideResource")}
                 </button>
               )}
 
@@ -1216,7 +1249,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                 onClick={handleEndClass}
                 className="px-6 py-2 bg-red-600/20 text-red-500 border border-red-500/30 font-black text-[10px] uppercase tracking-[0.2em] rounded-full hover:bg-red-600 hover:text-white transition-all shadow-lg active:scale-95"
               >
-                {t("class.endClass")}
+                {t("class.exitclass")}
               </button>
             </>
           ) : (
@@ -1224,7 +1257,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                 onClick={handleEndClass}
                 className="px-6 py-2 bg-red-600/20 text-red-500 border border-red-500/30 font-black text-[10px] uppercase tracking-[0.2em] rounded-full hover:bg-red-600 hover:text-white transition-all shadow-lg active:scale-95"
               >
-                {t("class.endClass")}
+                {t("class.exitclass")}
             </button>
           )}
 
@@ -1409,7 +1442,8 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                       isTeacher={user.role === 2}
                       pdfUrl={classroomMode === 'pdf' ? getFileUrl(activeMaterial) : null}
                       materialId={classroomMode === 'pdf' ? activeMaterial?.id : undefined}
-                      onCloseBook={(clearFn) => { clearAnnotationsRef.current = clearFn; }}
+                      onCloseBook={(clearFn) => { 
+                        clearAnnotationsRef.current = clearFn; }}
                       currentPage={currentPage}
                       onPageChange={(page) => {
                         if (user.role === 2) {

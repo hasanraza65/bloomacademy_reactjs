@@ -452,7 +452,6 @@ const LoginView = ({
         <h2 className="text-3xl font-extrabold text-brand-slate-ink">
           {t("auth.welcome")}
         </h2>
-        <p className="text-slate-500 mt-2">{t("auth.loginDesc")}</p>
       </div>
 
       <form className="space-y-6" onSubmit={handleSubmit}>
@@ -575,12 +574,13 @@ const ForgotView = ({ onSwitch }: { onSwitch: (m: AuthMode) => void }) => {
     <div className="flex flex-col h-full p-10 md:p-14 justify-center">
       <div className="mb-10 text-center">
         <div className="flex items-center justify-center gap-2 mb-4">
-          <div className="w-10 h-10 bloom-gradient rounded-xl flex items-center justify-center text-white font-bold">
+          {/* <div className="w-10 h-10 bloom-gradient rounded-xl flex items-center justify-center text-white font-bold">
             B
           </div>
           <span className="text-2xl font-bold tracking-tight text-brand-slate-ink">
             {t("common.brandName")}
-          </span>
+          </span> */}
+          <img src={Logo} alt="Bloom Buddies Academy" className="w-84 h-auto transform -translate-x-2" />
         </div>
         <h2 className="text-3xl font-extrabold text-brand-slate-ink">
           {t("auth.forgot")}
@@ -608,7 +608,7 @@ const ForgotView = ({ onSwitch }: { onSwitch: (m: AuthMode) => void }) => {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="name@example.com"
+          placeholder="julie.jorgensen@gmail.com"
         />
 
         <button
@@ -622,7 +622,7 @@ const ForgotView = ({ onSwitch }: { onSwitch: (m: AuthMode) => void }) => {
               {t("auth.loading")}
             </>
           ) : (
-            t("auth.sendResetLink")
+            t("auth.passwordResetLink")
           )}
         </button>
       </form>

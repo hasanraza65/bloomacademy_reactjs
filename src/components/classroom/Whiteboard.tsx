@@ -7,6 +7,7 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { useLanguage } from '../../context/LanguageContext';
+import PdfSkeletonLoader from '../loading-skeletons/pdfloading';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
@@ -148,7 +149,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
             // Guard: room must still be connected before calling exportScene
             const phase = (room as any).phase;
             if (phase !== 'connected') {
-              console.log('[WB] Save skipped — room phase:', phase);
+              // console.log('[WB] Save skipped — room phase:', phase);
               return;
             }
             const scenePath = (room as any).sceneState?.scenePath;
@@ -232,13 +233,13 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   // Clears only the current page's strokes (Trash2 button).
   const clearCurrentScene = () => {
     if (!roomRef.current) return;
-    console.log('[WB] clearCurrentScene — currentScene:', (roomRef.current as any).state?.sceneState?.scenePath,
-      '| disableDeviceInputs:', roomRef.current.disableDeviceInputs,
-      '| isWritable:', (roomRef.current as any).isWritable
-    );
+    // console.log('[WB] clearCurrentScene — currentScene:', (roomRef.current as any).state?.sceneState?.scenePath,
+    //   '| disableDeviceInputs:', roomRef.current.disableDeviceInputs,
+    //   '| isWritable:', (roomRef.current as any).isWritable
+    // );
     try {
       roomRef.current.cleanCurrentScene();
-      console.log('[WB] cleanCurrentScene called OK');
+      // console.log('[WB] cleanCurrentScene called OK');
       // Also clear stale localStorage entries so they are not saved back
       if (isTeacher) {
         if (pdfUrl && pdfStableId) {
@@ -251,7 +252,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
         if (saveTimeoutRef.current) {
           clearTimeout(saveTimeoutRef.current);
           saveTimeoutRef.current = null;
-          console.log('[WB] Debounced save cancelled after clear');
+          // console.log('[WB] Debounced save cancelled after clear');
         }
       }
     } catch (e) {
@@ -283,7 +284,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
       // 1. Check Cache
       const cached = await getCachedPdfUrl(pdfUrl);
       if (cached && !isCancelled) {
-        console.log('[Cache] Loaded from local storage:', pdfUrl);
+        // console.log('[Cache] Loaded from local storage:', pdfUrl);
         setLocalPdfUrl(cached);
         setDownloadProgress(100);
         return;
@@ -343,7 +344,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     const sceneDir = `/pair-${PAIR_ID}/whiteboard`;
     const scenePath = `${sceneDir}/main`;
 
-    console.log('[WB] Whiteboard scene effect — pdfUrl:', pdfUrl, '| isBound:', isBound, '| isTeacher:', isTeacher);
+    // console.log('[WB] Whiteboard scene effect — pdfUrl:', pdfUrl, '| isBound:', isBound, '| isTeacher:', isTeacher);
 
     // Teacher manages scenes. Students follow in Follower mode.
     if (isTeacher) {
@@ -380,9 +381,9 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   useEffect(() => {
     if (!room || !pdfUrl || !pdfStableId || !isBound) return;
 
-    console.log('[WB] PDF scene effect — pdfUrl:', pdfUrl, '| page:', currentPage,
-      '| pdfStableId:', pdfStableId, '| isBound:', isBound
-    );
+    // console.log('[WB] PDF scene effect — pdfUrl:', pdfUrl, '| page:', currentPage,
+    //   '| pdfStableId:', pdfStableId, '| isBound:', isBound
+    // );
 
     const sceneDir = `/pair-${PAIR_ID}/pdf-${pdfStableId}`;
     const scenePath = `${sceneDir}/${currentPage}`;
@@ -391,12 +392,12 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     if (isTeacher) {
       if (!initializedScenesRef.current.has(scenePath)) {
         initializedScenesRef.current.add(scenePath);
-        console.log('[WB] First time PDF scene — trying setScenePath:', scenePath);
+        // console.log('[WB] First time PDF scene — trying setScenePath:', scenePath);
         try {
           room.setScenePath(scenePath);
           const landed = (room as any).state?.sceneState?.scenePath;
           if (landed !== scenePath) {
-            console.log('[WB] Landed on wrong scene, putScenes then retry');
+            // console.log('[WB] Landed on wrong scene, putScenes then retry');
             room.putScenes(sceneDir, [{ name: String(currentPage) }]);
             room.setScenePath(scenePath);
           }
@@ -406,7 +407,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
           room.setScenePath(scenePath);
         }
       } else {
-        console.log('[WB] PDF scene already initialized — setScenePath:', scenePath);
+        // console.log('[WB] PDF scene already initialized — setScenePath:', scenePath);
         try {
           room.setScenePath(scenePath);
         } catch (e) {
@@ -510,7 +511,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     try {
       setLoading(true);
       setError(null);
-      console.log(`[WB] joinRoom start (attempt ${retries + 1}) — UUID:`, roomUUID, '| appId:', appId, '| isTeacher:', isTeacher);
+      // console.log(`[WB] joinRoom start (attempt ${retries + 1}) — UUID:`, roomUUID, '| appId:', appId, '| isTeacher:', isTeacher);
 
       const region = (import.meta as any).env.VITE_WHITEBOARD_REGION || 'us-sv';
 
@@ -537,14 +538,14 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
       setRoom(joinedRoom);
 
       // ADD THESE:
-      console.log('=== DIAGNOSTIC ===');
-      console.log('Role:', isTeacher ? 'TEACHER' : 'STUDENT');
-      console.log('UUID:', roomUUID);
-      console.log('Token:', roomToken);
-      console.log('Region:', region);
-      console.log('Scene:', (joinedRoom as any).state?.sceneState?.scenePath);
-      console.log('All Scenes:', JSON.stringify(Object.keys((joinedRoom as any).entireScenes())));
-      console.log('==================');
+      // console.log('=== DIAGNOSTIC ===');
+      // console.log('Role:', isTeacher ? 'TEACHER' : 'STUDENT');
+      // console.log('UUID:', roomUUID);
+      // console.log('Token:', roomToken);
+      // console.log('Region:', region);
+      // console.log('Scene:', (joinedRoom as any).state?.sceneState?.scenePath);
+      // console.log('All Scenes:', JSON.stringify(Object.keys((joinedRoom as any).entireScenes())));
+      // console.log('==================');
 
       /*
       console.log('[WB] Room joined OK — UUID:', roomUUID,
@@ -589,10 +590,10 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     const bind = async () => {
       if (!containerRef.current || !room) return;
       try {
-        console.log('[WB] bindHtmlElement — container ready:',
-          containerRef.current.offsetWidth, 'x', containerRef.current.offsetHeight,
-          '| isTeacher:', isTeacher
-        );
+        // console.log('[WB] bindHtmlElement — container ready:',
+        //   containerRef.current.offsetWidth, 'x', containerRef.current.offsetHeight,
+        //   '| isTeacher:', isTeacher
+        // );
         
         // Netless requires the element to be in the DOM and visible.
         // If it's too small (0x0), it might fail to bind correctly.
@@ -603,7 +604,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
 
         room.bindHtmlElement(containerRef.current);
         setIsBound(true);
-        console.log('[WB] Bind OK — currentScene:', (room as any).state?.sceneState?.scenePath);
+        // console.log('[WB] Bind OK — currentScene:', (room as any).state?.sceneState?.scenePath);
         (room as any).refreshViewSize?.();
 
         // Disable internal whiteboard zoom/pan to allow browser scrolling
@@ -694,14 +695,14 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
 
   const applyTool = (tool: string) => {
     if (!room || isApplyingToolRef.current || !isBound) {
-      console.log('[WB] applyTool skipped — room:', !!room, '| isBound:', isBound, '| isApplyingTool:', isApplyingToolRef.current);
+      // console.log('[WB] applyTool skipped — room:', !!room, '| isBound:', isBound, '| isApplyingTool:', isApplyingToolRef.current);
       return;
     }
 
-    console.log('[WB] applyTool (EXEC):', tool,
-      '| scene:', (room as any).state?.sceneState?.scenePath,
-      '| disableInputs:', room.disableDeviceInputs
-    );
+    // console.log('[WB] applyTool (EXEC):', tool,
+    //   '| scene:', (room as any).state?.sceneState?.scenePath,
+    //   '| disableInputs:', room.disableDeviceInputs
+    // );
 
     isApplyingToolRef.current = true;
     lastToolRef.current = tool;
@@ -747,9 +748,9 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
       room.disableDeviceInputs = false;
       (room as any).disableOperations = false;
 
-      console.log('[WB] applyTool done — disableDeviceInputs:', room.disableDeviceInputs,
-        '| appliance:', (room as any).state?.memberState?.currentApplianceName
-      );
+      // console.log('[WB] applyTool done — disableDeviceInputs:', room.disableDeviceInputs,
+      //   '| appliance:', (room as any).state?.memberState?.currentApplianceName
+      // );
       setTimeout(() => { isApplyingToolRef.current = false; }, 100);
     }, 50);
   };
@@ -787,7 +788,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   // Force sync the tool when room connects, is bound, or mode changes
   useEffect(() => {
     if (room && currentTool && isBound) {
-      console.log('[WB] Tool sync effect — currentTool:', currentTool, '| isBound:', isBound);
+      // console.log('[WB] Tool sync effect — currentTool:', currentTool, '| isBound:', isBound);
       const timer = setTimeout(() => {
         if (room && !isApplyingToolRef.current && isBound) applyTool(currentTool);
       }, 300);
@@ -847,7 +848,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   return (
     <div className="relative w-full h-full bg-slate-100 rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
 
-      {(loading || (pdfUrl && !localPdfUrl)) && (
+      {( loading || (pdfUrl && !localPdfUrl)) && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/60 backdrop-blur-md z-50 p-12 text-center overflow-hidden">
           {/* Background decoration */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-brand-purple/20 blur-[120px] rounded-full pointer-events-none" />
@@ -886,19 +887,19 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
               )}
             </div>
 
-            <h4 className="text-2xl font-black text-white uppercase tracking-[0.2em] mb-4">
-              {loading ? t('whiteboard.initializing') : (downloadProgress < 100 ? t('whiteboard.downloadingMaterial') : t('whiteboard.loadingMaterial'))}
+            <h4 className="text-2xl font-black text-white tracking-[0.1em] mb-4">
+              {loading ? t('whiteboard.loadingwhiteboard') : t('whiteboard.loadingBook')}...
             </h4>
             
-            <p className="text-slate-400 text-xs font-bold uppercase tracking-[0.15em] mb-8 leading-relaxed">
+            {/* <p className="text-slate-400 text-xs font-bold uppercase tracking-[0.15em] mb-8 leading-relaxed">
               {loading 
                 ? t('whiteboard.preparingCanvas')
                 : (downloadProgress < 100 
                   ? t('whiteboard.retrievingBook')
                   : t('whiteboard.renderingMaterial'))}
-            </p>
+            </p> */}
 
-            <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden mb-4 shadow-inner">
+            {/* <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden mb-4 shadow-inner">
               <motion.div 
                 initial={false}
                 animate={{ width: `${loading ? 100 : downloadProgress}%` }}
@@ -908,14 +909,14 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
                 )}
                 style={loading ? { width: '100%' } : {}}
               />
-            </div>
+            </div> */}
             
-            <div className="flex items-center justify-center gap-2">
+            {/* <div className="flex items-center justify-center gap-2">
                <div className="w-1.5 h-1.5 rounded-full bg-brand-purple animate-pulse" />
                <span className="text-[10px] font-black text-brand-purple uppercase tracking-[0.3em]">
                  {loading ? t('whiteboard.connecting') : (downloadProgress < 100 ? `${t('whiteboard.downloading')} ${downloadProgress}%` : t('whiteboard.rendering'))}
                </span>
-            </div>
+            </div> */}
 
             {error && (
               <div className="mt-10 flex flex-col items-center gap-4 animate-in fade-in slide-in-from-bottom-4">
@@ -994,7 +995,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
                     const isCors = err.message.includes("Failed to fetch") || err.name === "SecurityError";
                     setError(`Failed to load PDF: ${err.message}${isCors ? ' (CORS issue — ensure backend allows this domain)' : ''}`);
                   }}
-                  loading={<Loader2 className="animate-spin text-brand-purple" />}
+                  loading={<PdfSkeletonLoader/> }
                 >
                   <Page
                     pageNumber={currentPage}
@@ -1085,7 +1086,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
           )}
 
           {/* PDF / Resources button */}
-          {isTeacher && (
+          {/* {isTeacher && (
             <button
               onClick={() => onOpenMaterials?.()}
               title="PDF Resources"
@@ -1095,7 +1096,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
             >
               <BookOpen size={20} />
             </button>
-          )}
+          )} */}
 
           {isTeacher && <div className="h-px bg-white/10 my-1" />}
 

@@ -35,6 +35,7 @@ import { LanguageProvider } from './context/LanguageContext';
 // Polyfill global for legacy libraries
 (window as any).global = window;
 
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <LanguageProvider>

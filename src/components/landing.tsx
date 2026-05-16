@@ -228,9 +228,9 @@ export const Hero = ({ onStartTrial }: { onStartTrial: () => void }) => {
             >
               {t('hero.startTrial')}
             </button>
-            <button className="w-full sm:w-auto flex items-center justify-center gap-2 text-slate-600 font-bold px-8 py-5 rounded-2xl hover:bg-white transition-all">
+            {/* <button className="w-full sm:w-auto flex items-center justify-center gap-2 text-slate-600 font-bold px-8 py-5 rounded-2xl hover:bg-white transition-all">
               {t('hero.watchDemo')} <ArrowRight size={18} />
-            </button>
+            </button> */}
           </div>
 
           <div className="mt-12 flex items-center gap-4">
@@ -538,17 +538,17 @@ export const Footer = () => {
             {/* <span className="text-2xl font-extrabold tracking-tight">Bloom Buddies <span className="text-brand-purple">{t('nav.academy') || 'Academy'}</span></span> */}
             <img src={logo} alt="Bloom Buddies Academy" className="w-84 h-auto" />
           </div>
-          <p className="text-slate-400 max-w-lg font-medium">
+          <p className="text-slate-300 font-medium leading-relaxed max-w-4xl mx-auto">
             {t('menage.footer.address')}
           </p>
         </div>
 
-        <div className="py-8 border-y border-slate-800 mb-12">
-          <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mb-6">{t('footer.ourCities') || 'Nos Villes'}</p>
-          <p className="text-slate-300 font-medium leading-relaxed max-w-4xl mx-auto">
-            {t('menage.footer.cities')}
-          </p>
-        </div>
+        {/* <div className="py-8 border-y border-slate-800 mb-12"> */}
+          {/* <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mb-6">{t('footer.ourCities') || 'Nos Villes'}</p> */}
+          {/* <p className="text-slate-300 font-medium leading-relaxed max-w-4xl mx-auto"> */}
+            {/* {t('menage.footer.cities')} */}
+          {/* </p> */}
+        {/* </div> */}
 
         <div className="flex flex-col md:flex-row justify-between items-center gap-8 text-slate-500 text-sm font-medium">
           <p>{t('menage.footer.copyright')}</p>

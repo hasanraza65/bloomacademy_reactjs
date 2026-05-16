@@ -49,7 +49,7 @@ export const BadgeReward: React.FC<BadgeRewardProps> = ({
   const { t } = useLanguage();
 
   useEffect(() => {
-    console.log('[BadgeReward] showPicker state:', showPicker);
+    // console.log('[BadgeReward] showPicker state:', showPicker);
   }, [showPicker]);
 
   const playBadgeSound = (badgeType: string) => {
@@ -135,7 +135,7 @@ export const BadgeReward: React.FC<BadgeRewardProps> = ({
   };
 
   const triggerCelebration = (badge: Badge) => {
-    console.log('[BadgeReward] Triggering celebration for:', badge.badge_type);
+    // console.log('[BadgeReward] Triggering celebration for:', badge.badge_type);
     playBadgeSound(badge.badge_type);
     setCurrentCelebration(badge);
     setEarnedBadges(prev => {
@@ -144,7 +144,7 @@ export const BadgeReward: React.FC<BadgeRewardProps> = ({
       return newBadges;
     });
     setTimeout(() => {
-      console.log('[BadgeReward] Clearing celebration');
+      // console.log('[BadgeReward] Clearing celebration');
       setCurrentCelebration(null);
     }, 4000);
   };

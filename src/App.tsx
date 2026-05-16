@@ -19,6 +19,7 @@ import { apiService } from './services/apiService';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { ResetPassword } from './components/ResetPassword';
 import ScrollToTop from "./ScrollToTop";
+import { useLanguage } from './context/LanguageContext';
 
 
 const GOOGLE_MAPS_API_KEY = (import.meta as any).env.VITE_GOOGLE_MAPS_API_KEY;
@@ -32,6 +33,7 @@ function LandingPage({
   onLogout: () => void, 
   openAuth: (mode: AuthMode) => void 
 }) {
+
   return (
     <div className="min-h-screen">
       <Navbar 
@@ -57,9 +59,6 @@ function LandingPage({
 }
 
 export default function App() {
-
-  
-
   const [authModal, setAuthModal] = useState<{isOpen: boolean, mode: AuthMode}>({
     isOpen: false,
     mode: 'login'
@@ -70,6 +69,7 @@ export default function App() {
   const [myClasses, setMyClasses] = useState<ClassroomData[]>([]);
   const [isLoadingClasses, setIsLoadingClasses] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const { setLanguage } = useLanguage();
 
   useEffect(() => {
     const savedUser = localStorage.getItem('auth_user');
@@ -130,11 +130,15 @@ export default function App() {
         <Route 
           path="/" 
           element={
-            <LandingPage 
-              isLoggedIn={isLoggedIn} 
-              onLogout={handleLogout} 
-              openAuth={openAuth} 
-            />
+            isLoggedIn && user ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <LandingPage 
+                isLoggedIn={isLoggedIn} 
+                onLogout={handleLogout} 
+                openAuth={openAuth} 
+              />
+            )
           } 
         />
         <Route 
@@ -177,7 +181,15 @@ export default function App() {
           path="/classroom/:channelName" 
           element={
             isLoggedIn && user ? (
-              <Classroom user={user} onExit={() => window.location.href = '/dashboard'} />
+              <Classroom user={user} onExit={
+                () => {
+                  let oldLang = window.localStorage.getItem('language');
+                  if(oldLang === 'fr') {
+                    setLanguage('fr');
+                  }
+                  window.location.href = '/dashboard'
+                }
+              } />
             ) : (
               <Navigate to="/" replace />
             )
@@ -205,6 +217,7 @@ function NavigationHandler({ isLoggedIn }: { isLoggedIn: boolean }) {
   const [prevLoggedIn, setPrevLoggedIn] = useState(isLoggedIn);
 
   useEffect(() => {
+    console.log('NavigationHandler - isLoggedIn:', isLoggedIn, 'prevLoggedIn:', prevLoggedIn);
     if (isLoggedIn && !prevLoggedIn) {
       navigate('/dashboard');
     } else if (!isLoggedIn && prevLoggedIn) {

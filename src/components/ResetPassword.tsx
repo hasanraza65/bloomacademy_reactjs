@@ -14,6 +14,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { apiService } from '../services/apiService';
 import { AuthMode } from '../types';
 import { cn } from '@/src/lib/utils';
+import Logo from '../public/images/logo.png';
 
 export const ResetPassword = ({ 
   isLoggedIn, 
@@ -131,8 +132,8 @@ export const ResetPassword = ({
         >
           <div className="text-center mb-10">
             <div className="flex items-center justify-center gap-2 mb-6">
-              <div className="w-10 h-10 bloom-gradient rounded-xl flex items-center justify-center text-white font-bold">B</div>
-              <span className="text-2xl font-bold tracking-tight text-brand-slate-ink uppercase">Bloom {t('nav.academy') || 'Academy'}</span>
+            <img src={Logo} alt="Bloom Buddies Academy" className="w-84 h-auto transform -translate-x-2" />
+              
             </div>
             <h1 className="text-3xl font-extrabold text-brand-slate-ink">{t('auth.resetPassword')}</h1>
             <p className="text-slate-500 mt-2 font-medium">{t('auth.newSecurePassword')}</p>
