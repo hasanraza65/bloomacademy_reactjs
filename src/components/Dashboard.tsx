@@ -61,9 +61,9 @@ const myClassesLabel =
       {/* Main Content */}
       <main className="flex-1 flex flex-col h-screen overflow-y-auto">
         {/* Header */}
-        <header className="bg-white/80 backdrop-blur-md sticky top-0 z-10 px-8 py-5 border-b border-slate-100 flex items-center justify-between">
+        <header className="bg-white/80 backdrop-blur-md sticky top-0 z-10 px-4 md:px-8 py-4 md:py-5 border-b border-slate-100 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">
+            <h1 className="text-lg md:text-2xl font-bold text-slate-800 leading-tight">
               {t('dash.welcome')} <span className="text-brand-indigo">{user.firstName}</span>
               { language === 'fr' ? ' ' : '' }
               !
@@ -71,14 +71,14 @@ const myClassesLabel =
             {/* <p className="text-xs text-slate-500 font-medium">{roleName} Dashboard • {t('dash.today')}</p> */}
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
              <LanguageSwitcher />
 
              {/* <button className="p-2.5 text-slate-400 hover:bg-slate-50 rounded-xl transition-colors relative">
                 <Bell size={22} />
                 <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 border-2 border-white rounded-full" />
              </button> */}
-             <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 p-0.5 overflow-hidden">
+             <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-slate-100 border border-slate-200 p-0.5 overflow-hidden shrink-0">
                 <img 
                   src={user.avatar || `https://picsum.photos/seed/${user.email}/100/100`} 
                   alt="Avatar" 
@@ -86,11 +86,18 @@ const myClassesLabel =
                   referrerPolicy="no-referrer"
                 />
              </div>
+             <button 
+               onClick={onLogout}
+               className="lg:hidden p-2.5 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-xl transition-all"
+               title={t('nav.logout')}
+             >
+               <LogOut size={22} />
+             </button>
           </div>
         </header>
 
         {/* Dashboard Content */}
-        <div className="p-8 max-w-6xl w-full mx-auto space-y-10">
+        <div className="p-4 md:p-8 max-w-6xl w-full mx-auto space-y-6 md:space-y-10">
           {/* Classes Section */}
           <section>
              {isLoading ? (

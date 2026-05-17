@@ -298,7 +298,7 @@ export const Hero = ({ onStartTrial }: { onStartTrial: () => void }) => {
               <BookOpen size={28} />
             </div>
             <div>
-              <p className="text-lg font-bold text-slate-800">200+</p>
+              <p className="text-lg font-bold text-slate-800">300+</p>
               <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('hero.courses') || 'Courses'}</p>
             </div>
           </motion.div>
@@ -310,7 +310,7 @@ export const Hero = ({ onStartTrial }: { onStartTrial: () => void }) => {
 
 // --- Features Section ---
 export const Features = () => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const features = [
     {
       title: t('feat.interactive.title'),
@@ -347,7 +347,11 @@ export const Features = () => {
       <div className="max-w-7xl mx-auto">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-6">
-            {t('features.title').split(' families')[0]} <span className="text-brand-purple">{t('features.title').split('families ')[1] || 'love us'}</span>
+            {language === 'en' ? (
+              <>Why families <span className="text-brand-purple">love us</span></>
+            ) : (
+              <>Pourquoi les familles nous <span className="text-brand-purple">aiment</span></>
+            )}
           </h2>
           <p className="text-xl text-slate-600">
             {t('features.desc')}

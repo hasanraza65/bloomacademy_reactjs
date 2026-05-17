@@ -1007,7 +1007,7 @@ const ParentSignupView = ({
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
                 <FormInput
                   label={t("auth.firstName")}
                   icon={UserIcon}
@@ -1056,7 +1056,7 @@ const ParentSignupView = ({
                 }
               />
 
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
                 <FormInput
                   label={t("auth.password")}
                   icon={Lock}
@@ -1096,7 +1096,7 @@ const ParentSignupView = ({
                 </p>
               )}
 
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
                 <div className="space-y-2">
                   <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">
                     {t("auth.telephone")}
@@ -1178,7 +1178,7 @@ const ParentSignupView = ({
 
             {/* Child DOBs */}
             {/* Child DOBs */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-8">
               {children.map((child, idx) => (
                 <div
                   key={child.id}
@@ -1307,13 +1307,13 @@ const ParentSignupView = ({
       </div>
 
       {/* ── Sticky Footer ────────────────────────────────────────────────────── */}
-      <div className="shrink-0 px-8 md:px-12 py-6 border-t border-slate-100 bg-white flex flex-col items-center gap-4">
+      <div className="shrink-0 px-6 md:px-12 py-4 md:py-6 border-t border-slate-100 bg-white flex flex-col items-center gap-3 md:gap-4">
         {step === 1 ? (
           <>
             <button
               onClick={() => setStep(2)}
               disabled={!isStep1Valid}
-              className="w-full bloom-gradient text-white font-bold py-5 rounded-2xl shadow-xl shadow-indigo-100 text-lg hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-40 disabled:scale-100 disabled:grayscale flex items-center justify-center gap-2"
+              className="w-full bloom-gradient text-white font-bold py-4 md:py-5 rounded-2xl shadow-xl shadow-indigo-100 text-lg hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-40 disabled:scale-100 disabled:grayscale flex items-center justify-center gap-2"
             >
               {t("auth.continue")}
               <ChevronRight size={20} />
@@ -1339,7 +1339,7 @@ const ParentSignupView = ({
               <button
                 type="submit"
                 disabled={loading || !isFormValid}
-                className="w-full bloom-gradient text-white font-bold py-5 rounded-2xl shadow-xl shadow-indigo-100 text-lg hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-40 disabled:scale-100 disabled:grayscale flex items-center justify-center gap-2"
+                className="w-full bloom-gradient text-white font-bold py-4 md:py-5 rounded-2xl shadow-xl shadow-indigo-100 text-lg hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-40 disabled:scale-100 disabled:grayscale flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
@@ -1757,7 +1757,7 @@ const TeacherSignupView = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
                 <FormInput
                   label={t("auth.firstName")}
                   icon={UserIcon}
@@ -1797,7 +1797,7 @@ const TeacherSignupView = ({
                 }
               />
 
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
                 <FormInput
                   label={t("auth.password")}
                   icon={Lock}
@@ -1832,7 +1832,7 @@ const TeacherSignupView = ({
                 </p>
               )}
 
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
                 <div className="space-y-2">
                   <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">
                     {t("auth.telephone")}
@@ -1866,7 +1866,7 @@ const TeacherSignupView = ({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
                 <CityAutocomplete
                   label={t("auth.wheredoyoulive")}
                   placeholder="San Francisco"

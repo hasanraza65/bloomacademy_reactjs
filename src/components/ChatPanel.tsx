@@ -114,7 +114,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       initial={{ width: 0, opacity: 0 }}
       animate={{ width: 320, opacity: 1 }}
       exit={{ width: 0, opacity: 0 }}
-      className="h-full flex flex-col bg-slate-900 border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl"
+      className="h-full flex flex-col bg-slate-900 border border-white/10 rounded-3xl overflow-hidden shadow-2xl"
     >
       {/* Header */}
       <div className="h-12 px-6 flex items-center justify-between border-b border-white/5 shrink-0">
