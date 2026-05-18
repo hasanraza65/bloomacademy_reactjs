@@ -26,6 +26,8 @@ import {
   Calendar as CalendarIcon,
   Phone,
   Check,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 import {
@@ -212,24 +214,40 @@ type FormInputProps = React.InputHTMLAttributes<HTMLInputElement> & {
 };
 
 const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
-  ({ label, icon: Icon, ...props }, ref) => (
-    <div className="space-y-2">
-      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-        {label}
-      </label>
-      <div className="relative group">
-        <div className="absolute left-4 top-1/2 -translate-y-1/2 transition-colors group-focus-within:text-brand-indigo text-slate-300">
-          <Icon size={18} />
+  ({ label, icon: Icon, ...props }, ref) => {
+    const [showPassword, setShowPassword] = useState(false);
+    const isPasswordType = props.type === "password";
+    const inputType = isPasswordType ? (showPassword ? "text" : "password") : props.type;
+
+    return (
+      <div className="space-y-2">
+        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+          {label}
+        </label>
+        <div className="relative group">
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 transition-colors group-focus-within:text-brand-indigo text-slate-300">
+            <Icon size={18} />
+          </div>
+          <input
+            ref={ref}
+            autoComplete="off"
+            {...props}
+            type={inputType}
+            className={cn("input-field !pl-14 h-14 text-base", isPasswordType && "!pr-12", props.className)}
+          />
+          {isPasswordType && (
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          )}
         </div>
-        <input
-          ref={ref}
-          autoComplete="off"
-          {...props}
-          className={cn("input-field !pl-14 h-14 text-base", props.className)}
-        />
       </div>
-    </div>
-  ),
+    );
+  }
 );
 
 FormInput.displayName = "FormInput";
@@ -407,6 +425,7 @@ const LoginView = ({
 }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -498,13 +517,20 @@ const LoginView = ({
               size={18}
             />
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="input-field !pl-14 h-13 text-base"
+              className="input-field !pl-14 !pr-12 h-13 text-base"
               placeholder="••••••••"
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
           </div>
         </div>
 
@@ -1019,7 +1045,7 @@ const ParentSignupView = ({
       <div className="flex-1 overflow-y-auto no-scrollbar">
         {/* ════════════════ STEP 1 ════════════════ */}
         {step === 1 && (
-          <div className="px-8 md:px-12 py-6">
+          <div className="px-4 sm:px-8 md:px-12 py-6">
             <div className="mb-6">
               <h2 className="text-3xl font-extrabold text-brand-slate-ink">
                 {t("auth.registration")}
@@ -1161,7 +1187,7 @@ const ParentSignupView = ({
 
         {/* ════════════════ STEP 2 ════════════════ */}
         {step === 2 && (
-          <div className="px-8 md:px-12 py-8">
+          <div className="px-4 sm:px-8 md:px-12 py-8">
             <div className="mb-8">
               <h2 className="text-3xl font-extrabold text-brand-slate-ink">
                 {t("auth.registration") || "Registration"}
@@ -1307,14 +1333,14 @@ const ParentSignupView = ({
                                   key={day.day}
                                   className="p-4 rounded-2xl bg-slate-50/50 border border-slate-200/65 transition-all hover:bg-white hover:soft-shadow hover:border-brand-indigo/20"
                                 >
-                                  <div className="flex justify-between items-center mb-3">
-                                    <span className="text-xs font-extrabold text-slate-700 uppercase tracking-widest">
+                                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                                    <span className="text-xs font-extrabold text-slate-700 uppercase tracking-widest whitespace-nowrap">
                                       {t(`days.${day.day}`)}
                                     </span>
                                     <button
                                       type="button"
                                       onClick={() => addTimeSlot(child.id, day.day)}
-                                      className="flex items-center gap-1 px-3 py-1 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg transition-all font-bold text-[9px] uppercase tracking-wider"
+                                      className="flex items-center gap-1 px-2.5 py-1 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg transition-all font-bold text-[9px] uppercase tracking-wider whitespace-nowrap active:scale-95"
                                     >
                                       <Plus size={10} />{" "}
                                       {t("auth.addSlot") || "Add Slot"}
@@ -1828,7 +1854,7 @@ const TeacherSignupView = ({
       <div className="flex-1 overflow-y-auto no-scrollbar">
         {/* ════════════════ STEP 1 ════════════════ */}
         {step === 1 && (
-          <div className="px-8 md:px-12 py-8">
+          <div className="px-4 sm:px-8 md:px-12 py-8">
             <div className="mb-4">
               <h2 className="text-3xl font-extrabold text-brand-slate-ink">
                 {t("auth.registration")}
@@ -2075,7 +2101,7 @@ const TeacherSignupView = ({
 
         {/* ════════════════ STEP 2 ════════════════ */}
         {step === 2 && (
-          <div className="px-8 md:px-12 py-8 select-none">
+          <div className="px-4 sm:px-8 md:px-12 py-8 select-none">
             <div className="mb-6">
               <h2 className="text-3xl font-extrabold text-brand-slate-ink">
                 {t("auth.registration")}
@@ -2173,7 +2199,7 @@ const TeacherSignupView = ({
       </div>
 
       {/* ── Sticky Footer ────────────────────────────────────────────────────── */}
-      <div className="shrink-0 px-8 md:px-12 py-6 border-t border-slate-100 bg-white flex flex-col items-center gap-4">
+      <div className="shrink-0 px-4 sm:px-8 md:px-12 py-4 md:py-6 border-t border-slate-100 bg-white flex flex-col items-center gap-3 md:gap-4">
         {step === 1 ? (
           <>
             <button
