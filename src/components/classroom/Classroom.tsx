@@ -483,9 +483,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
             }
             if (msg.isLocked !== undefined) setIsAnnotationsLocked(msg.isLocked);
           } else if (msg.type === 'class-ended') {
-            // 
-
-            handleLeave();
+            // Do not kick the participant out when the other side exits
           } else if (msg.type === 'badge' && user.role !== 2) {
             // This is handled inside BadgeReward via the rtmChannelRef directly
             // No changes needed here — BadgeReward attaches its own listener
@@ -806,21 +804,12 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
 
   const handleEndClass = async () => {
     try {
-      // Send signal to others
-      if (isRTMReady && rtmChannelRef.current) {
-        await rtmChannelRef.current.sendMessage({
-          text: JSON.stringify({ type: 'class-ended' })
-        }).catch(() => {});
-      }
-
-      if (connectionData) {
-        await apiService.endClass(connectionData.classroom_id);
+      // Only teachers end the class session database-wise
+      if (user.role === 2 && connectionData) {
+        await apiService.endClass(connectionData.classroom_id).catch(() => {});
       }
       await handleLeave();
     } catch (err) {
-      // 
-
-      // Fallback: leave anyway
       await handleLeave();
     }
   };
@@ -1734,15 +1723,14 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
           isTeacher={user.role === 2}
           isInClass={isInClass}
           studentName={
-            remoteUsers.length > 0
-              ? 'Student'
-              : 'Student'
+            connectionData?.child?.child_name || 'Student'
           }
           rtmChannelRef={rtmChannelRef}
           isRTMReady={isRTMReady}
           showPicker={showBadgePicker}
           setShowPicker={setShowBadgePicker}
           onBadgesUpdate={setEarnedBadges}
+          childId={connectionData?.child_id || connectionData?.child?.id}
         />
       )}
     </div>

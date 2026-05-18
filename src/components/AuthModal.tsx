@@ -1205,9 +1205,9 @@ const ParentSignupView = ({
                           <h4 className="text-md font-black text-slate-800 tracking-wide uppercase">
                             {child.child_name || `${t("class.student")} ${idx + 1}`}
                           </h4>
-                          {child.dob && (
+                           {child.dob && (
                             <p className="text-xs font-bold text-slate-400">
-                              {t("auth.dob") || "Date of Birth"}: {child.dob}
+                              {t("auth.dob") || "Date of Birth"}: {child.dob.split('-').reverse().map((part, i) => i === 2 ? part.slice(-2) : part).join('/')}
                             </p>
                           )}
                         </div>
@@ -1345,7 +1345,7 @@ const ParentSignupView = ({
                                                   e.target.value,
                                                 )
                                               }
-                                              className="bg-transparent text-[10px] font-bold text-brand-indigo outline-none cursor-pointer w-[45px]"
+                                              className="bg-transparent text-[10px] font-bold text-brand-indigo outline-none cursor-pointer w-[75px]"
                                             />
                                             <span className="text-[10px] text-slate-300">
                                               -
@@ -1362,7 +1362,7 @@ const ParentSignupView = ({
                                                   e.target.value,
                                                 )
                                               }
-                                              className="bg-transparent text-[10px] font-bold text-brand-indigo outline-none cursor-pointer w-[45px]"
+                                              className="bg-transparent text-[10px] font-bold text-brand-indigo outline-none cursor-pointer w-[75px]"
                                             />
                                           </div>
                                           <button

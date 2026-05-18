@@ -12,6 +12,7 @@ interface BadgeRewardProps {
   showPicker: boolean;
   setShowPicker: (show: boolean) => void;
   onBadgesUpdate?: (badges: Badge[]) => void;
+  childId?: number | string;
 }
 
 export interface Badge {
@@ -40,7 +41,8 @@ export const BadgeReward: React.FC<BadgeRewardProps> = ({
   isRTMReady,
   showPicker,
   setShowPicker,
-  onBadgesUpdate
+  onBadgesUpdate,
+  childId
 }) => {
   const [earnedBadges, setEarnedBadges] = useState<Badge[]>([]);
   const [currentCelebration, setCurrentCelebration] = useState<Badge | null>(null);
@@ -218,6 +220,15 @@ export const BadgeReward: React.FC<BadgeRewardProps> = ({
     setShowPicker(false);
     try {
       const token = localStorage.getItem('auth_token');
+      const bodyData: any = {
+        badge_type: type,
+        badge_label: label
+      };
+      
+      if (childId) {
+        bodyData.child_id = childId;
+      }
+
       const res = await fetch(`${BASE_URL}badges/send`, {
         method: 'POST',
         headers: {
@@ -225,10 +236,7 @@ export const BadgeReward: React.FC<BadgeRewardProps> = ({
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        body: JSON.stringify({
-          badge_type: type,
-          badge_label: label
-        })
+        body: JSON.stringify(bodyData)
       });
 
       if (res.ok) {
