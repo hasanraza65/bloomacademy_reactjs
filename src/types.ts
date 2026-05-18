@@ -11,6 +11,7 @@ export interface DaySchedule {
 
 export interface ChildData {
   id: string;
+  child_name?: string;
   dob: string;
   schedule: DaySchedule[];
 }

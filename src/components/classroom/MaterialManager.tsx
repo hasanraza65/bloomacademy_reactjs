@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Upload, Play, X, Loader2, CheckCircle2, FileUp } from 'lucide-react';
+import { FileText, Upload, Play, X, Loader2, CheckCircle2, FileUp, Trash2 } from 'lucide-react';
 import { apiService } from '@/src/services/apiService';
 import { cn } from '@/src/lib/utils';
 import { BASE_URL } from '@/src/lib/config';
@@ -33,7 +33,9 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const { t } = useLanguage();
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { t, language } = useLanguage();
 
   const fetchMaterials = async () => {
     try {
@@ -127,6 +129,29 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({
     }
   };
 
+  const handleDeleteMaterial = async (id: number) => {
+    try {
+      setIsDeleting(true);
+      setError(null);
+      const res = await apiService.deleteMaterial(id);
+      if (res.success) {
+        const wasActive = materials.find((m) => m.id === id)?.is_active;
+        if (wasActive) {
+          onDeactivate(id);
+        }
+        fetchMaterials();
+        setConfirmDeleteId(null);
+      } else {
+        setError(res.message || "Failed to delete material.");
+      }
+    } catch (err) {
+      console.error("Failed to delete material:", err);
+      setError("An error occurred while deleting the material.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex items-center justify-between p-6 border-b border-white/5 shrink-0">
@@ -193,6 +218,15 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({
                   >
                     <span>{m.is_active ? t('material.closeBook') : t('material.openBook')}</span>
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeleteId(m.id)}
+                    className="p-2 text-slate-500 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all active:scale-95"
+                    title={language === 'en' ? 'Delete Book' : 'Supprimer le livre'}
+                  >
+                    <Trash2 size={16} />
+                  </button>
                 </div>
               </div>
             </motion.div>
@@ -245,6 +279,62 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {confirmDeleteId !== null && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-6"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-slate-900 border border-white/10 p-6 rounded-3xl w-full max-w-sm shadow-2xl space-y-6"
+            >
+              <div className="flex flex-col items-center text-center space-y-3">
+                <div className="w-12 h-12 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center">
+                  <Trash2 size={24} />
+                </div>
+                <h4 className="text-white font-black text-md capitalize tracking-widest">
+                  {language === 'en' ? 'Delete Book?' : 'Supprimer le livre ?'}
+                </h4>
+                <p className="text-slate-400 text-xs font-bold leading-relaxed">
+                  {language === 'en' 
+                    ? 'Are you sure you want to delete this book? This action cannot be undone.'
+                    : 'Êtes-vous sûr de vouloir supprimer ce livre ? Cette action est irréversible.'}
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setConfirmDeleteId(null)}
+                  disabled={isDeleting}
+                  className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs uppercase tracking-widest rounded-xl transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  {language === 'en' ? 'Cancel' : 'Annuler'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => confirmDeleteId && handleDeleteMaterial(confirmDeleteId)}
+                  disabled={isDeleting}
+                  className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {isDeleting ? (
+                    <Loader2 className="animate-spin" size={14} />
+                  ) : (
+                    language === 'en' ? 'Delete' : 'Supprimer'
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

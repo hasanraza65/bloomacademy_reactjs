@@ -77,6 +77,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
 
   const whiteboardDataRef = useRef<any>(whiteboardData);
   const showWhiteboardRef = useRef(false);
+  const lastBackendModeRef = useRef<ClassroomMode | null>(null);
 
   const updateWhiteboardData = (data: any) => {
     // console.log('[Classroom] updateWhiteboardData called with:', data ? { uuid: data.roomUUID } : 'null');
@@ -472,7 +473,10 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
             if (msg.page !== undefined) setCurrentPage(msg.page);
             if (msg.zoom !== undefined) setZoom(msg.zoom);
             if (msg.scrollPosition !== undefined) setScrollPosition(msg.scrollPosition);
-            if (msg.mode !== undefined) setClassroomMode(msg.mode);
+            if (msg.mode !== undefined) {
+              setClassroomMode(msg.mode);
+              lastBackendModeRef.current = msg.mode;
+            }
             if (msg.material !== undefined) {
               setActiveMaterial(msg.material);
               if (msg.material) updateShowWhiteboard(true);
@@ -556,10 +560,18 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
               if (prev?.id === data.active_material.id) return prev;
               return data.active_material;
             });
-            setClassroomMode('pdf');
+            const backendMode = 'pdf';
+            if (lastBackendModeRef.current !== backendMode) {
+              setClassroomMode(backendMode);
+              lastBackendModeRef.current = backendMode;
+            }
           } else {
             setActiveMaterial(null);
-            setClassroomMode('whiteboard');
+            const backendMode = 'whiteboard';
+            if (lastBackendModeRef.current !== backendMode) {
+              setClassroomMode(backendMode);
+              lastBackendModeRef.current = backendMode;
+            }
           }
 
           setShowWhiteboard(true);
@@ -572,7 +584,7 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
             });
           }
           
-          if (data.is_annotations_locked !== undefined) {
+          if (!isRTMReady && data.is_annotations_locked !== undefined) {
             setIsAnnotationsLocked(!!data.is_annotations_locked);
           }
 
@@ -580,7 +592,11 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
           // Whiteboard not active
           setShowWhiteboard(false);
           setActiveMaterial(null);
-          setClassroomMode('none');
+          const backendMode = 'none';
+          if (lastBackendModeRef.current !== backendMode) {
+            setClassroomMode(backendMode);
+            lastBackendModeRef.current = backendMode;
+          }
         }
 
       } catch(e) {
@@ -1253,12 +1269,41 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
               </button>
             </>
           ) : (
-            <button
+            <>
+              {!isAnnotationsLocked && (
+                <button
+                  onClick={() => setClassroomMode('whiteboard')}
+                  className={cn(
+                    "px-6 py-2 font-black text-[10px] uppercase tracking-[0.2em] rounded-full transition-all shadow-lg active:scale-95 flex items-center gap-2",
+                    classroomMode === 'whiteboard'
+                      ? "bg-brand-purple text-white"
+                      : "bg-white/10 text-white hover:bg-white/20 border border-white/10"
+                  )}
+                >
+                  <MonitorPlay size={14} />
+                  {t("class.whiteboard")}
+                </button>
+              )}
+
+              {!isAnnotationsLocked && classroomMode !== 'none' && (
+                  <button
+                    onClick={() => {
+                      setClassroomMode('none');
+                    }}
+                    className="px-6 py-2 bg-slate-700/50 text-slate-300 border border-white/10 font-black text-[10px] uppercase tracking-[0.2em] rounded-full hover:bg-slate-600 hover:text-white transition-all shadow-lg active:scale-95 flex items-center gap-2"
+                  >
+                  <X size={14} />
+                  {t("class.hideResource")}
+                </button>
+              )}
+
+              <button
                 onClick={handleEndClass}
                 className="px-6 py-2 bg-red-600/20 text-red-500 border border-red-500/30 font-black text-[10px] uppercase tracking-[0.2em] rounded-full hover:bg-red-600 hover:text-white transition-all shadow-lg active:scale-95"
               >
                 {t("class.exitclass")}
-            </button>
+              </button>
+            </>
           )}
 
         </div>
@@ -1294,9 +1339,10 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
                 }}
                 onDeactivate={() => {
                   setActiveMaterial(null);
+                  setClassroomMode('whiteboard');
                   if (isRTMReady && rtmChannelRef.current) {
                     rtmChannelRef.current.sendMessage({
-                      text: JSON.stringify({ type: 'sync', material: null })
+                      text: JSON.stringify({ type: 'sync', material: null, mode: 'whiteboard' })
                     }).catch((e: any) => {});
                   }
                 }}

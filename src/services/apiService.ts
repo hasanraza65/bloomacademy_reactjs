@@ -91,6 +91,20 @@ export const apiService = {
     return response.json();
   },
 
+  async deleteMaterial(id: number | string): Promise<{ success: boolean; message?: string }> {
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(`${BASE_URL}delete-material/${id}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ _method: 'DELETE' }),
+    });
+    return response.json();
+  },
+
   async uploadClassroomMaterial(classroomId: number, formData: FormData): Promise<{ success: boolean; data: any }> {
     const token = localStorage.getItem('auth_token');
     const response = await fetch(`${BASE_URL}classrooms/${classroomId}/materials/upload`, {

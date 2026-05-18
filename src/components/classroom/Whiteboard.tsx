@@ -1070,14 +1070,14 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
 
       {/* Toolbar */}
       {(isTeacher || showTools) && (
-        <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-2 p-2 bg-slate-900/80 backdrop-blur-md rounded-2xl border border-white/10 z-20">
+        <div className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 flex flex-col gap-1.5 md:gap-2 p-1.5 md:p-2 bg-slate-900/80 backdrop-blur-md rounded-2xl border border-white/10 z-20 max-h-[95%] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
 
           {/* Screen Share button */}
           {isTeacher && (
             <button
               onClick={() => onScreenShare?.()}
               title={isSharingScreen ? 'Stop Sharing' : 'Share Screen'}
-              className={cn("p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95",
+              className={cn("p-2 md:p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95",
                 isSharingScreen ? "bg-amber-500 text-white shadow-lg shadow-amber-500/30" : "text-slate-400 hover:text-white hover:bg-white/10"
               )}
             >
@@ -1107,7 +1107,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
               onClick={() => applyTool(tool.id)}
               title={tool.title}
               style={{ display: showTools ? 'flex' : 'none' }}
-              className={cn("p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95 items-center justify-center",
+              className={cn("p-2 md:p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95 items-center justify-center",
                 currentTool === tool.id ? "bg-brand-purple text-white shadow-lg shadow-purple-500/30" : "text-slate-400 hover:text-white hover:bg-white/10"
               )}
             >
@@ -1151,7 +1151,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
                 onClick={() => setShowClearConfirm(!showClearConfirm)}
                 title="Clear annotations on this page"
                 className={cn(
-                  "p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95",
+                  "p-2 md:p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95",
                   showClearConfirm ? "bg-red-500 text-white shadow-lg shadow-red-500/30" : "text-red-400 hover:text-red-300 hover:bg-white/10"
                 )}
               >
@@ -1166,7 +1166,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
               onClick={onLockToggle}
               title={isLocked ? "Unlock student annotations" : "Lock student annotations"}
               className={cn(
-                "p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95",
+                "p-2 md:p-2.5 rounded-xl transition-all hover:scale-110 active:scale-95",
                 isLocked ? "bg-red-500 text-white shadow-lg shadow-red-500/30" : "text-slate-400 hover:text-white hover:bg-white/10"
               )}
             >

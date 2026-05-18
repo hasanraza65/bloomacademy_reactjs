@@ -136,6 +136,14 @@ const translations: Record<Language, Record<string, string>> = {
     'auth.clearSelection': 'Effacer la sélection',
     'auth.slotsSelected': 'créneaux sélectionnés',
     'auth.number-of-students': `Nombre d'élèves`,
+    'common.done': 'Terminé',
+    'common.edit': 'Modifier',
+    'auth.dob': 'Date de naissance',
+    'auth.slots': 'Créneaux de disponibilité',
+    'auth.addStudent': 'Ajouter un élève',
+    'auth.noSlotsSelected': 'Aucun créneau sélectionné',
+    'auth.noScheduleSlots': 'Aucun créneau de cours ajouté pour le moment',
+    'auth.studentName': 'Nom de l\'élève',
 
     // Dashboard
     'dash.welcome': 'Bienvenue',
@@ -489,6 +497,14 @@ const translations: Record<Language, Record<string, string>> = {
     'auth.clearSelection': 'Clear Selection',
     'auth.slotsSelected': 'slots selected',
     'auth.number-of-students': `Number of students`,
+    'common.done': 'Done',
+    'common.edit': 'Edit',
+    'auth.dob': 'Date of Birth',
+    'auth.slots': 'Availability Slots',
+    'auth.addStudent': 'Add Student',
+    'auth.noSlotsSelected': 'No slots selected',
+    'auth.noScheduleSlots': 'No schedule slots added yet',
+    'auth.studentName': 'Student Name',
 
     // Dashboard
     'dash.welcome': 'Welcome',

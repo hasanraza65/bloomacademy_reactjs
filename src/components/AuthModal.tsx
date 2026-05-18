@@ -675,11 +675,15 @@ const ParentSignupView = ({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const [numChildren, setNumChildren] = useState(1);
-  const [children, setChildren] = useState<ChildData[]>([
-    { id: "1", dob: "", schedule: INITIAL_SCHEDULE },
-  ]);
-  const [activeChildIndex, setActiveChildIndex] = useState(0);
+  const [children, setChildren] = useState<ChildData[]>([]);
+  const [editingChildId, setEditingChildId] = useState<string | null>(null);
+
+  // Auto add child when entering step 2 if empty
+  useEffect(() => {
+    if (step === 2 && children.length === 0) {
+      handleAddChild();
+    }
+  }, [step]);
 
   // ── Validation ───────────────────────────────────────────────────────────────
   // Step 1 is valid when all personal fields are filled and passwords match
@@ -692,8 +696,11 @@ const ParentSignupView = ({
     parentFields.telephone.trim() !== "" &&
     parentFields.city.trim() !== "";
 
-  // Full form valid (step 1 + every child has a dob)
-  const isFormValid = isStep1Valid && children.every((c) => c.dob);
+  // Full form valid (step 1 + at least 1 child + all children have a name and DOB)
+  const isFormValid =
+    isStep1Valid &&
+    children.length > 0 &&
+    children.every((c) => c.child_name && c.child_name.trim() !== "" && c.dob);
 
   // ── Submit ───────────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
@@ -710,7 +717,11 @@ const ParentSignupView = ({
           end: slot.endTime,
         }));
       });
-      return { dob: child.dob, schedule: scheduleObj };
+      return {
+        child_name: child.child_name || "",
+        dob: child.dob,
+        schedule: scheduleObj,
+      };
     });
 
     const payload = {
@@ -790,130 +801,154 @@ const ParentSignupView = ({
     }
   };
 
-  // ── Children helpers ─────────────────────────────────────────────────────────
-  const handleNumChildrenChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const val = parseInt(e.target.value);
-    setNumChildren(val);
-    setChildren((prev) => {
-      if (val > prev.length) {
-        const next = [...prev];
-        for (let i = prev.length; i < val; i++) {
-          next.push({ id: `${i + 1}`, dob: "", schedule: INITIAL_SCHEDULE });
-        }
-        return next;
-      }
-      return prev.slice(0, val);
-    });
+  // ── Children Helpers ─────────────────────────────────────────────────────────
+  const handleAddChild = () => {
+    const newId = Math.random().toString(36).substr(2, 9);
+    const newChild: ChildData = {
+      id: newId,
+      child_name: "",
+      dob: "",
+      schedule: INITIAL_SCHEDULE.map((day) => ({ day: day.day, slots: [] })),
+    };
+    setChildren((prev) => [...prev, newChild]);
+    setEditingChildId(newId);
   };
 
-  const updateChildField = (
-    index: number,
-    field: keyof ChildData,
-    value: string,
-  ) => {
-    setChildren((prev) => {
-      const next = [...prev];
-      next[index] = { ...next[index], [field]: value };
-      return next;
-    });
+  const handleEditChild = (id: string) => {
+    setEditingChildId(id);
   };
 
-  const addTimeSlot = (dayName: string) => {
-    setChildren((prev) => {
-      const next = [...prev];
-      const child = next[activeChildIndex];
-      next[activeChildIndex] = {
-        ...child,
-        schedule: child.schedule.map((d) =>
-          d.day === dayName
-            ? {
-                ...d,
-                slots: [
-                  ...d.slots,
-                  {
-                    id: Math.random().toString(36).substr(2, 9),
-                    startTime: "",
-                    endTime: "",
-                  },
-                ],
-              }
-            : d,
-        ),
-      };
-      return next;
-    });
+  const handleDeleteChild = (id: string) => {
+    setChildren((prev) => prev.filter((c) => c.id !== id));
+    if (editingChildId === id) {
+      setEditingChildId(null);
+    }
+  };
+
+  const handleSaveChild = (id: string) => {
+    const child = children.find((c) => c.id === id);
+    if (!child) return;
+    if (!child.child_name || child.child_name.trim() === "") {
+      setError(
+        t("en") === "en"
+          ? "Please enter student's name"
+          : "Veuillez entrer le nom de l'élève",
+      );
+      return;
+    }
+    if (!child.dob) {
+      setError(
+        t("en") === "en"
+          ? "Please enter student's date of birth"
+          : "Veuillez entrer la date de naissance de l'élève",
+      );
+      return;
+    }
+    setError(null);
+    setEditingChildId(null);
+  };
+
+  const addTimeSlot = (childId: string, dayName: string) => {
+    setChildren((prev) =>
+      prev.map((child) =>
+        child.id === childId
+          ? {
+              ...child,
+              schedule: child.schedule.map((d) =>
+                d.day === dayName
+                  ? {
+                      ...d,
+                      slots: [
+                        ...d.slots,
+                        {
+                          id: Math.random().toString(36).substr(2, 9),
+                          startTime: "09:00",
+                          endTime: "10:00",
+                        },
+                      ],
+                    }
+                  : d,
+              ),
+            }
+          : child,
+      ),
+    );
   };
 
   const updateTimeSlot = (
+    childId: string,
     dayName: string,
     slotId: string,
     field: "startTime" | "endTime",
     value: string,
   ) => {
-    setChildren((prev) => {
-      const next = [...prev];
-      const child = next[activeChildIndex];
-      next[activeChildIndex] = {
-        ...child,
-        schedule: child.schedule.map((d) =>
-          d.day === dayName
-            ? {
-                ...d,
-                slots: d.slots.map((s) => {
-                  if (s.id !== slotId) return s;
-                  let nextSlot = { ...s, [field]: value };
+    setChildren((prev) =>
+      prev.map((child) =>
+        child.id === childId
+          ? {
+              ...child,
+              schedule: child.schedule.map((d) =>
+                d.day === dayName
+                  ? {
+                      ...d,
+                      slots: d.slots.map((s) => {
+                        if (s.id !== slotId) return s;
+                        let nextSlot = { ...s, [field]: value };
 
-                  if (field === "startTime" && value) {
-                    const [h, m] = value.split(":").map(Number);
-                    const nextH = (h + 1) % 24;
-                    nextSlot.endTime = `${nextH.toString().padStart(2, "0")}:${m
-                      .toString()
-                      .padStart(2, "0")}`;
-                  }
+                        if (field === "startTime" && value) {
+                          const [h, m] = value.split(":").map(Number);
+                          const nextH = (h + 1) % 24;
+                          nextSlot.endTime = `${nextH
+                            .toString()
+                            .padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+                        }
 
-                  if (nextSlot.startTime && nextSlot.endTime) {
-                    const [sh, sm] = nextSlot.startTime.split(":").map(Number);
-                    const [eh, em] = nextSlot.endTime.split(":").map(Number);
-                    const startMins = sh * 60 + sm;
-                    const endMins = eh * 60 + em;
-                    if (
-                      endMins - startMins < 30 &&
-                      endMins > startMins &&
-                      field === "endTime"
-                    ) {
-                      const forceMins = startMins + 30;
-                      nextSlot.endTime = `${Math.floor(forceMins / 60)
-                        .toString()
-                        .padStart(
-                          2,
-                          "0",
-                        )}:${(forceMins % 60).toString().padStart(2, "0")}`;
+                        if (nextSlot.startTime && nextSlot.endTime) {
+                          const [sh, sm] = nextSlot.startTime
+                            .split(":")
+                            .map(Number);
+                          const [eh, em] = nextSlot.endTime.split(":").map(Number);
+                          const startMins = sh * 60 + sm;
+                          const endMins = eh * 60 + em;
+                          if (
+                            endMins - startMins < 30 &&
+                            endMins > startMins &&
+                            field === "endTime"
+                          ) {
+                            const forceMins = startMins + 30;
+                            nextSlot.endTime = `${Math.floor(forceMins / 60)
+                              .toString()
+                              .padStart(2, "0")}:${(forceMins % 60)
+                              .toString()
+                              .padStart(2, "0")}`;
+                          }
+                        }
+                        return nextSlot;
+                      }),
                     }
-                  }
-                  return nextSlot;
-                }),
-              }
-            : d,
-        ),
-      };
-      return next;
-    });
+                  : d,
+              ),
+            }
+          : child,
+      ),
+    );
   };
 
-  const removeTimeSlot = (dayName: string, slotId: string) => {
-    setChildren((prev) => {
-      const next = [...prev];
-      const child = next[activeChildIndex];
-      next[activeChildIndex] = {
-        ...child,
-        schedule: child.schedule.map((d) =>
-          d.day === dayName
-            ? { ...d, slots: d.slots.filter((s) => s.id !== slotId) }
-            : d,
-        ),
-      };
-      return next;
-    });
+  const removeTimeSlot = (childId: string, dayName: string, slotId: string) => {
+    setChildren((prev) =>
+      prev.map((child) =>
+        child.id === childId
+          ? {
+              ...child,
+              schedule: child.schedule.map((d) =>
+                d.day === dayName
+                  ? { ...d, slots: d.slots.filter((s) => s.id !== slotId) }
+                  : d,
+              ),
+            }
+          : child,
+      ),
+    );
   };
 
   // ── Render ───────────────────────────────────────────────────────────────────
@@ -922,12 +957,6 @@ const ParentSignupView = ({
       {/* ── Header + Step Indicator ─────────────────────────────────────────── */}
       <div className="shrink-0 px-8 md:px-12 pt-8 pb-2 bg-slate-50/50 border-b border-slate-100">
         <div className="flex items-center gap-2 mb-5">
-          {/* <div className="w-10 h-10 bloom-gradient rounded-xl flex items-center justify-center text-white font-bold">
-            B
-          </div>
-          <span className="text-xl font-bold tracking-tight text-brand-slate-ink">
-            Bloom Buddies Academy
-          </span> */}
           <img src={Logo} alt="Bloom Buddies Academy" className="w-84 h-auto transform -translate-x-2" />
         </div>
 
@@ -950,7 +979,6 @@ const ParentSignupView = ({
                 step === 1 ? "text-brand-indigo" : "text-emerald-600",
               )}
             >
-              {/* {t("auth.yourDetails")} */}
             </span>
           </div>
 
@@ -982,7 +1010,6 @@ const ParentSignupView = ({
                 step === 2 ? "text-brand-indigo" : "text-slate-400",
               )}
             >
-              {/* {t("auth.childrenSchedule")} */}
             </span>
           </div>
         </div>
@@ -1137,7 +1164,7 @@ const ParentSignupView = ({
           <div className="px-8 md:px-12 py-8">
             <div className="mb-8">
               <h2 className="text-3xl font-extrabold text-brand-slate-ink">
-                {t("auth.registration")}
+                {t("auth.registration") || "Registration"}
               </h2>
               <p className="text-slate-500 mt-1">{t("nav.iamaParent")}</p>
             </div>
@@ -1154,153 +1181,255 @@ const ParentSignupView = ({
               </div>
             )}
 
-            {/* Number of children */}
-            <div className="mb-6">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                {t("auth.number-of-students")}
-              </label>
-              <select
-                value={numChildren}
-                onChange={handleNumChildrenChange}
-                className="input-field h-14 mt-2"
-              >
-
-                {[1, 2, 3, 4].map((n) => (
-                  <option key={n} value={n}>
-                    {n}{" "}
-                    {n === 1
-                      ? t("class.student")
-                      : t("class.students")}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Child DOBs */}
-            {/* Child DOBs */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-              {children.map((child, idx) => (
-                <div
-                  key={child.id}
-                  className="p-4 bg-white rounded-2xl soft-shadow border border-slate-100"
-                >
-                  <label className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest font-mono block mb-2">
-                    {t("class.student")} {idx + 1}
-                  </label>
-                  <div className="relative group">
-                    <CalendarIcon
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-brand-indigo transition-colors"
-                      size={14}
-                    />
-                    <input
-                      type="date"
-                      value={child.dob}
-                      onChange={(e) =>
-                        updateChildField(idx, "dob", e.target.value)
-                      }
-                      className="input-field h-10 text-xs bg-slate-50 border-transparent focus:bg-white !pl-9 w-full"
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Child tabs + schedule */}
-            <div className="flex bg-slate-100 p-1 rounded-full overflow-x-auto no-scrollbar mb-6 w-fit">
-              {children.map((_, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setActiveChildIndex(idx)}
-                  className={cn(
-                    "px-6 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap capitalize",
-                    activeChildIndex === idx ? "tab-active" : "tab-inactive",
-                  )}
-                >
-                  {t("class.student")} {idx + 1}
-                </button>
-              ))}
-            </div>
-
-            <div className="space-y-4">
-              {children[activeChildIndex].schedule.map((day) => (
-                <div
-                  key={day.day}
-                  className="p-5 rounded-2xl bg-slate-50/50 border border-indigo-200 transition-all hover:bg-white hover:soft-shadow hover:border-brand-indigo/20 group"
-                >
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-extrabold text-slate-800 uppercase tracking-widest">
-                      {t(`days.${day.day}`)}
-                    </span>
-                    <button
-                      onClick={() => addTimeSlot(day.day)}
-                      className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-xl text-slate-500 text-white bg-indigo-500 hover:border-brand-indigo hover:shadow-lg hover:shadow-indigo-50 transition-all font-bold text-[11px] uppercase tracking-wider"
-                    >
-                      <Plus size={14} /> {t("auth.addSlot")}
-                    </button>
-                  </div>
-
-                  <div className="flex wrap items-center gap-3">
-                    {day.slots.length === 0 ? (
-                      <div className="text-[11px] font-bold text-slate-300 uppercase tracking-widest italic">
-                        {/* {t("auth.noSlots")} */}
+            {/* List of children (collapsible box/card system) */}
+            <div className="space-y-6">
+              {children.map((child, idx) => {
+                const isEditing = editingChildId === child.id;
+                return (
+                  <div
+                    key={child.id}
+                    className={cn(
+                      "p-6 rounded-[2rem] border transition-all duration-300",
+                      isEditing
+                        ? "bg-indigo-50/20 border-indigo-200 shadow-2xl shadow-indigo-100/50"
+                        : "bg-slate-50/50 border-slate-100 hover:bg-white hover:soft-shadow hover:border-indigo-100",
+                    )}
+                  >
+                    {/* Card Header */}
+                    <div className="flex justify-between items-center mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-brand-indigo/10 text-brand-indigo rounded-2xl flex items-center justify-center font-bold">
+                          <UserIcon size={18} />
+                        </div>
+                        <div>
+                          <h4 className="text-md font-black text-slate-800 tracking-wide uppercase">
+                            {child.child_name || `${t("class.student")} ${idx + 1}`}
+                          </h4>
+                          {child.dob && (
+                            <p className="text-xs font-bold text-slate-400">
+                              {t("auth.dob") || "Date of Birth"}: {child.dob}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    ) : (
-                      day.slots.map((slot) => (
-                        <div
-                          key={slot.id}
-                          className="flex items-center gap-3 bg-white border border-slate-200 p-2 pl-4 pr-2 rounded-lg soft-shadow-sm hover:border-brand-indigo/30 transition-colors"
+                      <div className="flex items-center gap-2">
+                        {isEditing ? (
+                          <button
+                            type="button"
+                            onClick={() => handleSaveChild(child.id)}
+                            className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-[10px] uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95"
+                          >
+                            {t("common.done") || "Done"}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleEditChild(child.id)}
+                            className="px-4 py-1.5 bg-brand-indigo/10 text-brand-indigo hover:bg-brand-indigo hover:text-white font-bold text-[10px] uppercase tracking-wider rounded-xl transition-all active:scale-95"
+                          >
+                            {t("common.edit") || "Edit"}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteChild(child.id)}
+                          className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
                         >
-                          <div className="flex items-center gap-2">
-                            <div className="space-y-0.5">
-                              <p className="text-xs font-bold text-slate-700 tracking-widest leading-none">
-                                {t("auth.start")}
-                              </p>
-                              <input
-                                type="time"
-                                value={slot.startTime}
-                                onChange={(e) =>
-                                  updateTimeSlot(
-                                    day.day,
-                                    slot.id,
-                                    "startTime",
-                                    e.target.value,
-                                  )
-                                }
-                                className="bg-transparent text-xs font-bold text-brand-indigo outline-none cursor-pointer"
-                              />
-                            </div>
-                            <div className="w-4 h-px bg-slate-100" />
-                            <div className="space-y-0.5">
-                              <p className="text-xs font-bold text-slate-700 tracking-widest leading-none">
-                                {t("auth.end")}
-                              </p>
-                              <input
-                                type="time"
-                                value={slot.endTime}
-                                onChange={(e) =>
-                                  updateTimeSlot(
-                                    day.day,
-                                    slot.id,
-                                    "endTime",
-                                    e.target.value,
-                                  )
-                                }
-                                className="bg-transparent text-xs font-bold text-brand-indigo outline-none cursor-pointer"
-                              />
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Card Fields (Visible if isEditing) */}
+                    <AnimatePresence>
+                      {isEditing ? (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="space-y-4 pt-4 border-t border-slate-100"
+                        >
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <FormInput
+                              label={t("auth.studentName") || "Student Name"}
+                              icon={UserIcon}
+                              type="text"
+                              className="h-11"
+                              required
+                              placeholder="John Doe"
+                              value={child.child_name || ""}
+                              onChange={(e) => {
+                                setChildren((prev) =>
+                                  prev.map((c) =>
+                                    c.id === child.id
+                                      ? { ...c, child_name: e.target.value }
+                                      : c,
+                                  ),
+                                );
+                              }}
+                            />
+                            <div className="space-y-2">
+                              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                                {t("auth.dob") || "Date of Birth"}
+                              </label>
+                              <div className="relative group">
+                                <CalendarIcon
+                                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-brand-indigo transition-colors"
+                                  size={14}
+                                />
+                                <input
+                                  type="date"
+                                  required
+                                  value={child.dob}
+                                  onChange={(e) => {
+                                    setChildren((prev) =>
+                                      prev.map((c) =>
+                                        c.id === child.id
+                                          ? { ...c, dob: e.target.value }
+                                          : c,
+                                      ),
+                                    );
+                                  }}
+                                  className="input-field h-11 text-xs bg-slate-50 border-transparent focus:bg-white !pl-9 w-full"
+                                />
+                              </div>
                             </div>
                           </div>
-                          <button
-                            onClick={() => removeTimeSlot(day.day, slot.id)}
-                            className="p-2 bg-red-200 text-red-400 hover:text-white hover:bg-red-500 rounded-md transition-all"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+
+                          {/* Day schedule slots expanding inline */}
+                          <div className="space-y-3 mt-6">
+                            <h5 className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1 mb-2">
+                              {t("auth.slots") || "Availability Slots"}
+                            </h5>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-1 no-scrollbar">
+                              {child.schedule.map((day) => (
+                                <div
+                                  key={day.day}
+                                  className="p-4 rounded-2xl bg-slate-50/50 border border-slate-200/65 transition-all hover:bg-white hover:soft-shadow hover:border-brand-indigo/20"
+                                >
+                                  <div className="flex justify-between items-center mb-3">
+                                    <span className="text-xs font-extrabold text-slate-700 uppercase tracking-widest">
+                                      {t(`days.${day.day}`)}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => addTimeSlot(child.id, day.day)}
+                                      className="flex items-center gap-1 px-3 py-1 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg transition-all font-bold text-[9px] uppercase tracking-wider"
+                                    >
+                                      <Plus size={10} />{" "}
+                                      {t("auth.addSlot") || "Add Slot"}
+                                    </button>
+                                  </div>
+
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    {day.slots.length === 0 ? (
+                                      <div className="text-[9px] font-bold text-slate-300 uppercase tracking-widest italic pl-1">
+                                        {t("auth.noSlotsSelected") || "No slots selected"}
+                                      </div>
+                                    ) : (
+                                      day.slots.map((slot) => (
+                                        <div
+                                          key={slot.id}
+                                          className="flex items-center gap-2 bg-white border border-slate-100 p-1.5 pl-3 pr-1.5 rounded-lg soft-shadow-sm hover:border-brand-indigo/30 transition-colors"
+                                        >
+                                          <div className="flex items-center gap-1">
+                                            <input
+                                              type="time"
+                                              value={slot.startTime}
+                                              onChange={(e) =>
+                                                updateTimeSlot(
+                                                  child.id,
+                                                  day.day,
+                                                  slot.id,
+                                                  "startTime",
+                                                  e.target.value,
+                                                )
+                                              }
+                                              className="bg-transparent text-[10px] font-bold text-brand-indigo outline-none cursor-pointer w-[45px]"
+                                            />
+                                            <span className="text-[10px] text-slate-300">
+                                              -
+                                            </span>
+                                            <input
+                                              type="time"
+                                              value={slot.endTime}
+                                              onChange={(e) =>
+                                                updateTimeSlot(
+                                                  child.id,
+                                                  day.day,
+                                                  slot.id,
+                                                  "endTime",
+                                                  e.target.value,
+                                                )
+                                              }
+                                              className="bg-transparent text-[10px] font-bold text-brand-indigo outline-none cursor-pointer w-[45px]"
+                                            />
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              removeTimeSlot(
+                                                child.id,
+                                                day.day,
+                                                slot.id,
+                                              )
+                                            }
+                                            className="p-1 bg-red-50 text-red-400 hover:text-white hover:bg-red-500 rounded transition-all"
+                                          >
+                                            <X size={10} />
+                                          </button>
+                                        </div>
+                                      ))
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </motion.div>
+                      ) : (
+                        /* Collapsed summary of schedules */
+                        <div className="mt-2 text-xs text-slate-500 space-y-1">
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {child.schedule.some((day) => day.slots.length > 0) ? (
+                              child.schedule.map((day) => {
+                                if (day.slots.length === 0) return null;
+                                return (
+                                  <div
+                                    key={day.day}
+                                    className="bg-indigo-50 border border-indigo-100/50 px-3 py-1 rounded-full text-[10px] font-bold text-slate-600 capitalize"
+                                  >
+                                    {day.day.substr(0, 3)}:{" "}
+                                    {day.slots
+                                      .map((s) => `${s.startTime}-${s.endTime}`)
+                                      .join(", ")}
+                                  </div>
+                                );
+                              })
+                            ) : (
+                              <p className="text-[11px] italic text-slate-400 font-bold ml-1 uppercase tracking-wider">
+                                {t("auth.noScheduleSlots") || "No schedule slots added yet"}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                      ))
-                    )}
+                      )}
+                    </AnimatePresence>
                   </div>
-                </div>
-              ))}
+                );
+              })}
+
+              {/* Add Student Button */}
+              {!editingChildId && (
+                <button
+                  type="button"
+                  onClick={handleAddChild}
+                  className="w-full py-4 border-2 border-dashed border-indigo-200 hover:border-brand-indigo hover:bg-indigo-50/30 text-brand-indigo font-bold text-xs uppercase tracking-widest rounded-[2rem] transition-all flex items-center justify-center gap-2"
+                >
+                  <Plus size={16} />
+                  {t("auth.addStudent") || "Add Student"}
+                </button>
+              )}
             </div>
           </div>
         )}
