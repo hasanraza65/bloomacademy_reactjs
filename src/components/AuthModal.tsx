@@ -1321,7 +1321,7 @@ const ParentSignupView = ({
                           {/* Day schedule slots expanding inline */}
                           <div className="space-y-3 mt-6">
                             <h5 className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1 mb-2">
-                              {t("auth.slots") || "Availability Slots"}
+                              {t("auth.slots") || "Lesson Schedule"}
                             </h5>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-1 no-scrollbar">
                               {child.schedule.map((day) => (
