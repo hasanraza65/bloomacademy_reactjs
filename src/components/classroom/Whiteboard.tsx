@@ -1032,7 +1032,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
 
       {/* Zoom controls for PDF */}
       {pdfUrl && isTeacher && (
-        <div className="absolute right-8 top-1/2 -translate-y-1/2 flex flex-col gap-2 p-2 bg-slate-900/80 backdrop-blur-md rounded-2xl border border-white/10 z-30 shadow-2xl">
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 flex flex-col gap-2 p-2 bg-slate-900/80 backdrop-blur-md rounded-l-2xl border-y border-l border-white/10 z-30 shadow-2xl">
           <button
             onClick={() => onZoomChange?.(Math.min(zoom + 0.25, 3))}
             className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all"
@@ -1055,7 +1055,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
 
       {/* Page controls */}
       {pdfUrl && isTeacher && numPages > 0 && (
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-slate-900/80 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/10 z-30 shadow-2xl">
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-slate-900/80 backdrop-blur-md px-6 py-3 rounded-t-2xl border-x border-t border-white/10 z-30 shadow-2xl">
           <button disabled={currentPage <= 1} onClick={() => onPageChange?.(currentPage - 1)} className="p-2 text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-colors">
             <ChevronLeft size={20} />
           </button>
@@ -1070,7 +1070,11 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
 
       {/* Toolbar */}
       {(isTeacher || showTools) && (
-        <div className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 flex flex-col gap-1.5 md:gap-2 p-1.5 md:p-2 bg-slate-900/80 backdrop-blur-md rounded-2xl border border-white/10 z-20 max-h-[95%] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div 
+          dir="rtl"
+          className="absolute left-0 top-1/2 -translate-y-1/2 bg-slate-900/80 backdrop-blur-md rounded-r-2xl border-y border-r border-white/10 z-20 max-h-[95%] overflow-y-auto custom-scrollbar-purple"
+        >
+          <div dir="ltr" className="flex flex-col gap-1.5 md:gap-2 p-1.5 md:p-2">
 
           {/* Screen Share button */}
           {isTeacher && (
@@ -1185,6 +1189,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
             <X size={20} />
           </button> */}
 
+        </div>
         </div>
       )}
     </div>
