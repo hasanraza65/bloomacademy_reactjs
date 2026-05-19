@@ -94,6 +94,24 @@
   background: rgba(0, 0, 0, 0.25);
 }
 
+.custom-scrollbar-purple::-webkit-scrollbar {
+  width: 3px;
+}
+
+.custom-scrollbar-purple::-webkit-scrollbar-track {
+  background: transparent;
+  margin-block: 16px; /* Prevents scrollbar from overlapping rounded corners */
+}
+
+.custom-scrollbar-purple::-webkit-scrollbar-thumb {
+  background: #A855F7;
+  border-radius: 0px;
+}
+
+.custom-scrollbar-purple::-webkit-scrollbar-thumb:hover {
+  background: #9333EA;
+}
+
 
 /* Netless Whiteboard Transparency */
 .bg-transparent.netless-container > div,

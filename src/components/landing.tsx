@@ -46,15 +46,15 @@ export const Navbar = ({
   const isMenagePage = location.pathname === '/menage';
 
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll);
+    const handleScroll = () => setIsScrolled(window.scrollY > 5);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   return (
     <nav className={cn(
-      "fixed top-0 left-0 right-0 z-50 transition-all duration-300 px-6 py-4",
-      isScrolled ? "glass-morphism py-3 soft-shadow" : "bg-transparent"
+      "fixed top-0 left-0 right-0 z-50 transition-all duration-75 px-6 py-4",
+      isScrolled ? "bg-white/95 backdrop-blur-md py-3 shadow-md" : "bg-transparent"
     )}>
       <div className="max-w-[1600px] mx-auto flex items-center justify-between">
         <div className="flex items-center gap-2 cursor-pointer group shrink-0">
@@ -144,7 +144,7 @@ export const Navbar = ({
         </div>
 
         {/* Mobile Menu Button */}
-        <button className="lg:hidden text-slate-800" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+        <button type="button" className="lg:hidden text-slate-800 active:scale-95 transition-transform touch-manipulation p-2 -mr-2" onClick={() => setIsMenuOpen(!isMenuOpen)}>
           {isMenuOpen ? <X size={28} /> : <Menu size={28} />}
         </button>
       </div>
@@ -153,10 +153,11 @@ export const Navbar = ({
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: '100dvh' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="md:hidden bg-white/95 backdrop-blur-xl absolute top-full left-0 right-0 border-b border-slate-100 px-6 py-8 overflow-hidden"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="lg:hidden bg-white/95 backdrop-blur-xl absolute top-full left-0 right-0 h-[100dvh] border-b border-slate-100 px-6 py-8 overflow-y-auto"
           >
             <div className="flex flex-col gap-6 text-lg font-bold text-slate-700">
               <Link className="hover:text-brand-purple transition-colors whitespace-nowrap text-[16px]" to="/" onClick={() => setIsMenuOpen(false)}>{t('nav.home') || 'Home'}</Link>

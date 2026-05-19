@@ -695,6 +695,7 @@ const ParentSignupView = ({
     telephone: "",
     countryCode: "+1",
     city: "",
+    isCityValid: false,
   });
 
   const [loading, setLoading] = useState(false);
@@ -704,12 +705,7 @@ const ParentSignupView = ({
   const [children, setChildren] = useState<ChildData[]>([]);
   const [editingChildId, setEditingChildId] = useState<string | null>(null);
 
-  // Auto add child when entering step 2 if empty
-  useEffect(() => {
-    if (step === 2 && children.length === 0) {
-      handleAddChild();
-    }
-  }, [step]);
+
 
   // ── Validation ───────────────────────────────────────────────────────────────
   // Step 1 is valid when all personal fields are filled and passwords match
@@ -720,7 +716,8 @@ const ParentSignupView = ({
     parentFields.password !== "" &&
     parentFields.password === parentFields.confirmPassword &&
     parentFields.telephone.trim() !== "" &&
-    parentFields.city.trim() !== "";
+    parentFields.city.trim() !== "" &&
+    parentFields.isCityValid;
 
   // Full form valid (step 1 + at least 1 child + all children have a name and DOB)
   const isFormValid =
@@ -853,14 +850,14 @@ const ParentSignupView = ({
 
   const handleSaveChild = (id: string) => {
     const child = children.find((c) => c.id === id);
-    if (!child) return;
+    if (!child) return false;
     if (!child.child_name || child.child_name.trim() === "") {
       setError(
         t("en") === "en"
           ? "Please enter student's name"
           : "Veuillez entrer le nom de l'élève",
       );
-      return;
+      return false;
     }
     if (!child.dob) {
       setError(
@@ -868,10 +865,11 @@ const ParentSignupView = ({
           ? "Please enter student's date of birth"
           : "Veuillez entrer la date de naissance de l'élève",
       );
-      return;
+      return false;
     }
     setError(null);
     setEditingChildId(null);
+    return true;
   };
 
   const addTimeSlot = (childId: string, dayName: string) => {
@@ -888,8 +886,8 @@ const ParentSignupView = ({
                         ...d.slots,
                         {
                           id: Math.random().toString(36).substr(2, 9),
-                          startTime: "09:00",
-                          endTime: "10:00",
+                          startTime: "",
+                          endTime: "",
                         },
                       ],
                     }
@@ -936,18 +934,7 @@ const ParentSignupView = ({
                           const [eh, em] = nextSlot.endTime.split(":").map(Number);
                           const startMins = sh * 60 + sm;
                           const endMins = eh * 60 + em;
-                          if (
-                            endMins - startMins < 30 &&
-                            endMins > startMins &&
-                            field === "endTime"
-                          ) {
-                            const forceMins = startMins + 30;
-                            nextSlot.endTime = `${Math.floor(forceMins / 60)
-                              .toString()
-                              .padStart(2, "0")}:${(forceMins % 60)
-                              .toString()
-                              .padStart(2, "0")}`;
-                          }
+                          // Check removed to allow free typing of end time
                         }
                         return nextSlot;
                       }),
@@ -975,6 +962,18 @@ const ParentSignupView = ({
           : child,
       ),
     );
+  };
+
+  const calculateAge = (dobString: string) => {
+    if (!dobString) return "";
+    const dob = new Date(dobString);
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const m = today.getMonth() - dob.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+      age--;
+    }
+    return age;
   };
 
   // ── Render ───────────────────────────────────────────────────────────────────
@@ -1177,8 +1176,13 @@ const ParentSignupView = ({
                   placeholder="Paris"
                   value={parentFields.city}
                   onChange={(val) =>
-                    setParentFields((prev) => ({ ...prev, city: val }))
+                    setParentFields((prev) => ({ ...prev, city: val, isCityValid: false }))
                   }
+                  onPlaceSelected={(place) => {
+                    if (place.formatted_address || place.name) {
+                      setParentFields((prev) => ({ ...prev, isCityValid: true }));
+                    }
+                  }}
                 />
               </div>
             </div>
@@ -1229,25 +1233,17 @@ const ParentSignupView = ({
                         </div>
                         <div>
                           <h4 className="text-md font-black text-slate-800 tracking-wide uppercase">
-                            {child.child_name || `${t("class.student")} ${idx + 1}`}
+                            {child.child_name || "\u00A0"}
                           </h4>
                            {child.dob && (
                             <p className="text-xs font-bold text-slate-400">
-                              {t("auth.dob") || "Date of Birth"}: {child.dob.split('-').reverse().map((part, i) => i === 2 ? part.slice(-2) : part).join('/')}
+                              {t("auth.dob") || "Date of Birth"}: {child.dob.split('-').reverse().map((part, i) => i === 2 ? part.slice(-2) : part).join('/')} ({calculateAge(child.dob)} years)
                             </p>
                           )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {isEditing ? (
-                          <button
-                            type="button"
-                            onClick={() => handleSaveChild(child.id)}
-                            className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-[10px] uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95"
-                          >
-                            {t("common.done") || "Done"}
-                          </button>
-                        ) : (
+                        {!isEditing && (
                           <button
                             type="button"
                             onClick={() => handleEditChild(child.id)}
@@ -1282,7 +1278,7 @@ const ParentSignupView = ({
                               type="text"
                               className="h-11"
                               required
-                              placeholder="John Doe"
+                              placeholder="Elias"
                               value={child.child_name || ""}
                               onChange={(e) => {
                                 setChildren((prev) =>
@@ -1446,16 +1442,20 @@ const ParentSignupView = ({
               })}
 
               {/* Add Student Button */}
-              {!editingChildId && (
-                <button
-                  type="button"
-                  onClick={handleAddChild}
-                  className="w-full py-4 border-2 border-dashed border-indigo-200 hover:border-brand-indigo hover:bg-indigo-50/30 text-brand-indigo font-bold text-xs uppercase tracking-widest rounded-[2rem] transition-all flex items-center justify-center gap-2"
-                >
-                  <Plus size={16} />
-                  {t("auth.addStudent") || "Add Student"}
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => {
+                  if (editingChildId) {
+                    const isValid = handleSaveChild(editingChildId);
+                    if (!isValid) return;
+                  }
+                  handleAddChild();
+                }}
+                className="w-full py-4 border-2 border-dashed border-indigo-200 hover:border-brand-indigo hover:bg-indigo-50/30 text-brand-indigo font-bold text-xs uppercase tracking-widest rounded-[2rem] transition-all flex items-center justify-center gap-2"
+              >
+                <Plus size={16} />
+                {t("auth.addStudent") || "Add Student"}
+              </button>
             </div>
           </div>
         )}
@@ -1551,6 +1551,7 @@ const TeacherSignupView = ({
     dob: "",
     city: "",
     timezone: "",
+    isCityValid: false,
   });
 
   const [loading, setLoading] = useState(false);
@@ -1575,6 +1576,7 @@ const TeacherSignupView = ({
     fields.telephone.trim() !== "" &&
     fields.dob !== "" &&
     fields.city.trim() !== "" &&
+    fields.isCityValid &&
     fields.timezone !== "" &&
     aboutMe.length >= 250;
 
@@ -1777,6 +1779,7 @@ const TeacherSignupView = ({
     setFields((prev) => ({
       ...prev,
       timezone,
+      isCityValid: true,
     }));
   };
   return (
@@ -2027,7 +2030,7 @@ const TeacherSignupView = ({
                   placeholder="San Francisco"
                   value={fields.city}
                   onChange={(val) =>
-                    setFields((prev) => ({ ...prev, city: val }))
+                    setFields((prev) => ({ ...prev, city: val, isCityValid: false }))
                   }
                   onPlaceSelected={handleCitySelected}
                 />
