@@ -18,7 +18,8 @@ import { UserRole, AuthMode, User, ClassroomData } from './types';
 import { apiService } from './services/apiService';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { ResetPassword } from './components/ResetPassword';
-import ScrollToTop from "./ScrollToTop";
+import { PriceQuotePage } from './components/PriceQuotePage';
+import ScrollToTop from "./scrollToTop";
 import { useLanguage } from './context/LanguageContext';
 
 
@@ -194,6 +195,14 @@ export default function App() {
               <Navigate to="/" replace />
             )
           } 
+        />
+        <Route 
+          path="/price-qoute/:id" 
+          element={<PriceQuotePage />} 
+        />
+        <Route 
+          path="/price-quote/:id" 
+          element={<Navigate to="/price-qoute/:id" replace />} 
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
