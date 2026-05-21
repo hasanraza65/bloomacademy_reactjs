@@ -241,5 +241,30 @@ export const apiService = {
       body: JSON.stringify(payload),
     });
     return response.json();
+  },
+
+  async getPriceQuote(id: string | number): Promise<{ success: boolean; data: any; recommended_teachers: any[] }> {
+    const response = await fetch(`${BASE_URL}price-quotes/${id}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch quote: ${response.statusText}`);
+    }
+    return response.json();
+  },
+
+  async approvePriceQuote(id: string | number, payload: any): Promise<{ success: boolean; message?: string }> {
+    const response = await fetch(`${BASE_URL}price-quotes/${id}/approve`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+    return response.json();
   }
 };
