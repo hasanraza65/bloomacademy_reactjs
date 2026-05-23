@@ -307,7 +307,7 @@ export const PriceQuotePage = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [expandedChildren, setExpandedChildren] = useState<Record<number, boolean>>({});
+  const [expandedChildren, setExpandedChildren] = useState<Record<number, boolean>>({ 0: true });
 
   // Rejection & Request New Quote States
   const [showReject, setShowReject] = useState(false);
@@ -485,10 +485,31 @@ export const PriceQuotePage = () => {
     );
   }
 
+  // Helpers
+  const getQuoteRef = () => {
+    if (!quoteData) return '';
+    const dateStr = quoteData.created_at || quoteData.updated_at;
+    if (!dateStr) return `D/2605-${id}`;
+    try {
+      const d = new Date(dateStr);
+      const yy = String(d.getFullYear()).slice(-2);
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `D/${yy}${mm}${dd}-${quoteData.id || id}`;
+    } catch (e) {
+      return `D/2605-${quoteData.id || id}`;
+    }
+  };
+
+  const getFormattedDate = (dateStr?: string) => {
+    const d = dateStr ? new Date(dateStr) : new Date();
+    return d.toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US');
+  };
+
   // Cost calculations
   const hourlyRateFloat = parseFloat(quoteData.hourly_rate) || 25.0;
   const weeklyHoursFloat = parseFloat(quoteData.weekly_hours) || 12.0;
-  const originalMonthlyCost = parseFloat(quoteData.monthly_cost) || 1200.0;
+  const originalMonthlyCost = parseFloat(quoteData.monthly_cost) || parseFloat((hourlyRateFloat * weeklyHoursFloat * 4.33).toFixed(2));
   const childrenCount = quoteData.children_data?.length || 1;
 
   // Option 1: 1:1 Tutoring (Private) - Dynamic from API
@@ -497,19 +518,13 @@ export const PriceQuotePage = () => {
 
   // Option 2: Group of 4 Tutoring (15 * number of children)
   const rateGroup = parseFloat((15 * childrenCount).toFixed(2));
-  const costGroup = parseFloat((rateGroup * weeklyHoursFloat * 4).toFixed(2));
+  const costGroup = parseFloat((rateGroup * weeklyHoursFloat * 4.33).toFixed(2));
 
   const currentMonthlyCost = selectedStyle === '1to1' ? cost1to1 : costGroup;
   const currentHourlyRate = selectedStyle === '1to1' ? rate1to1 : rateGroup;
 
   // Child data
-  const child = quoteData.children_data?.[0] || {};
-  const childName = child.child_name || "Student";
-  const evalDate = child.evaluation_class_date || "2026-05-25";
-  const evalTime = child.evaluation_class_time || "05:00 PM";
-  
-  // Format schedules
-  const scheduleEntries = Object.entries(child.lesson_schedule || {});
+  const childrenNames = quoteData.children_data?.map((c: any) => c.child_name || "Student").join(', ') || "Student";
 
   const selectedTeacher = teachers.find(t => t.id === selectedTeacherId);
 
@@ -530,11 +545,11 @@ export const PriceQuotePage = () => {
             <img src={logo} alt="Bloom Buddies Academy" className="w-48 sm:w-56 h-auto" />
             <div className="text-left sm:text-right">
               <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight">
-                {language === 'fr' ? 'DEVIS' : 'QUOTE'} N° D/21110-{id}
+                {language === 'fr' ? 'DEVIS' : 'QUOTE'} N° {getQuoteRef()}
               </h1>
               <p className="text-[11px] text-slate-400 font-bold mt-1">
                 {language === 'fr' ? 'Date de création' : 'Creation Date'}:{' '}
-                {quoteData.created_at ? new Date(quoteData.created_at).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US') : '12/05/2026'}
+                {getFormattedDate(quoteData.created_at)}
               </p>
             </div>
           </div>
@@ -1042,7 +1057,7 @@ export const PriceQuotePage = () => {
                   <div className="flex justify-between items-start gap-4">
                     <span className="leading-normal">
                       {selectedStyle === '1to1' ? t('lessonStyle1to1') : t('lessonStyleGroup')} -{' '}
-                      {childName} ({weeklyHoursFloat} hrs/{t('hour')})
+                      {childrenNames} ({weeklyHoursFloat} hrs/{t('hour')})
                     </span>
                     <span className="text-slate-800 font-extrabold shrink-0">
                       {currentMonthlyCost} €
@@ -1116,8 +1131,8 @@ export const PriceQuotePage = () => {
                         onClick={() => {
                           const whatsappNumber = "33757820121"; // Replace with your support WhatsApp number
                           const message = language === 'fr'
-                            ? `Bonjour, je souhaite demander une nouvelle proposition pour le devis N° D/21110-${id}.`
-                            : `Hello, I would like to request a new proposal for Quote N° D/21110-${id}.`;
+                            ? `Bonjour, je souhaite demander une nouvelle proposition pour le devis N° ${getQuoteRef()}.`
+                            : `Hello, I would like to request a new proposal for Quote N° ${getQuoteRef()}.`;
                           const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
                           window.open(url, '_blank');
                         }}
@@ -1151,8 +1166,8 @@ export const PriceQuotePage = () => {
                       onClick={() => {
                         const whatsappNumber = "33757820121"; // Replace with your support WhatsApp number
                         const message = language === 'fr'
-                          ? `Bonjour, je souhaite demander une nouvelle proposition pour le devis N° D/21110-${id}.`
-                          : `Hello, I would like to request a new proposal for Quote N° D/21110-${id}.`;
+                          ? `Bonjour, je souhaite demander une nouvelle proposition pour le devis N° ${getQuoteRef()}.`
+                          : `Hello, I would like to request a new proposal for Quote N° ${getQuoteRef()}.`;
                         const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
                         window.open(url, '_blank');
                       }}
@@ -1171,8 +1186,8 @@ export const PriceQuotePage = () => {
                       onClick={() => {
                         const whatsappNumber = "33757820121"; // Replace with your support WhatsApp number
                         const message = language === 'fr'
-                          ? `Bonjour, je souhaite demander une nouvelle proposition pour le devis N° D/21110-${id}.`
-                          : `Hello, I would like to request a new proposal for Quote N° D/21110-${id}.`;
+                          ? `Bonjour, je souhaite demander une nouvelle proposition pour le devis N° ${getQuoteRef()}.`
+                          : `Hello, I would like to request a new proposal for Quote N° ${getQuoteRef()}.`;
                         const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
                         window.open(url, '_blank');
                       }}
