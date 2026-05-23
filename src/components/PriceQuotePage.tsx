@@ -20,7 +20,9 @@ import {
   CheckSquare,
   Square,
   HelpCircle,
-  FileText
+  FileText,
+  Edit3,
+  X
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { useLanguage } from '../context/LanguageContext';
@@ -88,7 +90,20 @@ const translations = {
     contactInfo: "Contact Details",
     rate: "Rate",
     "class.teacher": "Teacher",
-    freeEvaluation: "Free Evaluation Lesson"
+    freeEvaluation: "Free Evaluation Lesson",
+    acceptQuoteBtn: "Accept",
+    rejectQuoteBtn: "Reject",
+    rejectQuoteBtnShort: "Reject",
+    requestNewQuoteBtn: "Request New Quote",
+    requestNewQuoteBtnShort: "Request New",
+    rejectTitle: "Proposal Rejected",
+    rejectSubtitle: "We are sorry this proposal didn't fit. We would love to make it right for you.",
+    rejectNextSteps: "Our team will reach out to you shortly to understand your needs and send you a revised proposal.",
+    requestNewTitle: "Request a New Proposal",
+    requestNewDesc: "Tell us what changes you would like (e.g. schedules, hours, lesson style) and we will generate a new quote for you.",
+    submitRequestBtn: "Submit Request",
+    requestSuccessTitle: "Request Submitted!",
+    requestSuccessSubtitle: "We have received your requirements and are working on a new proposal for you."
   },
   fr: {
     title: "Votre Proposition Personnalisée",
@@ -149,7 +164,20 @@ const translations = {
     contactInfo: "Coordonnées",
     rate: "Tarif",
     "class.teacher": "Professeur",
-    freeEvaluation: "Cours d'évaluation gratuit"
+    freeEvaluation: "Cours d'évaluation gratuit",
+    acceptQuoteBtn: "Accepter",
+    rejectQuoteBtn: "Refuser le Devis",
+    rejectQuoteBtnShort: "Refuser",
+    requestNewQuoteBtn: "Demander un Nouveau Devis",
+    requestNewQuoteBtnShort: "Nouveau Devis",
+    rejectTitle: "Proposition Refusée",
+    rejectSubtitle: "Nous sommes désolés que cette proposition ne vous convienne pas. Nous aimerions trouver la solution idéale.",
+    rejectNextSteps: "Notre équipe vous contactera rapidement pour comprendre vos besoins et vous envoyer une proposition révisée.",
+    requestNewTitle: "Demander une Nouvelle Proposition",
+    requestNewDesc: "Dites-nous quelles modifications vous souhaitez (ex. plannings, heures, style de cours) et nous générerons un nouveau devis.",
+    submitRequestBtn: "Envoyer la Demande",
+    requestSuccessTitle: "Demande Envoyée !",
+    requestSuccessSubtitle: "Nous avons bien reçu vos critères et préparons une nouvelle proposition pour vous."
   }
 };
 
@@ -279,6 +307,43 @@ export const PriceQuotePage = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [expandedChildren, setExpandedChildren] = useState<Record<number, boolean>>({});
+
+  // Rejection & Request New Quote States
+  const [showReject, setShowReject] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [showRequestNewForm, setShowRequestNewForm] = useState(false);
+  const [isRequesting, setIsRequesting] = useState(false);
+  const [showRequestSuccess, setShowRequestSuccess] = useState(false);
+  const [requestNotes, setRequestNotes] = useState('');
+
+  // Inline edit state variables
+  const [editingChildIdx, setEditingChildIdx] = useState<number | null>(null);
+  const [tempDate, setTempDate] = useState('');
+  const [tempTime, setTempTime] = useState('');
+
+  const handleStartEditEvaluation = (idx: number, currentDate: string, currentTime: string) => {
+    setEditingChildIdx(idx);
+    setTempDate(currentDate || '');
+    setTempTime(currentTime || '');
+  };
+
+  const handleSaveEvaluation = (idx: number) => {
+    setQuoteData((prev: any) => {
+      if (!prev || !prev.children_data) return prev;
+      const updatedChildren = [...prev.children_data];
+      updatedChildren[idx] = {
+        ...updatedChildren[idx],
+        evaluation_class_date: tempDate,
+        evaluation_class_time: tempTime,
+      };
+      return {
+        ...prev,
+        children_data: updatedChildren,
+      };
+    });
+    setEditingChildIdx(null);
+  };
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -338,23 +403,49 @@ export const PriceQuotePage = () => {
     setValidationError(null);
     setIsSubmitting(true);
 
-    const payload = {
-      lesson_style: selectedStyle === '1to1' ? '1:1 Lessons' : 'Group of 4',
-      school_vacation: vacationPreference === 'included' ? 'Included' : 'Excluded',
-      teacher_id: selectedTeacherId
-    };
-
     try {
       if (id) {
-        const res = await apiService.approvePriceQuote(id, payload);
-        // If API succeeds or fails, we show success modal anyway for a seamless frontend flow
+        const res = await apiService.updatePriceQuoteStatus(id, 'Approved');
         console.log("Approve quote API response:", res);
       }
     } catch (err) {
       console.warn("API approve failed, completing client-side approval", err);
     } finally {
       setIsSubmitting(false);
-      setShowSuccess(true);
+      setQuoteData((prev: any) => prev ? { ...prev, status: 'Approved' } : prev);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handleReject = async () => {
+    setIsRejecting(true);
+    try {
+      if (id) {
+        const res = await apiService.updatePriceQuoteStatus(id, 'Refused');
+        console.log("Reject quote API response:", res);
+      }
+    } catch (err) {
+      console.warn("Reject failed", err);
+    } finally {
+      setIsRejecting(false);
+      setQuoteData((prev: any) => prev ? { ...prev, status: 'Refused' } : prev);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handleRequestNewSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsRequesting(true);
+    try {
+      // Simulating API call to submit request notes for a new price quote
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      console.log("Submitted request notes:", requestNotes);
+    } catch (err) {
+      console.warn("Request new failed", err);
+    } finally {
+      setIsRequesting(false);
+      setShowRequestNewForm(false);
+      setShowRequestSuccess(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
@@ -428,442 +519,680 @@ export const PriceQuotePage = () => {
       <div className="absolute top-[-10%] right-[-10%] w-[45%] h-[45%] bg-brand-purple/5 blur-[120px] rounded-full pointer-events-none" />
       <div className="absolute top-[30%] left-[-10%] w-[40%] h-[40%] bg-brand-indigo/5 blur-[120px] rounded-full pointer-events-none" />
 
-      {/* Top Navbar */}
-      <nav className="sticky top-0 z-40 bg-white/95 backdrop-blur-md px-6 py-4 shadow-sm border-b border-slate-100">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 group shrink-0">
-            <img src={logo} alt="Bloom Buddies Academy" className="w-52 sm:w-64 h-auto" />
-          </Link>
-          <div className="flex items-center gap-4">
-            <LanguageSwitcher />
-          </div>
-        </div>
-      </nav>
-
       {/* Main Container */}
-      <div className="max-w-7xl mx-auto px-4 md:px-6 pt-10 relative z-10">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 pt-10 md:pt-14 relative z-10">
         
-        {/* Header Block */}
-        <div className="text-center max-w-3xl mx-auto mb-12">
-          <div className="inline-flex items-center gap-2 bg-indigo-50 text-brand-indigo px-4 py-2 rounded-full font-bold text-sm mb-4 border border-indigo-100">
-            <Sparkles size={16} />
-            <span>{t('priceDetails')}</span>
-          </div>
-          <h1 className="text-3xl md:text-5xl font-extrabold text-slate-900 tracking-tight mb-4">
-            {t('title')}
-          </h1>
-          <p className="text-lg text-slate-500 font-medium">
-            {t('subtitle')}
-          </p>
-        </div>
-
-        {/* Outer 12-col grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12 items-start">
+        {/* Invoice / Devis Card Sheet Container */}
+        <div className="bg-white rounded-[2.5rem] border border-slate-100/80 p-6 md:p-10 soft-shadow">
           
-          {/* LEFT 8-COLUMN GRID AREA */}
-          <div className="lg:col-span-8 space-y-8">
-            
-            {/* 1. SELECT LESSON STYLE CARD */}
-            <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-100 shadow-sm">
-              <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-3">
-                <span className="w-8 h-8 rounded-xl bg-purple-100 text-brand-purple flex items-center justify-center text-sm font-black">1</span>
-                {t('selectStyleTitle')}
-              </h2>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                {/* Option 1: 1:1 Lessons */}
-                <div
-                  onClick={() => setSelectedStyle('1to1')}
-                  className={`cursor-pointer border-2 rounded-2xl p-6 transition-all relative flex flex-col justify-between min-h-[220px] ${
-                    selectedStyle === '1to1'
-                      ? 'border-brand-indigo bg-indigo-50/30 shadow-md shadow-indigo-100/50'
-                      : 'border-slate-100 hover:border-slate-300 hover:bg-slate-50/50'
-                  }`}
-                >
-                  <div className="absolute top-4 right-4">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center border-2 ${
-                      selectedStyle === '1to1' ? 'border-brand-indigo bg-brand-indigo text-white' : 'border-slate-300'
-                    }`}>
-                      {selectedStyle === '1to1' && <Check size={14} strokeWidth={3} />}
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="inline-block px-3 py-1 bg-indigo-100 text-brand-indigo font-extrabold text-[11px] rounded-full uppercase tracking-wider mb-4">
-                      {t('lessonStyle1to1')}
-                    </span>
-                    <p className="text-slate-500 text-xs font-semibold leading-relaxed">
-                      {t('formula1to1')}
-                    </p>
-                  </div>
-
-                  <div className="mt-8">
-                    <div className="flex items-baseline">
-                      <span className="text-3xl font-extrabold text-slate-800">{cost1to1} €</span>
-                      <span className="text-xs text-slate-500 font-bold ml-1">{t('perMonth')}</span>
-                    </div>
-                    <p className="text-xs text-slate-400 font-medium mt-1">
-                      {rate1to1} € / {t('hour')} • {weeklyHoursFloat} {t('hours')}/{t('weeks')}
-                    </p>
-                    <div className="mt-3 pt-2.5 border-t border-slate-100/60 flex items-center gap-1.5 text-xs text-emerald-600 font-extrabold">
-                      <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />
-                      <span>{t('freeEvaluation')}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Option 2: Group of 4 */}
-                <div
-                  onClick={() => setSelectedStyle('group')}
-                  className={`cursor-pointer border-2 rounded-2xl p-6 transition-all relative flex flex-col justify-between min-h-[220px] ${
-                    selectedStyle === 'group'
-                      ? 'border-brand-indigo bg-indigo-50/30 shadow-md shadow-indigo-100/50'
-                      : 'border-slate-100 hover:border-slate-300 hover:bg-slate-50/50'
-                  }`}
-                >
-                  <div className="absolute top-4 right-4">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center border-2 ${
-                      selectedStyle === 'group' ? 'border-brand-indigo bg-brand-indigo text-white' : 'border-slate-300'
-                    }`}>
-                      {selectedStyle === 'group' && <Check size={14} strokeWidth={3} />}
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="inline-block px-3 py-1 bg-purple-100 text-brand-purple font-extrabold text-[11px] rounded-full uppercase tracking-wider mb-4">
-                      {t('lessonStyleGroup')}
-                    </span>
-                    <p className="text-slate-500 text-xs font-semibold leading-relaxed">
-                      {t('formulaGroup')}
-                    </p>
-                  </div>
-
-                  <div className="mt-8">
-                    <div className="flex items-baseline">
-                      <span className="text-3xl font-extrabold text-slate-800">{costGroup} €</span>
-                      <span className="text-xs text-slate-500 font-bold ml-1">{t('perMonth')}</span>
-                    </div>
-                    <p className="text-xs text-slate-400 font-medium mt-1">
-                      {rateGroup} € / {t('hour')} • {weeklyHoursFloat} {t('hours')}/{t('weeks')}
-                    </p>
-                    <div className="mt-3 pt-2.5 border-t border-slate-100/60 flex items-center gap-1.5 text-xs text-emerald-600 font-extrabold">
-                      <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />
-                      <span>{t('freeEvaluation')}</span>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-
-            {/* 2. SELECT SCHOOL VACATION PREFERENCE */}
-            <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-100 shadow-sm">
-              <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-3">
-                <span className="w-8 h-8 rounded-xl bg-purple-100 text-brand-purple flex items-center justify-center text-sm font-black">2</span>
-                {t('vacationTitle')}
-              </h2>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                {/* Option 1: Included */}
-                <div
-                  onClick={() => setVacationPreference('included')}
-                  className={`cursor-pointer border-2 rounded-2xl p-6 transition-all flex items-start gap-4 relative ${
-                    vacationPreference === 'included'
-                      ? 'border-brand-indigo bg-indigo-50/30'
-                      : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50/50'
-                  }`}
-                >
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                    vacationPreference === 'included' ? 'bg-indigo-100 text-brand-indigo' : 'bg-slate-100 text-slate-400'
-                  }`}>
-                    <Sun size={20} />
-                  </div>
-                  <div className="pr-6">
-                    <p className="font-bold text-slate-800 text-sm mb-1">{t('vacationIncluded')}</p>
-                    <p className="text-slate-500 text-xs leading-relaxed">{t('vacationIncludedDesc')}</p>
-                  </div>
-                  <div className="absolute top-4 right-4">
-                    <div className={`w-5 h-5 rounded-full flex items-center justify-center border ${
-                      vacationPreference === 'included' ? 'border-brand-indigo bg-brand-indigo text-white' : 'border-slate-300'
-                    }`}>
-                      {vacationPreference === 'included' && <Check size={10} strokeWidth={3} />}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Option 2: Excluded */}
-                <div
-                  onClick={() => setVacationPreference('excluded')}
-                  className={`cursor-pointer border-2 rounded-2xl p-6 transition-all flex items-start gap-4 relative ${
-                    vacationPreference === 'excluded'
-                      ? 'border-brand-indigo bg-indigo-50/30'
-                      : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50/50'
-                  }`}
-                >
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                    vacationPreference === 'excluded' ? 'bg-indigo-100 text-brand-indigo' : 'bg-slate-100 text-slate-400'
-                  }`}>
-                    <Moon size={20} />
-                  </div>
-                  <div className="pr-6">
-                    <p className="font-bold text-slate-800 text-sm mb-1">{t('vacationExcluded')}</p>
-                    <p className="text-slate-500 text-xs leading-relaxed">{t('vacationExcludedDesc')}</p>
-                  </div>
-                  <div className="absolute top-4 right-4">
-                    <div className={`w-5 h-5 rounded-full flex items-center justify-center border ${
-                      vacationPreference === 'excluded' ? 'border-brand-indigo bg-brand-indigo text-white' : 'border-slate-300'
-                    }`}>
-                      {vacationPreference === 'excluded' && <Check size={10} strokeWidth={3} />}
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-
-          </div>
-
-          {/* RIGHT 4-COLUMN SIDEBAR AREA */}
-          <div className="lg:col-span-4 space-y-6">
-            
-            {/* Sidebar Card 1: Quick Stats */}
-            <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
-              <h3 className="text-lg font-bold text-slate-800 mb-5 flex items-center gap-2">
-                <CheckCircle2 className="text-brand-indigo shrink-0" size={20} />
-                {t('quickStatsTitle')}
-              </h3>
-
-              <div className="space-y-4">
-                {/* Students Count */}
-                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100/50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-indigo-50 text-brand-indigo flex items-center justify-center">
-                      <UserIcon size={16} />
-                    </div>
-                    <span className="text-xs font-bold text-slate-600">{t('students')}</span>
-                  </div>
-                  <span className="font-black text-slate-800 text-sm">
-                    {quoteData.children_data?.length || 1}
-                  </span>
-                </div>
-
-                {/* Weekly Hours */}
-                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100/50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-purple-50 text-brand-purple flex items-center justify-center">
-                      <Clock size={16} />
-                    </div>
-                    <span className="text-xs font-bold text-slate-600">{t('weeklyHours')}</span>
-                  </div>
-                  <span className="font-black text-slate-800 text-sm">
-                    {weeklyHoursFloat} {t('hours')}
-                  </span>
-                </div>
-
-                {/* Monthly cost */}
-                <div className="flex items-center justify-between p-3 bg-indigo-50/50 rounded-xl border border-indigo-100/50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-brand-indigo text-white flex items-center justify-center font-bold text-sm">
-                      €
-                    </div>
-                    <span className="text-xs font-bold text-brand-indigo">{t('monthlyCost')}</span>
-                  </div>
-                  <span className="font-black text-brand-indigo text-md">
-                    {currentMonthlyCost} €
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Sidebar Card 2: Quote Metadata & Schedules */}
-            <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-5">
-              <h3 className="text-lg font-bold text-slate-800 border-b border-slate-50 pb-3 flex items-center gap-2">
-                <FileText className="text-brand-purple shrink-0" size={20} />
-                {t('quoteInfoTitle')}
-              </h3>
-
-              {/* ID and dates */}
-              <div className="text-xs space-y-2.5">
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-bold uppercase tracking-wider">{t('quoteId')}</span>
-                  <span className="text-slate-800 font-bold"># {id}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-bold uppercase tracking-wider">{t('parentName')}</span>
-                  <span className="text-slate-800 font-bold">
-                    {quoteData.parent?.firstName || 'Admin'} {quoteData.parent?.lastName || 'User'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-bold uppercase tracking-wider">{t('phone')}</span>
-                  <span className="text-slate-800 font-bold">{quoteData.parent?.phone || 'N/A'}</span>
-                </div>
-                <div className="flex justify-between pt-2 border-t border-slate-50">
-                  <span className="text-slate-400 font-bold uppercase tracking-wider">{t('evaluationSession')}</span>
-                  <span className="text-brand-purple font-black">
-                    {evalDate} @ {evalTime}
-                  </span>
-                </div>
-              </div>
-
-              {/* Schedules rendered */}
-              {scheduleEntries.length > 0 && (
-                <div className="pt-4 border-t border-slate-50">
-                  <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3">
-                    {t('lessonSchedule')} ({childName})
-                  </h4>
-                  <div className="space-y-2">
-                    {scheduleEntries.map(([day, val]: [string, any]) => (
-                      <div key={day} className="flex justify-between items-center text-xs bg-slate-50/50 p-2 rounded-lg border border-slate-100/30">
-                        <span className="font-bold text-slate-700 capitalize">{day}</span>
-                        <span className="font-medium text-slate-500 font-mono">
-                          {val.start_time} - {val.end_time}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-          </div>
-
-        </div>
-
-        {/* BOTTOM SECTION: 12-COLUMN CAROUSEL FOR TEACHER SELECTION */}
-        <div className="col-span-12 bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-100 shadow-sm mb-10">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-xl md:text-2xl font-extrabold text-slate-900 flex items-center gap-3">
-              <span className="w-8 h-8 rounded-xl bg-purple-100 text-brand-purple flex items-center justify-center text-sm font-black">3</span>
-              {t('selectTeacherTitle')}
-            </h2>
-            {/* Scroll buttons */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleScroll('left')}
-                className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center hover:bg-slate-50 hover:border-slate-300 transition-colors active:scale-95"
-              >
-                <ChevronLeft size={20} className="text-slate-600" />
-              </button>
-              <button
-                onClick={() => handleScroll('right')}
-                className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center hover:bg-slate-50 hover:border-slate-300 transition-colors active:scale-95"
-              >
-                <ChevronRight size={20} className="text-slate-600" />
-              </button>
+          {/* Header Row: Logo & Invoice Metadata */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-slate-100 mb-8">
+            <img src={logo} alt="Bloom Buddies Academy" className="w-48 sm:w-56 h-auto" />
+            <div className="text-left sm:text-right">
+              <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight">
+                {language === 'fr' ? 'DEVIS' : 'QUOTE'} N° D/21110-{id}
+              </h1>
+              <p className="text-[11px] text-slate-400 font-bold mt-1">
+                {language === 'fr' ? 'Date de création' : 'Creation Date'}:{' '}
+                {quoteData.created_at ? new Date(quoteData.created_at).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US') : '12/05/2026'}
+              </p>
             </div>
           </div>
 
-          {/* Carousel body */}
-          <div
-            ref={scrollRef}
-            className="flex gap-6 overflow-x-auto pb-4 scroll-smooth snap-x snap-mandatory custom-scrollbar"
-            style={{ scrollbarWidth: 'thin' }}
-          >
-            {teachers.map((teacher) => {
-              const isSelected = selectedTeacherId === teacher.id;
-              const name = `${teacher.user?.firstName || 'Teacher'} ${teacher.user?.lastName || ''}`;
-              const avatarUrl = teacher.profile_pic || `https://picsum.photos/seed/teacher-${teacher.id}/150/150`;
-
-              return (
-                <div
-                  key={teacher.id}
-                  onClick={() => setSelectedTeacherId(teacher.id)}
-                  className={`snap-start shrink-0 w-80 md:w-96 border-2 rounded-[2rem] p-6 cursor-pointer transition-all flex flex-col justify-between relative ${
-                    isSelected
-                      ? 'border-brand-indigo bg-indigo-50/20 shadow-md shadow-indigo-100/30'
-                      : 'border-slate-100 hover:border-slate-300 hover:bg-slate-50/20'
-                  }`}
-                >
-                  {/* Select indicator */}
-                  <div className="absolute top-4 right-4">
-                    <div className={`px-3 py-1 rounded-full font-bold text-[10px] flex items-center gap-1.5 transition-all ${
-                      isSelected ? 'bg-brand-indigo text-white shadow-sm' : 'bg-slate-100 text-slate-400'
-                    }`}>
-                      <Check size={10} strokeWidth={3} />
-                      {isSelected ? t('teacherSelected') : t('selectTeacherBtn')}
-                    </div>
-                  </div>
-
-                  <div>
-                    {/* Top avatar & info */}
-                    <div className="flex gap-4 items-center mb-5">
-                      <div className={`w-16 h-16 rounded-2xl p-0.5 border overflow-hidden shrink-0 ${
-                        isSelected ? 'border-brand-indigo' : 'border-slate-200'
-                      }`}>
-                        <img src={avatarUrl} alt={name} className="w-full h-full object-cover rounded-[14px]" referrerPolicy="no-referrer" />
-                      </div>
-                      <div>
-                        <h4 className="font-extrabold text-slate-800 text-base">{name}</h4>
-                        <div className="flex items-center gap-1 text-slate-400 text-xs mt-1">
-                          <MapPin size={12} />
-                          <span>{teacher.city || 'Europe'}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* About me */}
-                    <p className="text-slate-600 text-xs leading-relaxed line-clamp-3 mb-6 font-medium">
-                      "{teacher.about_me}"
-                    </p>
-                  </div>
-
-                  {/* Badges / Rating */}
-                  <div className="pt-4 border-t border-slate-50 flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-1 text-brand-yellow font-black">
-                      <Star size={14} fill="currentColor" />
-                      <span>{4.8 + (teacher.id % 3) * 0.1}</span>
-                      <span className="text-slate-400 font-medium">({15 + (teacher.id * 7) % 50})</span>
-                    </div>
-                    <div className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-                      {t('timezone')}: {teacher.timezone || 'UTC'}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* BOTTOM APPROVAL BUTTON ROW */}
-        <div className="text-center mt-12 mb-10 max-w-xl mx-auto space-y-4">
-          {validationError && (
-            <div className="p-3 bg-red-50 text-red-500 rounded-xl text-sm font-semibold border border-red-100">
-              {validationError}
+          {/* Status Banner */}
+          {quoteData.status === 'Approved' && (
+            <div className="mb-8 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-3 sm:gap-4 text-emerald-800">
+              <div className="w-10 h-10 bg-emerald-500 text-white rounded-xl flex items-center justify-center shrink-0 shadow-sm">
+                <CheckCircle2 size={20} />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-sm sm:text-base leading-tight">
+                  {language === 'fr' ? 'Devis approuvé avec succès !' : 'Quote Approved Successfully!'}
+                </h3>
+                <p className="text-[11px] sm:text-xs text-emerald-600/90 font-medium mt-0.5">
+                  {language === 'fr' 
+                    ? 'Merci d\'avoir choisi Bloom Buddies Academy. Nous sommes ravis de commencer ce parcours d\'apprentissage !' 
+                    : 'Thank you for choosing Bloom Buddies Academy. We are thrilled to start this learning journey!'}
+                </p>
+              </div>
             </div>
           )}
 
-          <button
-            onClick={handleApprove}
-            disabled={isSubmitting}
-            className="w-full bloom-gradient text-white font-extrabold text-lg py-5 px-12 rounded-3xl shadow-xl shadow-indigo-100 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 group"
-          >
-            {isSubmitting ? (
-              <Loader2 className="animate-spin w-6 h-6" />
-            ) : (
-              <>
-                <CheckCircle2 size={24} />
-                <span>{t('approveQuoteBtn')}</span>
-              </>
-            )}
-          </button>
+          {quoteData.status === 'Refused' && (
+            <div className="mb-8 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 sm:gap-4 text-red-800">
+              <div className="w-10 h-10 bg-red-500 text-white rounded-xl flex items-center justify-center shrink-0 shadow-sm">
+                <X size={20} />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-sm sm:text-base leading-tight">
+                  {language === 'fr' ? 'Proposition refusée' : 'Proposal Rejected'}
+                </h3>
+                <p className="text-[11px] sm:text-xs text-red-600/90 font-medium mt-0.5">
+                  {language === 'fr'
+                    ? 'Nous sommes désolés que cette proposition ne convienne pas. Notre équipe vous contactera rapidement.'
+                    : 'We are sorry this proposal didn\'t fit. Our team will reach out to you shortly.'}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Vendeur & Acheteur Information Blocks */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            {/* VENDEUR Box (Static Leonard.fr details) */}
+            <div className="border border-slate-100/60 rounded-2xl p-4 bg-slate-50/20">
+              <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2.5">
+                {language === 'fr' ? 'VENDEUR:' : 'SELLER:'}
+              </h3>
+              <div className="text-xs space-y-0.5 text-slate-600 font-medium">
+                <p className="font-extrabold text-slate-800 text-[13px] mb-1">Leonard.fr</p>
+                <p>180 Rue Judaïque</p>
+                <p>33000 Bordeaux, France</p>
+                <p className="pt-1">SIREN 809015407</p>
+                <p className="pt-1">Email: contact@leonard.fr</p>
+              </div>
+            </div>
+
+            {/* ACHETEUR Box (Dynamic parent details from API) */}
+            <div className="border border-slate-100/60 rounded-2xl p-4 bg-slate-50/20">
+              <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2.5">
+                {language === 'fr' ? 'ACHETEUR:' : 'BUYER:'}
+              </h3>
+              <div className="text-xs space-y-0.5 text-slate-600 font-medium">
+                <p className="font-extrabold text-slate-800 text-[13px] mb-1">
+                  {quoteData.parent?.firstName || 'Admin'} {quoteData.parent?.lastName || 'User'}
+                </p>
+                <p>{quoteData.parent?.address || 'Paris, France'}</p>
+                {quoteData.parent?.email && <p className="pt-1">Email: {quoteData.parent.email}</p>}
+              </div>
+            </div>
+          </div>
+
+          {/* Outer 12-col grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            
+            {/* LEFT 8-COLUMN GRID AREA */}
+            <div className="lg:col-span-8 space-y-6">
+              
+              {/* 1. SELECT LESSON STYLE CARD */}
+              <div className="border border-slate-100 rounded-3xl p-5 md:p-6 bg-white">
+                <h2 className="text-base font-extrabold text-slate-800 mb-4 flex items-center gap-3">
+                  <span className="w-7 h-7 rounded-lg bg-indigo-50 text-brand-indigo flex items-center justify-center text-xs font-black">1</span>
+                  {t('selectStyleTitle')}
+                </h2>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  
+                  {/* Option 1: 1:1 Lessons */}
+                  <div
+                    onClick={() => {
+                      if (quoteData.status !== 'Pending') return;
+                      setSelectedStyle('1to1');
+                    }}
+                    className={`border rounded-xl p-4 transition-all relative flex flex-col justify-between min-h-[150px] ${
+                      quoteData.status === 'Pending'
+                        ? 'cursor-pointer hover:border-slate-200 hover:bg-slate-50/20'
+                        : 'cursor-default opacity-90'
+                    } ${
+                      selectedStyle === '1to1'
+                        ? 'border-brand-indigo bg-indigo-50/10'
+                        : 'border-slate-100'
+                    }`}
+                  >
+                    <div className="absolute top-4 right-4">
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center border ${
+                        selectedStyle === '1to1' ? 'border-brand-indigo bg-brand-indigo text-white' : 'border-slate-300'
+                      }`}>
+                        {selectedStyle === '1to1' && <Check size={10} strokeWidth={3} />}
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="inline-block px-2.5 py-0.5 bg-indigo-50 text-brand-indigo font-bold text-[10px] rounded-full uppercase tracking-wide mb-2">
+                        {t('lessonStyle1to1')}
+                      </span>
+                      <p className="text-slate-500 text-[11px] font-medium leading-normal pr-6">
+                        {t('formula1to1')}
+                      </p>
+                    </div>
+
+                    <div className="mt-4 flex items-baseline justify-between pt-2.5 border-t border-slate-100/60">
+                      <div className="flex items-baseline">
+                        <span className="text-xl font-black text-slate-800">{cost1to1} €</span>
+                        <span className="text-[10px] text-slate-400 font-bold ml-0.5">{t('perMonth')}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-semibold">
+                        {rate1to1} €/{t('hour')}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Option 2: Group of 4 */}
+                  <div
+                    onClick={() => {
+                      if (quoteData.status !== 'Pending') return;
+                      setSelectedStyle('group');
+                    }}
+                    className={`border rounded-xl p-4 transition-all relative flex flex-col justify-between min-h-[150px] ${
+                      quoteData.status === 'Pending'
+                        ? 'cursor-pointer hover:border-slate-200 hover:bg-slate-50/20'
+                        : 'cursor-default opacity-90'
+                    } ${
+                      selectedStyle === 'group'
+                        ? 'border-brand-indigo bg-indigo-50/10'
+                        : 'border-slate-100'
+                    }`}
+                  >
+                    <div className="absolute top-4 right-4">
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center border ${
+                        selectedStyle === 'group' ? 'border-brand-indigo bg-brand-indigo text-white' : 'border-slate-300'
+                      }`}>
+                        {selectedStyle === 'group' && <Check size={10} strokeWidth={3} />}
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="inline-block px-2.5 py-0.5 bg-purple-50 text-brand-purple font-bold text-[10px] rounded-full uppercase tracking-wide mb-2">
+                        {t('lessonStyleGroup')}
+                      </span>
+                      <p className="text-slate-500 text-[11px] font-medium leading-normal pr-6">
+                        {t('formulaGroup')}
+                      </p>
+                    </div>
+
+                    <div className="mt-4 flex items-baseline justify-between pt-2.5 border-t border-slate-100/60">
+                      <div className="flex items-baseline">
+                        <span className="text-xl font-black text-slate-800">{costGroup} €</span>
+                        <span className="text-[10px] text-slate-400 font-bold ml-0.5">{t('perMonth')}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-semibold">
+                        {rateGroup} €/{t('hour')}
+                      </span>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* 2. SELECT SCHOOL VACATION PREFERENCE */}
+              <div className="border border-slate-100 rounded-3xl p-5 md:p-6 bg-white">
+                <h2 className="text-base font-extrabold text-slate-800 mb-4 flex items-center gap-3">
+                  <span className="w-7 h-7 rounded-lg bg-indigo-50 text-brand-indigo flex items-center justify-center text-xs font-black">2</span>
+                  {t('vacationTitle')}
+                </h2>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  
+                  {/* Option 1: Included */}
+                  <div
+                    onClick={() => {
+                      if (quoteData.status !== 'Pending') return;
+                      setVacationPreference('included');
+                    }}
+                    className={`border rounded-xl p-4 transition-all flex items-center gap-3 relative ${
+                      quoteData.status === 'Pending'
+                        ? 'cursor-pointer hover:border-slate-200 hover:bg-slate-50/20'
+                        : 'cursor-default opacity-90'
+                    } ${
+                      vacationPreference === 'included'
+                        ? 'border-brand-indigo bg-indigo-50/10'
+                        : 'border-slate-100'
+                    }`}
+                  >
+                    <div className="pr-6">
+                      <p className="font-extrabold text-slate-800 text-xs">{t('vacationIncluded')}</p>
+                      <p className="text-slate-400 text-[10px] leading-tight mt-0.5">{t('vacationIncludedDesc')}</p>
+                    </div>
+                    <div className="absolute top-4 right-4">
+                      <div className={`w-4 h-4 rounded-full flex items-center justify-center border ${
+                        vacationPreference === 'included' ? 'border-brand-indigo bg-brand-indigo text-white' : 'border-slate-300'
+                      }`}>
+                        {vacationPreference === 'included' && <Check size={8} strokeWidth={3} />}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Option 2: Excluded */}
+                  <div
+                    onClick={() => {
+                      if (quoteData.status !== 'Pending') return;
+                      setVacationPreference('excluded');
+                    }}
+                    className={`border rounded-xl p-4 transition-all flex items-center gap-3 relative ${
+                      quoteData.status === 'Pending'
+                        ? 'cursor-pointer hover:border-slate-200 hover:bg-slate-50/20'
+                        : 'cursor-default opacity-90'
+                    } ${
+                      vacationPreference === 'excluded'
+                        ? 'border-brand-indigo bg-indigo-50/10'
+                        : 'border-slate-100'
+                    }`}
+                  >
+                    <div className="pr-6">
+                      <p className="font-extrabold text-slate-800 text-xs">{t('vacationExcluded')}</p>
+                      <p className="text-slate-400 text-[10px] leading-tight mt-0.5">{t('vacationExcludedDesc')}</p>
+                    </div>
+                    <div className="absolute top-4 right-4">
+                      <div className={`w-4 h-4 rounded-full flex items-center justify-center border ${
+                        vacationPreference === 'excluded' ? 'border-brand-indigo bg-brand-indigo text-white' : 'border-slate-300'
+                      }`}>
+                        {vacationPreference === 'excluded' && <Check size={8} strokeWidth={3} />}
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* 3. CHOOSE YOUR PREFERRED TEACHER */}
+              <div className="border border-slate-100 rounded-3xl p-5 md:p-6 bg-white">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-base font-extrabold text-slate-800 flex items-center gap-3">
+                    <span className="w-7 h-7 rounded-lg bg-indigo-50 text-brand-indigo flex items-center justify-center text-xs font-black">3</span>
+                    {t('selectTeacherTitle')}
+                  </h2>
+                  {/* Scroll buttons */}
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={() => handleScroll('left')}
+                      className="w-8 h-8 rounded-lg border border-slate-100 flex items-center justify-center hover:bg-slate-50 transition-colors active:scale-95"
+                    >
+                      <ChevronLeft size={16} className="text-slate-600" />
+                    </button>
+                    <button
+                      onClick={() => handleScroll('right')}
+                      className="w-8 h-8 rounded-lg border border-slate-100 flex items-center justify-center hover:bg-slate-50 transition-colors active:scale-95"
+                    >
+                      <ChevronRight size={16} className="text-slate-600" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Carousel body */}
+                <div
+                  ref={scrollRef}
+                  className="flex gap-4 overflow-x-auto pb-2 scroll-smooth snap-x snap-mandatory custom-scrollbar"
+                  style={{ scrollbarWidth: 'thin' }}
+                >
+                  {teachers.map((teacher) => {
+                    const isSelected = selectedTeacherId === teacher.id;
+                    const name = `${teacher.user?.firstName || 'Teacher'} ${teacher.user?.lastName || ''}`;
+                    const firstInitial = teacher.user?.firstName?.[0] || '';
+                    const lastInitial = teacher.user?.lastName?.[0] || '';
+                    const initials = `${firstInitial}${lastInitial}`.toUpperCase() || 'TR';
+
+                    return (
+                      <div
+                        key={teacher.id}
+                        onClick={() => {
+                          if (quoteData.status !== 'Pending') return;
+                          setSelectedTeacherId(teacher.id);
+                        }}
+                        className={`snap-start shrink-0 w-[22rem] md:w-[26rem] border rounded-2xl transition-all flex flex-row items-stretch overflow-hidden relative ${
+                          quoteData.status === 'Pending'
+                            ? 'cursor-pointer hover:border-slate-200 hover:bg-slate-50/10'
+                            : 'cursor-default'
+                        } ${
+                          isSelected
+                            ? 'border-brand-indigo bg-indigo-50/10 shadow-sm'
+                            : 'border-slate-100'
+                        }`}
+                      >
+                        {/* Left Side: Portrait Image / Initials Fallback (Full Height) */}
+                        <div className={`w-28 sm:w-32 border-r shrink-0 flex items-center justify-center ${
+                          isSelected ? 'border-brand-indigo/30' : 'border-slate-100'
+                        }`}>
+                          {teacher.profile_pic ? (
+                            <img
+                              src={teacher.profile_pic}
+                              alt={name}
+                              className="w-full h-full object-cover"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-slate-800 to-slate-950 text-slate-100 flex items-center justify-center font-extrabold text-2xl tracking-wider select-none">
+                              {initials}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Right Side: Details & description next to image */}
+                        <div className="flex-1 p-4 flex flex-col justify-between relative min-w-0 pr-14">
+                          {/* Select indicator */}
+                          <div className="absolute top-4 right-4">
+                            <div className={`px-2 py-0.5 rounded-full font-bold text-[9px] flex items-center gap-1 transition-all ${
+                              isSelected ? 'bg-brand-indigo text-white shadow-sm' : 'bg-slate-100 text-slate-400'
+                            }`}>
+                              <Check size={8} strokeWidth={3} />
+                              {isSelected ? t('teacherSelected') : t('selectTeacherBtn')}
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            {/* Name and location */}
+                            <div>
+                              <h4 className="font-extrabold text-slate-800 text-sm leading-tight break-words pr-2">{name}</h4>
+                              <div className="flex items-center gap-1 text-slate-400 text-[10px] mt-1">
+                                <MapPin size={10} className="shrink-0" />
+                                <span className="truncate">{teacher.city || 'Europe'}</span>
+                              </div>
+                            </div>
+
+                            {/* Ratings & Timezone */}
+                            <div className="flex flex-wrap items-center gap-2 text-[10px]">
+                              <div className="flex items-center gap-1 text-brand-yellow font-black">
+                                <Star size={12} fill="currentColor" className="shrink-0" />
+                                <span>{4.8 + (teacher.id % 3) * 0.1}</span>
+                                <span className="text-slate-400 font-medium">({15 + (teacher.id * 7) % 50})</span>
+                              </div>
+                              <span className="text-slate-200">|</span>
+                              <div className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">
+                                {t('timezone')}: {teacher.timezone || 'UTC'}
+                              </div>
+                            </div>
+
+                            {/* About me description inside right block */}
+                            <p className="text-slate-500 text-[11px] leading-relaxed line-clamp-4 font-medium pt-2 border-t border-slate-100/60">
+                              "{teacher.about_me}"
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+            </div>
+
+            {/* RIGHT 4-COLUMN SIDEBAR AREA (Totals, banking details, and actions) */}
+            <div className="lg:col-span-4 space-y-6">
+              
+              {/* Sidebar Card 2: Lesson Schedules */}
+              <div className="border border-slate-100 rounded-3xl p-5 md:p-6 bg-white space-y-4">
+                <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider flex items-center gap-2 border-b border-slate-50 pb-2.5">
+                  <CalendarIcon className="text-brand-purple shrink-0" size={16} />
+                  {language === 'fr' ? 'PLANNINGS DES COURS' : 'LESSON SCHEDULES'}
+                </h3>
+
+                {/* Schedules rendered dynamically per child as expandable sections */}
+                {quoteData.children_data && quoteData.children_data.length > 0 && (
+                  <div className="pt-0 space-y-2">
+                    <div className="space-y-2">
+                      {quoteData.children_data.map((child: any, idx: number) => {
+                        const isExpanded = !!expandedChildren[idx];
+                        const scheduleEntries = Object.entries(child.lesson_schedule || {});
+
+                        return (
+                          <div key={idx} className="border border-slate-100 rounded-xl overflow-hidden bg-slate-50/10">
+                            {/* Toggle Header */}
+                            <div
+                              onClick={() => setExpandedChildren(prev => ({ ...prev, [idx]: !prev[idx] }))}
+                              className="flex justify-between items-center p-2.5 cursor-pointer hover:bg-slate-50 transition-colors"
+                            >
+                              <span className="font-extrabold text-slate-700 text-xs flex items-center gap-1.5">
+                                <UserIcon size={12} className="text-brand-indigo shrink-0" />
+                                {child.child_name || `Student ${idx + 1}`}
+                              </span>
+                              <ChevronRight
+                                size={14}
+                                className={`text-slate-400 transition-transform duration-200 shrink-0 ${isExpanded ? 'rotate-90' : ''}`}
+                              />
+                            </div>
+
+                            {/* Collapsible Content */}
+                            <AnimatePresence initial={false}>
+                              {isExpanded && (
+                                <motion.div
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: 'auto', opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  transition={{ duration: 0.2 }}
+                                  className="overflow-hidden border-t border-slate-100/50 bg-white"
+                                >
+                                  <div className="p-3 space-y-3 text-[11px] text-slate-500 font-medium">
+                                    {/* Evaluation Session */}
+                                    <div className="flex justify-between items-center gap-2">
+                                      <span className="shrink-0">{t('evaluationSession')}</span>
+                                      {editingChildIdx === idx ? (
+                                        <div className="flex items-center gap-1.5 shrink-0">
+                                          <input
+                                            type="date"
+                                            value={tempDate}
+                                            onChange={(e) => setTempDate(e.target.value)}
+                                            className="bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 text-[9px] outline-none font-sans"
+                                          />
+                                          <input
+                                            type="text"
+                                            value={tempTime}
+                                            onChange={(e) => setTempTime(e.target.value)}
+                                            placeholder="e.g. 05:00 PM"
+                                            className="bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 text-[9px] outline-none font-mono w-20"
+                                          />
+                                          <button
+                                            onClick={() => handleSaveEvaluation(idx)}
+                                            className="text-emerald-500 hover:text-emerald-600 p-0.5 rounded hover:bg-slate-50 transition-colors cursor-pointer"
+                                          >
+                                            <Check size={12} strokeWidth={3} />
+                                          </button>
+                                          <button
+                                            onClick={() => setEditingChildIdx(null)}
+                                            className="text-slate-400 hover:text-slate-500 p-0.5 rounded hover:bg-slate-50 transition-colors cursor-pointer"
+                                          >
+                                            <X size={12} strokeWidth={3} />
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-center gap-1.5 shrink-0">
+                                          <span className="text-brand-purple font-black text-right">
+                                            {child.evaluation_class_date || 'N/A'} @ {child.evaluation_class_time || 'N/A'}
+                                          </span>
+                                          {quoteData.status === 'Pending' && (
+                                            <button
+                                              onClick={() => handleStartEditEvaluation(idx, child.evaluation_class_date, child.evaluation_class_time)}
+                                              className="text-slate-400 hover:text-brand-indigo transition-colors p-0.5 rounded hover:bg-slate-50 cursor-pointer"
+                                            >
+                                              <Edit3 size={11} />
+                                            </button>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Weekly schedule */}
+                                    {scheduleEntries.length > 0 ? (
+                                      <div className="space-y-1.5 pt-2.5 border-t border-slate-50">
+                                        <p className="font-extrabold text-slate-400 uppercase tracking-wider text-[9px] mb-1">
+                                          {t('lessonSchedule')}
+                                        </p>
+                                        {scheduleEntries.map(([day, val]: [string, any]) => (
+                                          <div key={day} className="flex justify-between items-center text-[10px] bg-slate-50/50 p-1.5 rounded-lg border border-slate-100/20">
+                                            <span className="font-bold text-slate-600 capitalize">{day}</span>
+                                            <span className="font-medium text-slate-500 font-mono">
+                                              {val.start_time} - {val.end_time}
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <p className="text-[10px] text-slate-400 italic pt-1 text-center">
+                                        {language === 'fr' ? 'Aucun planning défini' : 'No schedule defined'}
+                                      </p>
+                                    )}
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Quick Summary / Pricing breakdown */}
+              <div className="border border-slate-100 rounded-3xl p-5 md:p-6 bg-white space-y-4">
+                <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider flex items-center gap-2 border-b border-slate-50 pb-2.5">
+                  <CheckCircle2 className="text-brand-indigo shrink-0" size={16} />
+                  {language === 'fr' ? 'DÉTAIL DU PRIX' : 'PRICING SUMMARY'}
+                </h3>
+
+                <div className="space-y-3 text-xs text-slate-600 font-medium">
+                  {/* Selected Style Detail */}
+                  <div className="flex justify-between items-start gap-4">
+                    <span className="leading-normal">
+                      {selectedStyle === '1to1' ? t('lessonStyle1to1') : t('lessonStyleGroup')} -{' '}
+                      {childName} ({weeklyHoursFloat} hrs/{t('hour')})
+                    </span>
+                    <span className="text-slate-800 font-extrabold shrink-0">
+                      {currentMonthlyCost} €
+                    </span>
+                  </div>
+
+                  {/* Vacation preference status */}
+                  <div className="flex justify-between items-center text-[11px] text-slate-400">
+                    <span>{t('vacation')}: {vacationPreference === 'included' ? t('vacationIncluded') : t('vacationExcluded')}</span>
+                    <span className="italic">{language === 'fr' ? 'Inclus' : 'Included'}</span>
+                  </div>
+
+                  {/* Teacher assignment info */}
+                  {selectedTeacher && (
+                    <div className="flex justify-between items-center text-[11px] text-slate-400">
+                      <span>{t('class.teacher')}: {selectedTeacher.user?.firstName} {selectedTeacher.user?.lastName}</span>
+                      <span className="text-brand-indigo font-extrabold">{language === 'fr' ? 'Assigné' : 'Assigned'}</span>
+                    </div>
+                  )}
+
+                  {/* Totals Section matching Devis format */}
+                  <div className="pt-3.5 border-t border-slate-100 space-y-1.5">
+                    <div className="flex justify-between text-slate-400 text-[11px]">
+                      <span>Total HT</span>
+                      <span>{(currentMonthlyCost / 1.2).toFixed(2)} €</span>
+                    </div>
+                    <div className="flex justify-between text-slate-400 text-[11px]">
+                      <span>Montant TVA (20%)</span>
+                      <span>{(currentMonthlyCost - parseFloat((currentMonthlyCost / 1.2).toFixed(2))).toFixed(2)} €</span>
+                    </div>
+                    <div className="flex justify-between items-center pt-2 border-t border-slate-100">
+                      <span className="text-xs font-black text-slate-800">Total TTC</span>
+                      <span className="text-base font-black text-brand-indigo">
+                        {currentMonthlyCost} €
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Box: Validation Alert and Action Buttons (Accept, Reject, Request New) */}
+              <div className="space-y-3">
+                {quoteData.status === 'Pending' ? (
+                  <>
+                    {validationError && (
+                      <div className="p-3 bg-red-50 text-red-500 rounded-xl text-[11px] font-semibold border border-red-100">
+                        {validationError}
+                      </div>
+                    )}
+
+                    {/* Primary Action: Accept */}
+                    <button
+                      onClick={handleApprove}
+                      disabled={isSubmitting || isRejecting}
+                      className="w-full bloom-gradient text-white font-extrabold text-sm py-4 px-6 rounded-2xl shadow-lg shadow-indigo-100/50 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 group cursor-pointer disabled:opacity-50"
+                    >
+                      {isSubmitting ? (
+                        <Loader2 className="animate-spin w-5 h-5" />
+                      ) : (
+                        <>
+                          <CheckCircle2 size={18} />
+                          <span>{t('acceptQuoteBtn')}</span>
+                        </>
+                      )}
+                    </button>
+
+                    {/* Secondary Actions: Request New and Reject (Side-by-side) */}
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      {/* Request New Price Quote */}
+                      <button
+                        onClick={() => {
+                          const whatsappNumber = "33757820121"; // Replace with your support WhatsApp number
+                          const message = language === 'fr'
+                            ? `Bonjour, je souhaite demander une nouvelle proposition pour le devis N° D/21110-${id}.`
+                            : `Hello, I would like to request a new proposal for Quote N° D/21110-${id}.`;
+                          const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+                          window.open(url, '_blank');
+                        }}
+                        disabled={isSubmitting || isRejecting}
+                        className="py-3.5 px-2.5 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-extrabold rounded-xl transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 text-center flex items-center justify-center gap-1.5"
+                      >
+                        <span>{t('requestNewQuoteBtnShort')}</span>
+                      </button>
+
+                      {/* Reject Price Quote */}
+                      <button
+                        onClick={handleReject}
+                        disabled={isSubmitting || isRejecting}
+                        className="py-3.5 px-2.5 border border-red-200 hover:border-red-300 hover:bg-red-50/50 text-red-500 font-extrabold rounded-xl transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 text-center flex items-center justify-center gap-1.5"
+                      >
+                        {isRejecting ? (
+                          <Loader2 className="animate-spin w-4 h-4" />
+                        ) : (
+                          <span>{t('rejectQuoteBtnShort')}</span>
+                        )}
+                      </button>
+                    </div>
+                  </>
+                ) : quoteData.status === 'Approved' ? (
+                  <div className="space-y-3">
+                    <div className="w-full py-4 px-6 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-2xl font-black text-center text-sm flex items-center justify-center gap-2 select-none">
+                      <CheckCircle2 size={16} />
+                      <span>{language === 'fr' ? 'APPROUVÉ' : 'APPROVED'}</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const whatsappNumber = "33757820121"; // Replace with your support WhatsApp number
+                        const message = language === 'fr'
+                          ? `Bonjour, je souhaite demander une nouvelle proposition pour le devis N° D/21110-${id}.`
+                          : `Hello, I would like to request a new proposal for Quote N° D/21110-${id}.`;
+                        const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+                        window.open(url, '_blank');
+                      }}
+                      className="w-full py-3.5 px-2.5 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-extrabold rounded-xl transition-all active:scale-[0.98] cursor-pointer text-center flex items-center justify-center gap-1.5 text-xs animate-fadeIn"
+                    >
+                      <span>{t('requestNewQuoteBtnShort')}</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="w-full py-4 px-6 bg-red-50 border border-red-100 text-red-600 rounded-2xl font-black text-center text-sm flex items-center justify-center gap-2 select-none">
+                      <X size={16} />
+                      <span>{language === 'fr' ? 'REFUSÉ' : 'REFUSED'}</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const whatsappNumber = "33757820121"; // Replace with your support WhatsApp number
+                        const message = language === 'fr'
+                          ? `Bonjour, je souhaite demander une nouvelle proposition pour le devis N° D/21110-${id}.`
+                          : `Hello, I would like to request a new proposal for Quote N° D/21110-${id}.`;
+                        const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+                        window.open(url, '_blank');
+                      }}
+                      className="w-full py-3.5 px-2.5 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-extrabold rounded-xl transition-all active:scale-[0.98] cursor-pointer text-center flex items-center justify-center gap-1.5 text-xs animate-fadeIn"
+                    >
+                      <span>{t('requestNewQuoteBtnShort')}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+            </div>
+
+          </div>
+
         </div>
 
       </div>
 
-      {/* FOOTER */}
-      <footer className="mt-20 border-t border-slate-100 py-10 bg-white">
-        <div className="max-w-7xl mx-auto px-6 text-center space-y-4">
-          <div className="flex justify-center">
-            <img src={logo} alt="Bloom Buddies Academy" className="w-52 h-auto" />
-          </div>
-          <p className="text-slate-400 text-xs font-semibold">
-            © 2026 Bloom Buddies Academy. All rights reserved.
-          </p>
-        </div>
-      </footer>
+
 
       {/* SUCCESS MODAL OVERLAY */}
       <AnimatePresence>
@@ -872,7 +1201,7 @@ export const PriceQuotePage = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto"
+            className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
           >
             <Confetti />
             
@@ -880,75 +1209,214 @@ export const PriceQuotePage = () => {
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
-              className="bg-white rounded-[2.5rem] p-8 md:p-12 max-w-2xl w-full shadow-2xl relative border border-slate-100 overflow-hidden"
+              className="bg-white rounded-2xl sm:rounded-[2rem] p-5 sm:p-6 md:p-7 max-w-md w-full shadow-2xl relative border border-slate-100/80 overflow-hidden my-auto mx-auto"
             >
               {/* Confetti details */}
-              <div className="w-20 h-20 bg-green-50 text-green-500 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm">
-                <CheckCircle2 size={44} />
+              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-green-50 text-green-500 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+                <CheckCircle2 className="w-6 h-6 sm:w-8 sm:h-8" />
               </div>
 
-              <h2 className="text-2xl md:text-4xl font-extrabold text-slate-800 text-center mb-3">
+              <h2 className="text-lg sm:text-xl md:text-2xl font-black text-slate-800 text-center mb-1.5 leading-tight">
                 {t('successTitle')}
               </h2>
-              <p className="text-slate-500 text-center font-medium max-w-md mx-auto mb-8">
+              <p className="text-slate-400 text-center font-medium max-w-sm mx-auto mb-4 sm:mb-5 text-[11px] sm:text-xs">
                 {t('successSubtitle')}
               </p>
 
               {/* Choices recap box */}
-              <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100/50 mb-8 space-y-3.5 text-sm">
-                <h4 className="font-extrabold text-slate-700 border-b border-slate-200 pb-2 mb-3">
+              <div className="bg-slate-50/50 p-3 sm:p-4 rounded-xl border border-slate-100/60 mb-4 sm:mb-5 space-y-2 sm:space-y-2.5 text-[11px] sm:text-xs">
+                <h4 className="font-extrabold text-slate-700 border-b border-slate-200/60 pb-1.5 mb-2">
                   {t('successRecap')}
                 </h4>
                 
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-500 font-bold">{t('selectStyleTitle')}</span>
-                  <span className="text-slate-800 font-black">
+                <div className="flex justify-between items-center gap-4">
+                  <span className="text-slate-400 font-bold">{t('selectStyleTitle')}</span>
+                  <span className="text-slate-700 font-black text-right truncate">
                     {selectedStyle === '1to1' ? t('lessonStyle1to1') : t('lessonStyleGroup')}
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-500 font-bold">{t('vacation')}</span>
-                  <span className="text-slate-800 font-black">
+                <div className="flex justify-between items-center gap-4">
+                  <span className="text-slate-400 font-bold">{t('vacation')}</span>
+                  <span className="text-slate-700 font-black text-right truncate">
                     {vacationPreference === 'included' ? t('vacationIncluded') : t('vacationExcluded')}
                   </span>
                 </div>
 
                 {selectedTeacher && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-500 font-bold">{t('class.teacher')}</span>
-                    <span className="text-brand-indigo font-black">
+                  <div className="flex justify-between items-center gap-4">
+                    <span className="text-slate-400 font-bold">{t('class.teacher')}</span>
+                    <span className="text-brand-indigo font-black text-right truncate">
                       {selectedTeacher.user?.firstName} {selectedTeacher.user?.lastName}
                     </span>
                   </div>
                 )}
 
-                <div className="flex justify-between items-center pt-2 border-t border-slate-200">
-                  <span className="text-slate-500 font-bold">{t('monthlyCost')}</span>
-                  <span className="text-brand-purple font-black text-base">
+                <div className="flex justify-between items-center gap-4 pt-2 border-t border-slate-200/60">
+                  <span className="text-slate-400 font-bold">{t('monthlyCost')}</span>
+                  <span className="text-brand-purple font-black text-xs sm:text-sm text-right">
                     {currentMonthlyCost} €
                   </span>
                 </div>
               </div>
 
               {/* Next steps */}
-              <div className="bg-indigo-50/30 p-6 rounded-2xl border border-indigo-100/30 mb-8 text-sm">
-                <h4 className="font-black text-brand-indigo flex items-center gap-2 mb-2">
-                  <Sparkles size={16} />
+              <div className="bg-indigo-50/20 p-3 sm:p-4 rounded-xl border border-indigo-100/10 mb-4 sm:mb-5 text-[11px] sm:text-xs">
+                <h4 className="font-bold text-brand-indigo flex items-center gap-1.5 mb-1 text-[11px] sm:text-xs">
+                  <Sparkles size={13} className="shrink-0" />
                   {t('successNextSteps')}
                 </h4>
-                <p className="text-slate-600 font-semibold leading-relaxed text-xs">
+                <p className="text-slate-500 leading-normal text-[10px] sm:text-[11px]">
                   {t('successNextStepsDesc').replace('{phone}', quoteData.parent?.phone || '')}
                 </p>
               </div>
 
               <Link
                 to="/"
-                className="w-full inline-flex justify-center items-center gap-2 bloom-gradient text-white px-8 py-4.5 rounded-2xl font-extrabold text-lg shadow-xl shadow-indigo-100 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                className="w-full inline-flex justify-center items-center gap-2 bloom-gradient text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-extrabold text-xs sm:text-sm shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all"
               >
-                <Home size={20} />
+                <Home size={14} className="shrink-0" />
                 <span>{t('successDoneBtn')}</span>
               </Link>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* REJECT SUCCESS MODAL OVERLAY */}
+      <AnimatePresence>
+        {showReject && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-2xl sm:rounded-[2rem] p-5 sm:p-6 max-w-md w-full shadow-2xl relative border border-slate-100/80 overflow-hidden text-center my-auto mx-auto"
+            >
+              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-red-50 text-red-500 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+                <X className="w-6 h-6 sm:w-8 sm:h-8" />
+              </div>
+
+              <h2 className="text-lg sm:text-xl md:text-2xl font-black text-slate-800 mb-1.5 leading-tight">
+                {t('rejectTitle')}
+              </h2>
+              <p className="text-slate-400 font-medium max-w-sm mx-auto mb-4 sm:mb-5 text-[11px] sm:text-xs">
+                {t('rejectSubtitle')}
+              </p>
+
+              <div className="bg-slate-50/50 p-3 sm:p-4 rounded-xl border border-slate-100/60 mb-4 sm:mb-5 text-[11px] sm:text-xs leading-relaxed text-slate-500 font-medium">
+                <p>{t('rejectNextSteps')}</p>
+              </div>
+
+              <button
+                onClick={() => setShowReject(false)}
+                className="w-full inline-flex justify-center items-center gap-2 bloom-gradient text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-extrabold text-xs sm:text-sm shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
+              >
+                <span>{t('successDoneBtn')}</span>
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* REQUEST NEW FORM MODAL OVERLAY */}
+      <AnimatePresence>
+        {showRequestNewForm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-2xl sm:rounded-[2rem] p-5 sm:p-6 max-w-md w-full shadow-2xl relative border border-slate-100/80 overflow-hidden my-auto mx-auto"
+            >
+              <button
+                onClick={() => setShowRequestNewForm(false)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+
+              <h2 className="text-lg sm:text-xl font-black text-slate-800 mb-1.5 pr-6 leading-tight">
+                {t('requestNewTitle')}
+              </h2>
+              <p className="text-slate-400 text-[10px] sm:text-[11px] font-semibold mb-4 sm:mb-5">
+                {t('requestNewDesc')}
+              </p>
+
+              <form onSubmit={handleRequestNewSubmit} className="space-y-3.5">
+                <div>
+                  <label className="block text-slate-400 font-bold uppercase tracking-wider text-[9px] mb-1.5">
+                    {language === 'fr' ? 'Vos commentaires / Besoins' : 'Your comments / Requirements'}
+                  </label>
+                  <textarea
+                    required
+                    value={requestNotes}
+                    onChange={(e) => setRequestNotes(e.target.value)}
+                    rows={3}
+                    placeholder={language === 'fr' ? "Ex. Je préfère commencer à 16h au lieu de 17h, ou avoir 15 heures par semaine..." : "E.g. I prefer to start at 04:00 PM instead of 05:00 PM, or have 15 weekly hours..."}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs font-medium text-slate-800 placeholder-slate-400 focus:border-brand-indigo focus:bg-white focus:outline-none transition-all resize-none"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isRequesting}
+                  className="w-full inline-flex justify-center items-center gap-2 bloom-gradient text-white py-2.5 sm:py-3 px-6 rounded-lg sm:rounded-xl font-extrabold text-xs sm:text-sm shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {isRequesting ? (
+                    <Loader2 className="animate-spin w-4 h-4" />
+                  ) : (
+                    <span>{t('submitRequestBtn')}</span>
+                  )}
+                </button>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* REQUEST SUCCESS MODAL OVERLAY */}
+      <AnimatePresence>
+        {showRequestSuccess && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-2xl sm:rounded-[2rem] p-5 sm:p-6 max-w-md w-full shadow-2xl relative border border-slate-100/80 overflow-hidden text-center my-auto mx-auto"
+            >
+              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-indigo-50 text-brand-indigo rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+                <CheckCircle2 className="w-6 h-6 sm:w-8 sm:h-8" />
+              </div>
+
+              <h2 className="text-lg sm:text-xl md:text-2xl font-black text-slate-800 mb-1.5 leading-tight">
+                {t('requestSuccessTitle')}
+              </h2>
+              <p className="text-slate-400 font-medium max-w-sm mx-auto mb-4 sm:mb-5 text-[11px] sm:text-xs">
+                {t('requestSuccessSubtitle')}
+              </p>
+
+              <button
+                onClick={() => setShowRequestSuccess(false)}
+                className="w-full inline-flex justify-center items-center gap-2 bloom-gradient text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-extrabold text-xs sm:text-sm shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
+              >
+                <span>{t('successDoneBtn')}</span>
+              </button>
             </motion.div>
           </motion.div>
         )}

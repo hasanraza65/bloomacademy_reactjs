@@ -256,15 +256,16 @@ export const apiService = {
     return response.json();
   },
 
-  async approvePriceQuote(id: string | number, payload: any): Promise<{ success: boolean; message?: string }> {
-    const response = await fetch(`${BASE_URL}price-quotes/${id}/approve`, {
+  async updatePriceQuoteStatus(id: string | number, status: 'Approved' | 'Refused'): Promise<{ success: boolean; message?: string }> {
+    const response = await fetch(`${BASE_URL}price-quotes/${id}/status`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ status }),
     });
     return response.json();
   }
 };
+
