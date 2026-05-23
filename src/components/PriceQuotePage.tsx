@@ -405,7 +405,14 @@ export const PriceQuotePage = () => {
 
     try {
       if (id) {
-        const res = await apiService.updatePriceQuoteStatus(id, 'Approved');
+        const selectedTeacher = teachers.find(t => t.id === selectedTeacherId);
+        const payload = {
+          status: 'Approved' as const,
+          vacation_included: vacationPreference === 'included' ? 1 : 0,
+          lesson_style: selectedStyle === '1to1' ? ('Private' as const) : ('Group' as const),
+          preferred_teacher_user_id: selectedTeacher?.user_id || null
+        };
+        const res = await apiService.updatePriceQuoteStatus(id, payload);
         console.log("Approve quote API response:", res);
       }
     } catch (err) {
@@ -421,7 +428,14 @@ export const PriceQuotePage = () => {
     setIsRejecting(true);
     try {
       if (id) {
-        const res = await apiService.updatePriceQuoteStatus(id, 'Refused');
+        const selectedTeacher = teachers.find(t => t.id === selectedTeacherId);
+        const payload = {
+          status: 'Refused' as const,
+          vacation_included: vacationPreference === 'included' ? 1 : 0,
+          lesson_style: selectedStyle === '1to1' ? ('Private' as const) : ('Group' as const),
+          preferred_teacher_user_id: selectedTeacher?.user_id || null
+        };
+        const res = await apiService.updatePriceQuoteStatus(id, payload);
         console.log("Reject quote API response:", res);
       }
     } catch (err) {

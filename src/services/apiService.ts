@@ -256,14 +256,22 @@ export const apiService = {
     return response.json();
   },
 
-  async updatePriceQuoteStatus(id: string | number, status: 'Approved' | 'Refused'): Promise<{ success: boolean; message?: string }> {
+  async updatePriceQuoteStatus(
+    id: string | number,
+    payload: {
+      status: 'Approved' | 'Refused';
+      vacation_included: number;
+      lesson_style: 'Private' | 'Group';
+      preferred_teacher_user_id: number | null;
+    }
+  ): Promise<{ success: boolean; message?: string }> {
     const response = await fetch(`${BASE_URL}price-quotes/${id}/status`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify(payload),
     });
     return response.json();
   }
