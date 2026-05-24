@@ -263,6 +263,7 @@ export const apiService = {
       vacation_included: number;
       lesson_style: 'Private' | 'Group';
       preferred_teacher_user_id: number | null;
+      children_data?: any[];
     }
   ): Promise<{ success: boolean; message?: string }> {
     const response = await fetch(`${BASE_URL}price-quotes/${id}/status`, {

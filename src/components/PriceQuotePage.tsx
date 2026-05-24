@@ -37,14 +37,14 @@ const translations = {
     priceDetails: "Price Quote Details",
     statusAccepted: "Accepted Option",
     statusNotAccepted: "Select Option",
-    selectStyleTitle: "1. Select Lesson Style",
+    selectStyleTitle: "Select Lesson Style",
     lessonStyle1to1: "1:1 Private Lessons",
     lessonStyleGroup: "Group of 4 Lessons",
     monthlyRate: "euros / month",
     hourlyRate: "euros / hour",
     formula1to1: "1:1 Private tutoring (Full focus & speed)",
-    formulaGroup: "Group learning (Max 4 students - 15 €/hour per student)",
-    vacationTitle: "2. School Vacation Preference",
+    formulaGroup: "Group learning (Collaborative study - 15 €/hour per student)",
+    vacationTitle: "School Vacation Preference",
     vacationIncluded: "School Vacation Included",
     vacationIncludedDesc: "My child will have lessons during school vacations & public holidays",
     vacationExcluded: "School Vacation Excluded",
@@ -60,7 +60,7 @@ const translations = {
     phone: "Phone Number",
     evaluationSession: "Evaluation Session",
     lessonSchedule: "Weekly Schedule",
-    selectTeacherTitle: "3. Choose Your Preferred Teacher",
+    selectTeacherTitle: "Choose Your Preferred Teacher",
     teacherSelected: "Selected",
     selectTeacherBtn: "Select Teacher",
     approveQuoteBtn: "Approve Price Quote",
@@ -103,7 +103,14 @@ const translations = {
     requestNewDesc: "Tell us what changes you would like (e.g. schedules, hours, lesson style) and we will generate a new quote for you.",
     submitRequestBtn: "Submit Request",
     requestSuccessTitle: "Request Submitted!",
-    requestSuccessSubtitle: "We have received your requirements and are working on a new proposal for you."
+    requestSuccessSubtitle: "We have received your requirements and are working on a new proposal for you.",
+    confirmApproveTitle: "Accept Proposal?",
+    confirmApproveDesc: "Are you sure you want to accept this proposal? This will confirm your selection and proceed to the next steps.",
+    confirmRejectTitle: "Reject Proposal?",
+    confirmRejectDesc: "Are you sure you want to reject this proposal? If it doesn't fit, our team can send you a new proposal.",
+    confirmBtnYesApprove: "Yes, Accept",
+    confirmBtnYesReject: "Yes, Reject",
+    cancelBtn: "Cancel"
   },
   fr: {
     title: "Votre Proposition Personnalisée",
@@ -111,14 +118,14 @@ const translations = {
     priceDetails: "Détails de la proposition",
     statusAccepted: "Option Sélectionnée",
     statusNotAccepted: "Sélectionner cette Option",
-    selectStyleTitle: "1. Choisissez le style de cours",
+    selectStyleTitle: "Choisissez le style de cours",
     lessonStyle1to1: "Cours Particuliers 1:1",
     lessonStyleGroup: "Cours en Groupe de 4",
     monthlyRate: "euros / mois",
     hourlyRate: "euros / heure",
     formula1to1: "Cours individuels 1:1 (Focus complet et rythme adapté)",
-    formulaGroup: "Cours en petit groupe (Max 4 élèves - 15 €/heure par élève)",
-    vacationTitle: "2. Préférence pour les vacances scolaires",
+    formulaGroup: "Cours en groupe (Apprentissage collaboratif - 15 €/heure par élève)",
+    vacationTitle: "Préférence pour les vacances scolaires",
     vacationIncluded: "Vacances Scolaires Incluses",
     vacationIncludedDesc: "Mon enfant aura cours pendant les vacances scolaires et les jours fériés",
     vacationExcluded: "Vacances Scolaires Exclues",
@@ -134,7 +141,7 @@ const translations = {
     phone: "Numéro de Téléphone",
     evaluationSession: "Session d'Évaluation",
     lessonSchedule: "Planning des Cours",
-    selectTeacherTitle: "3. Choisissez votre professeur",
+    selectTeacherTitle: "Choisissez votre professeur",
     teacherSelected: "Sélectionné",
     selectTeacherBtn: "Choisir ce professeur",
     approveQuoteBtn: "Approuver le Devis",
@@ -177,7 +184,14 @@ const translations = {
     requestNewDesc: "Dites-nous quelles modifications vous souhaitez (ex. plannings, heures, style de cours) et nous générerons un nouveau devis.",
     submitRequestBtn: "Envoyer la Demande",
     requestSuccessTitle: "Demande Envoyée !",
-    requestSuccessSubtitle: "Nous avons bien reçu vos critères et préparons une nouvelle proposition pour vous."
+    requestSuccessSubtitle: "Nous avons bien reçu vos critères et préparons une nouvelle proposition pour vous.",
+    confirmApproveTitle: "Accepter la Proposition ?",
+    confirmApproveDesc: "Êtes-vous sûr de vouloir accepter cette proposition ? Cela confirmera votre sélection et passera aux étapes suivantes.",
+    confirmRejectTitle: "Rejeter la Proposition ?",
+    confirmRejectDesc: "Êtes-vous sûr de vouloir rejeter cette proposition ? Si elle ne vous convient pas, notre équipe pourra vous envoyer une nouvelle proposition.",
+    confirmBtnYesApprove: "Oui, Accepter",
+    confirmBtnYesReject: "Oui, Rejeter",
+    cancelBtn: "Annuler"
   }
 };
 
@@ -307,11 +321,13 @@ export const PriceQuotePage = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [expandedChildren, setExpandedChildren] = useState<Record<number, boolean>>({ 0: true });
+  const [expandedChildren, setExpandedChildren] = useState<Record<number, boolean>>({});
 
   // Rejection & Request New Quote States
   const [showReject, setShowReject] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
+  const [showApproveConfirm, setShowApproveConfirm] = useState(false);
+  const [showRejectConfirm, setShowRejectConfirm] = useState(false);
   const [showRequestNewForm, setShowRequestNewForm] = useState(false);
   const [isRequesting, setIsRequesting] = useState(false);
   const [showRequestSuccess, setShowRequestSuccess] = useState(false);
@@ -395,12 +411,17 @@ export const PriceQuotePage = () => {
     }
   };
 
-  const handleApprove = async () => {
+  const handleApprove = () => {
     if (!selectedTeacherId) {
       setValidationError(t('validationTeacher'));
       return;
     }
     setValidationError(null);
+    setShowApproveConfirm(true);
+  };
+
+  const submitApprove = async () => {
+    setShowApproveConfirm(false);
     setIsSubmitting(true);
 
     try {
@@ -410,7 +431,8 @@ export const PriceQuotePage = () => {
           status: 'Approved' as const,
           vacation_included: vacationPreference === 'included' ? 1 : 0,
           lesson_style: selectedStyle === '1to1' ? ('Private' as const) : ('Group' as const),
-          preferred_teacher_user_id: selectedTeacher?.user_id || null
+          preferred_teacher_user_id: selectedTeacher?.user_id || null,
+          children_data: quoteData?.children_data || []
         };
         const res = await apiService.updatePriceQuoteStatus(id, payload);
         console.log("Approve quote API response:", res);
@@ -420,11 +442,13 @@ export const PriceQuotePage = () => {
     } finally {
       setIsSubmitting(false);
       setQuoteData((prev: any) => prev ? { ...prev, status: 'Approved' } : prev);
+      setShowSuccess(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   const handleReject = async () => {
+    setShowRejectConfirm(false);
     setIsRejecting(true);
     try {
       if (id) {
@@ -433,7 +457,8 @@ export const PriceQuotePage = () => {
           status: 'Refused' as const,
           vacation_included: vacationPreference === 'included' ? 1 : 0,
           lesson_style: selectedStyle === '1to1' ? ('Private' as const) : ('Group' as const),
-          preferred_teacher_user_id: selectedTeacher?.user_id || null
+          preferred_teacher_user_id: selectedTeacher?.user_id || null,
+          children_data: quoteData?.children_data || []
         };
         const res = await apiService.updatePriceQuoteStatus(id, payload);
         console.log("Reject quote API response:", res);
@@ -443,6 +468,7 @@ export const PriceQuotePage = () => {
     } finally {
       setIsRejecting(false);
       setQuoteData((prev: any) => prev ? { ...prev, status: 'Refused' } : prev);
+      setShowReject(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
@@ -516,8 +542,47 @@ export const PriceQuotePage = () => {
   };
 
   const getFormattedDate = (dateStr?: string) => {
-    const d = dateStr ? new Date(dateStr) : new Date();
-    return d.toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US');
+    if (!dateStr) return '';
+    try {
+      let d: Date;
+      if (typeof dateStr === 'string' && dateStr.includes('-') && !dateStr.includes('T')) {
+        const [year, month, day] = dateStr.split('-').map(Number);
+        d = new Date(year, month - 1, day);
+      } else {
+        d = new Date(dateStr);
+      }
+      if (isNaN(d.getTime())) return dateStr;
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yy = String(d.getFullYear()).slice(-2);
+      return `${dd}/${mm}/${yy}`;
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
+  const convertTo12Hour = (time24: string) => {
+    if (!time24) return '';
+    const [hourStr, minStr] = time24.split(':');
+    let hour = parseInt(hourStr, 10);
+    const min = minStr;
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    hour = hour % 12;
+    hour = hour ? hour : 12;
+    const hourFormatted = String(hour).padStart(2, '0');
+    return `${hourFormatted}:${min} ${ampm}`;
+  };
+
+  const convertTo24Hour = (time12: string) => {
+    if (!time12) return '';
+    const match = time12.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!match) return '';
+    let hour = parseInt(match[1], 10);
+    const min = match[2];
+    const ampm = match[3].toUpperCase();
+    if (ampm === 'PM' && hour < 12) hour += 12;
+    if (ampm === 'AM' && hour === 12) hour = 0;
+    return `${String(hour).padStart(2, '0')}:${min}`;
   };
 
   // Cost calculations
@@ -906,18 +971,7 @@ export const PriceQuotePage = () => {
                               </div>
                             </div>
 
-                            {/* Ratings & Timezone */}
-                            <div className="flex flex-wrap items-center gap-2 text-[10px]">
-                              <div className="flex items-center gap-1 text-brand-yellow font-black">
-                                <Star size={12} fill="currentColor" className="shrink-0" />
-                                <span>{4.8 + (teacher.id % 3) * 0.1}</span>
-                                <span className="text-slate-400 font-medium">({15 + (teacher.id * 7) % 50})</span>
-                              </div>
-                              <span className="text-slate-200">|</span>
-                              <div className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">
-                                {t('timezone')}: {teacher.timezone || 'UTC'}
-                              </div>
-                            </div>
+
 
                             {/* About me description inside right block */}
                             <p className="text-slate-500 text-[11px] leading-relaxed line-clamp-4 font-medium pt-2 border-t border-slate-100/60">
@@ -978,51 +1032,60 @@ export const PriceQuotePage = () => {
                                   transition={{ duration: 0.2 }}
                                   className="overflow-hidden border-t border-slate-100/50 bg-white"
                                 >
-                                  <div className="p-3 space-y-3 text-[11px] text-slate-500 font-medium">
+                                  <div className="p-3 space-y-3.5 text-xs text-slate-500 font-medium">
                                     {/* Evaluation Session */}
-                                    <div className="flex justify-between items-center gap-2">
-                                      <span className="shrink-0">{t('evaluationSession')}</span>
-                                      {editingChildIdx === idx ? (
-                                        <div className="flex items-center gap-1.5 shrink-0">
-                                          <input
-                                            type="date"
-                                            value={tempDate}
-                                            onChange={(e) => setTempDate(e.target.value)}
-                                            className="bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 text-[9px] outline-none font-sans"
-                                          />
-                                          <input
-                                            type="text"
-                                            value={tempTime}
-                                            onChange={(e) => setTempTime(e.target.value)}
-                                            placeholder="e.g. 05:00 PM"
-                                            className="bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 text-[9px] outline-none font-mono w-20"
-                                          />
-                                          <button
-                                            onClick={() => handleSaveEvaluation(idx)}
-                                            className="text-emerald-500 hover:text-emerald-600 p-0.5 rounded hover:bg-slate-50 transition-colors cursor-pointer"
-                                          >
-                                            <Check size={12} strokeWidth={3} />
-                                          </button>
-                                          <button
-                                            onClick={() => setEditingChildIdx(null)}
-                                            className="text-slate-400 hover:text-slate-500 p-0.5 rounded hover:bg-slate-50 transition-colors cursor-pointer"
-                                          >
-                                            <X size={12} strokeWidth={3} />
-                                          </button>
-                                        </div>
-                                      ) : (
-                                        <div className="flex items-center gap-1.5 shrink-0">
-                                          <span className="text-brand-purple font-black text-right">
-                                            {child.evaluation_class_date || 'N/A'} @ {child.evaluation_class_time || 'N/A'}
-                                          </span>
-                                          {quoteData.status === 'Pending' && (
+                                    <div className="flex flex-col gap-2 pt-1">
+                                      <div className="flex justify-between items-center text-xs">
+                                        <span className="font-extrabold text-slate-700">{t('evaluationSession')}</span>
+                                        {editingChildIdx !== idx && (
+                                          <div className="flex items-center gap-1.5 shrink-0">
+                                            <span className="text-brand-purple font-black text-right">
+                                              {getFormattedDate(child.evaluation_class_date) || 'N/A'} @ {child.evaluation_class_time || 'N/A'}
+                                            </span>
+                                            {quoteData.status === 'Pending' && (
+                                              <button
+                                                onClick={() => handleStartEditEvaluation(idx, child.evaluation_class_date, child.evaluation_class_time)}
+                                                className="text-slate-400 hover:text-brand-indigo transition-colors p-1 rounded hover:bg-slate-50 cursor-pointer"
+                                              >
+                                                <Edit3 size={12} />
+                                              </button>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {editingChildIdx === idx && (
+                                        <div className="flex items-center gap-2 mt-1 justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-100/80">
+                                          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                            <input
+                                              type="date"
+                                              value={tempDate}
+                                              onChange={(e) => setTempDate(e.target.value)}
+                                              className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none font-sans flex-1 min-w-0"
+                                            />
+                                            <input
+                                              type="time"
+                                              value={convertTo24Hour(tempTime)}
+                                              onChange={(e) => setTempTime(convertTo12Hour(e.target.value))}
+                                              className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none font-sans flex-1 min-w-0"
+                                            />
+                                          </div>
+                                          <div className="flex items-center gap-1 shrink-0">
                                             <button
-                                              onClick={() => handleStartEditEvaluation(idx, child.evaluation_class_date, child.evaluation_class_time)}
-                                              className="text-slate-400 hover:text-brand-indigo transition-colors p-0.5 rounded hover:bg-slate-50 cursor-pointer"
+                                              onClick={() => handleSaveEvaluation(idx)}
+                                              className="text-white bg-emerald-500 hover:bg-emerald-600 p-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center shadow-sm"
+                                              title="Save"
                                             >
-                                              <Edit3 size={11} />
+                                              <Check size={14} strokeWidth={3} />
                                             </button>
-                                          )}
+                                            <button
+                                              onClick={() => setEditingChildIdx(null)}
+                                              className="text-slate-500 bg-slate-200 hover:bg-slate-300 p-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center"
+                                              title="Cancel"
+                                            >
+                                              <X size={14} strokeWidth={3} />
+                                            </button>
+                                          </div>
                                         </div>
                                       )}
                                     </div>
@@ -1030,11 +1093,11 @@ export const PriceQuotePage = () => {
                                     {/* Weekly schedule */}
                                     {scheduleEntries.length > 0 ? (
                                       <div className="space-y-1.5 pt-2.5 border-t border-slate-50">
-                                        <p className="font-extrabold text-slate-400 uppercase tracking-wider text-[9px] mb-1">
+                                        <p className="font-extrabold text-slate-400 uppercase tracking-wider text-[10px] mb-1">
                                           {t('lessonSchedule')}
                                         </p>
                                         {scheduleEntries.map(([day, val]: [string, any]) => (
-                                          <div key={day} className="flex justify-between items-center text-[10px] bg-slate-50/50 p-1.5 rounded-lg border border-slate-100/20">
+                                          <div key={day} className="flex justify-between items-center text-[11px] bg-slate-50/50 p-2 rounded-lg border border-slate-100/20">
                                             <span className="font-bold text-slate-600 capitalize">{day}</span>
                                             <span className="font-medium text-slate-500 font-mono">
                                               {val.start_time} - {val.end_time}
@@ -1078,32 +1141,11 @@ export const PriceQuotePage = () => {
                     </span>
                   </div>
 
-                  {/* Vacation preference status */}
-                  <div className="flex justify-between items-center text-[11px] text-slate-400">
-                    <span>{t('vacation')}: {vacationPreference === 'included' ? t('vacationIncluded') : t('vacationExcluded')}</span>
-                    <span className="italic">{language === 'fr' ? 'Inclus' : 'Included'}</span>
-                  </div>
-
-                  {/* Teacher assignment info */}
-                  {selectedTeacher && (
-                    <div className="flex justify-between items-center text-[11px] text-slate-400">
-                      <span>{t('class.teacher')}: {selectedTeacher.user?.firstName} {selectedTeacher.user?.lastName}</span>
-                      <span className="text-brand-indigo font-extrabold">{language === 'fr' ? 'Assigné' : 'Assigned'}</span>
-                    </div>
-                  )}
 
                   {/* Totals Section matching Devis format */}
-                  <div className="pt-3.5 border-t border-slate-100 space-y-1.5">
-                    <div className="flex justify-between text-slate-400 text-[11px]">
-                      <span>Total HT</span>
-                      <span>{(currentMonthlyCost / 1.2).toFixed(2)} €</span>
-                    </div>
-                    <div className="flex justify-between text-slate-400 text-[11px]">
-                      <span>Montant TVA (20%)</span>
-                      <span>{(currentMonthlyCost - parseFloat((currentMonthlyCost / 1.2).toFixed(2))).toFixed(2)} €</span>
-                    </div>
-                    <div className="flex justify-between items-center pt-2 border-t border-slate-100">
-                      <span className="text-xs font-black text-slate-800">Total TTC</span>
+                  <div className="pt-3.5 border-t border-slate-100">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-black text-slate-800">{t('monthlyCost')}</span>
                       <span className="text-base font-black text-brand-indigo">
                         {currentMonthlyCost} €
                       </span>
@@ -1158,7 +1200,7 @@ export const PriceQuotePage = () => {
 
                       {/* Reject Price Quote */}
                       <button
-                        onClick={handleReject}
+                        onClick={() => setShowRejectConfirm(true)}
                         disabled={isSubmitting || isRejecting}
                         className="py-3.5 px-2.5 border border-red-200 hover:border-red-300 hover:bg-red-50/50 text-red-500 font-extrabold rounded-xl transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 text-center flex items-center justify-center gap-1.5"
                       >
@@ -1446,6 +1488,96 @@ export const PriceQuotePage = () => {
               >
                 <span>{t('successDoneBtn')}</span>
               </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* APPROVE CONFIRMATION MODAL OVERLAY */}
+      <AnimatePresence>
+        {showApproveConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-2xl sm:rounded-[2rem] p-5 sm:p-6 max-w-md w-full shadow-2xl relative border border-slate-100/80 overflow-hidden text-center my-auto mx-auto"
+            >
+              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-indigo-50 text-brand-indigo rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+                <CheckCircle2 className="w-6 h-6 sm:w-8 sm:h-8" />
+              </div>
+
+              <h2 className="text-lg sm:text-xl font-black text-slate-800 mb-1.5 leading-tight">
+                {t('confirmApproveTitle')}
+              </h2>
+              <p className="text-slate-400 font-medium max-w-sm mx-auto mb-5 text-[11px] sm:text-xs">
+                {t('confirmApproveDesc')}
+              </p>
+
+              <div className="grid grid-cols-2 gap-3 mt-4">
+                <button
+                  onClick={() => setShowApproveConfirm(false)}
+                  className="py-3 px-4 border border-slate-200 hover:bg-slate-50 text-slate-700 font-extrabold rounded-xl text-xs transition-all active:scale-[0.98] cursor-pointer"
+                >
+                  {t('cancelBtn')}
+                </button>
+                <button
+                  onClick={submitApprove}
+                  className="py-3 px-4 bloom-gradient text-white font-extrabold rounded-xl text-xs transition-all active:scale-[0.98] shadow-md hover:scale-[1.01] cursor-pointer"
+                >
+                  {t('confirmBtnYesApprove')}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* REJECT CONFIRMATION MODAL OVERLAY */}
+      <AnimatePresence>
+        {showRejectConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-2xl sm:rounded-[2rem] p-5 sm:p-6 max-w-md w-full shadow-2xl relative border border-slate-100/80 overflow-hidden text-center my-auto mx-auto"
+            >
+              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-red-50 text-red-500 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+                <X className="w-6 h-6 sm:w-8 sm:h-8" />
+              </div>
+
+              <h2 className="text-lg sm:text-xl font-black text-slate-800 mb-1.5 leading-tight">
+                {t('confirmRejectTitle')}
+              </h2>
+              <p className="text-slate-400 font-medium max-w-sm mx-auto mb-5 text-[11px] sm:text-xs">
+                {t('confirmRejectDesc')}
+              </p>
+
+              <div className="grid grid-cols-2 gap-3 mt-4">
+                <button
+                  onClick={() => setShowRejectConfirm(false)}
+                  className="py-3 px-4 border border-slate-200 hover:bg-slate-50 text-slate-700 font-extrabold rounded-xl text-xs transition-all active:scale-[0.98] cursor-pointer"
+                >
+                  {t('cancelBtn')}
+                </button>
+                <button
+                  onClick={handleReject}
+                  className="py-3 px-4 bg-red-500 hover:bg-red-600 text-white font-extrabold rounded-xl text-xs transition-all active:scale-[0.98] shadow-md hover:scale-[1.01] cursor-pointer"
+                >
+                  {t('confirmBtnYesReject')}
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

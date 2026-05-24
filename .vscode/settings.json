@@ -19,5 +19,8 @@
     "type": "shell",
     "command": "npm run lint",
     "runOn": "folderOpen"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "rvest.vs-code-prettier-eslint"
   }
 }
