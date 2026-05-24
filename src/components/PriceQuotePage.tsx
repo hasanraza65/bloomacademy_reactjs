@@ -378,17 +378,13 @@ export const PriceQuotePage = () => {
             setTeachers(mockTeachers);
           }
         } else {
-          // If backend returns success: false, fallback to mock data
-          setQuoteData(getMockQuote(id));
-          setTeachers(mockTeachers);
+          setQuoteData(null);
+          setError("Quote not found");
         }
-        setError(null);
       } catch (err) {
-        console.warn("API fetch failed, falling back to mock price quote", err);
-        // Fallback to mock data for demonstration
-        setQuoteData(getMockQuote(id));
-        setTeachers(mockTeachers);
-        setError(null);
+        console.warn("API fetch failed", err);
+        setQuoteData(null);
+        setError("Quote not found");
       } finally {
         setLoading(false);
       }
@@ -617,7 +613,7 @@ export const PriceQuotePage = () => {
       <div className="max-w-7xl mx-auto px-4 md:px-6 pt-10 md:pt-14 relative z-10">
         
         {/* Invoice / Devis Card Sheet Container */}
-        <div className="bg-white rounded-[2.5rem] border border-slate-100/80 p-6 md:p-10 soft-shadow">
+        <div className="bg-white rounded-[1.5rem] sm:rounded-[2.5rem] border border-slate-100/80 p-4 sm:p-6 md:p-10 soft-shadow">
           
           {/* Header Row: Logo & Invoice Metadata */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-slate-100 mb-8">
@@ -708,7 +704,7 @@ export const PriceQuotePage = () => {
             <div className="lg:col-span-8 space-y-6">
               
               {/* 1. SELECT LESSON STYLE CARD */}
-              <div className="border border-slate-100 rounded-3xl p-5 md:p-6 bg-white">
+              <div className="border border-slate-100 rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 bg-white">
                 <h2 className="text-base font-extrabold text-slate-800 mb-4 flex items-center gap-3">
                   <span className="w-7 h-7 rounded-lg bg-indigo-50 text-brand-indigo flex items-center justify-center text-xs font-black">1</span>
                   {t('selectStyleTitle')}
@@ -808,7 +804,7 @@ export const PriceQuotePage = () => {
               </div>
 
               {/* 2. SELECT SCHOOL VACATION PREFERENCE */}
-              <div className="border border-slate-100 rounded-3xl p-5 md:p-6 bg-white">
+              <div className="border border-slate-100 rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 bg-white">
                 <h2 className="text-base font-extrabold text-slate-800 mb-4 flex items-center gap-3">
                   <span className="w-7 h-7 rounded-lg bg-indigo-50 text-brand-indigo flex items-center justify-center text-xs font-black">2</span>
                   {t('vacationTitle')}
@@ -878,7 +874,7 @@ export const PriceQuotePage = () => {
               </div>
 
               {/* 3. CHOOSE YOUR PREFERRED TEACHER */}
-              <div className="border border-slate-100 rounded-3xl p-5 md:p-6 bg-white">
+              <div className="border border-slate-100 rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 bg-white">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-base font-extrabold text-slate-800 flex items-center gap-3">
                     <span className="w-7 h-7 rounded-lg bg-indigo-50 text-brand-indigo flex items-center justify-center text-xs font-black">3</span>
@@ -921,7 +917,7 @@ export const PriceQuotePage = () => {
                           if (quoteData.status !== 'Pending') return;
                           setSelectedTeacherId(teacher.id);
                         }}
-                        className={`snap-start shrink-0 w-[22rem] md:w-[26rem] border rounded-2xl transition-all flex flex-row items-stretch overflow-hidden relative ${
+                        className={`snap-start shrink-0 w-[18.5rem] sm:w-[26rem] border rounded-2xl transition-all flex flex-row items-stretch overflow-hidden relative ${
                           quoteData.status === 'Pending'
                             ? 'cursor-pointer hover:border-slate-200 hover:bg-slate-50/10'
                             : 'cursor-default'
@@ -991,7 +987,7 @@ export const PriceQuotePage = () => {
             <div className="lg:col-span-4 space-y-6">
               
               {/* Sidebar Card 2: Lesson Schedules */}
-              <div className="border border-slate-100 rounded-3xl p-5 md:p-6 bg-white space-y-4">
+              <div className="border border-slate-100 rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 bg-white space-y-4">
                 <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider flex items-center gap-2 border-b border-slate-50 pb-2.5">
                   <CalendarIcon className="text-brand-purple shrink-0" size={16} />
                   {language === 'fr' ? 'PLANNINGS DES COURS' : 'LESSON SCHEDULES'}
@@ -1123,7 +1119,7 @@ export const PriceQuotePage = () => {
               </div>
 
               {/* Quick Summary / Pricing breakdown */}
-              <div className="border border-slate-100 rounded-3xl p-5 md:p-6 bg-white space-y-4">
+              <div className="border border-slate-100 rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 bg-white space-y-4">
                 <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider flex items-center gap-2 border-b border-slate-50 pb-2.5">
                   <CheckCircle2 className="text-brand-indigo shrink-0" size={16} />
                   {language === 'fr' ? 'DÉTAIL DU PRIX' : 'PRICING SUMMARY'}
