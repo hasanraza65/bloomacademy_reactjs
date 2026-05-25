@@ -11,6 +11,7 @@ import {
   Star,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Sparkles,
   Check,
   Loader2,
@@ -110,7 +111,8 @@ const translations = {
     confirmRejectDesc: "Are you sure you want to reject this proposal? If it doesn't fit, our team can send you a new proposal.",
     confirmBtnYesApprove: "Yes, Accept",
     confirmBtnYesReject: "Yes, Reject",
-    cancelBtn: "Cancel"
+    cancelBtn: "Cancel",
+    selectTeacherBtnShort: "Select"
   },
   fr: {
     title: "Votre Proposition Personnalisée",
@@ -191,7 +193,8 @@ const translations = {
     confirmRejectDesc: "Êtes-vous sûr de vouloir rejeter cette proposition ? Si elle ne vous convient pas, notre équipe pourra vous envoyer une nouvelle proposition.",
     confirmBtnYesApprove: "Oui, Accepter",
     confirmBtnYesReject: "Oui, Rejeter",
-    cancelBtn: "Annuler"
+    cancelBtn: "Annuler",
+    selectTeacherBtnShort: "Choisir"
   }
 };
 
@@ -209,14 +212,48 @@ const getMockQuote = (id: string) => {
         evaluation_class_date: "2026-05-25",
         evaluation_class_time: "05:00 PM",
         lesson_schedule: {
-          monday: {
-            start_time: "04:00 PM",
-            end_time: "06:00 PM"
-          },
-          tuesday: {
-            start_time: "03:00 PM",
-            end_time: "05:00 PM"
-          }
+          monday: { start_time: "04:00 PM", end_time: "06:00 PM" },
+          tuesday: { start_time: "03:00 PM", end_time: "05:00 PM" }
+        }
+      },
+      {
+        child_name: "Ahmad",
+        child_dob: "2019-03-15",
+        evaluation_class_date: "2026-05-26",
+        evaluation_class_time: "10:00 AM",
+        lesson_schedule: {
+          wednesday: { start_time: "10:00 AM", end_time: "12:00 PM" },
+          friday: { start_time: "11:00 AM", end_time: "01:00 PM" }
+        }
+      },
+      {
+        child_name: "Mubeen",
+        child_dob: "2017-08-22",
+        evaluation_class_date: "2026-05-27",
+        evaluation_class_time: "02:00 PM",
+        lesson_schedule: {
+          monday: { start_time: "02:00 PM", end_time: "04:00 PM" },
+          thursday: { start_time: "03:00 PM", end_time: "05:00 PM" }
+        }
+      },
+      {
+        child_name: "Hassan",
+        child_dob: "2020-01-10",
+        evaluation_class_date: "2026-05-28",
+        evaluation_class_time: "09:00 AM",
+        lesson_schedule: {
+          tuesday: { start_time: "09:00 AM", end_time: "11:00 AM" },
+          saturday: { start_time: "10:00 AM", end_time: "12:00 PM" }
+        }
+      },
+      {
+        child_name: "Bilal",
+        child_dob: "2016-11-05",
+        evaluation_class_date: "2026-05-29",
+        evaluation_class_time: "04:00 PM",
+        lesson_schedule: {
+          wednesday: { start_time: "04:00 PM", end_time: "06:00 PM" },
+          friday: { start_time: "03:00 PM", end_time: "05:00 PM" }
         }
       }
     ],
@@ -244,12 +281,37 @@ const mockTeachers = [
     city: "Paris, France",
     timezone: "Europe/Paris",
     about_me: "Certified native teacher with over 5 years of experience in early language learning. I create a warm and fun environment where children feel confident to speak and express themselves.",
-    user: {
-      id: 38,
-      firstName: "Paris",
-      lastName: "Teachertest",
-      email: "paristeacher@mail.com"
-    }
+    user: { id: 38, firstName: "Sophie", lastName: "Martin", email: "sophie.martin@mail.com" }
+  },
+  {
+    id: 10,
+    user_id: 39,
+    profile_pic: null,
+    dob: "1990-08-22",
+    city: "Lyon, France",
+    timezone: "Europe/Paris",
+    about_me: "Passionate educator specialising in maths and sciences for ages 6–14. I use games and real-life examples to make abstract concepts click. 8 years of tutoring experience.",
+    user: { id: 39, firstName: "Lucas", lastName: "Dubois", email: "lucas.dubois@mail.com" }
+  },
+  {
+    id: 11,
+    user_id: 40,
+    profile_pic: null,
+    dob: "1993-03-10",
+    city: "Bordeaux, France",
+    timezone: "Europe/Paris",
+    about_me: "Native English speaker with a TEFL certificate and 6 years of experience teaching children from diverse backgrounds. My lessons are structured yet playful to keep kids engaged.",
+    user: { id: 40, firstName: "Emma", lastName: "Clarke", email: "emma.clarke@mail.com" }
+  },
+  {
+    id: 12,
+    user_id: 41,
+    profile_pic: null,
+    dob: "1988-11-30",
+    city: "Marseille, France",
+    timezone: "Europe/Paris",
+    about_me: "Bilingual French-Arabic teacher with 10 years of experience. I focus on building strong reading and comprehension foundations while keeping a positive and patient approach.",
+    user: { id: 41, firstName: "Karim", lastName: "Benali", email: "karim.benali@mail.com" }
   }
 ];
 
@@ -315,13 +377,15 @@ export const PriceQuotePage = () => {
   const [teachers, setTeachers] = useState<any[]>([]);
   
   // Interactive choices
-  const [selectedStyle, setSelectedStyle] = useState<'1to1' | 'group'>('1to1');
-  const [vacationPreference, setVacationPreference] = useState<'included' | 'excluded'>('included');
-  const [selectedTeacherId, setSelectedTeacherId] = useState<number | null>(null);
+  const [selectedStyle, setSelectedStyle] = useState<'1to1' | 'group' | null>(null);
+  const [vacationPreference, setVacationPreference] = useState<'included' | 'excluded' | null>(null);
+  const [selectedTeacherIds, setSelectedTeacherIds] = useState<Record<number, number>>({});
   const [showSuccess, setShowSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [expandedChildren, setExpandedChildren] = useState<Record<number, boolean>>({});
+  const [activeScheduleChildIdx, setActiveScheduleChildIdx] = useState(0);
+  const [isLessonStyleOpen, setIsLessonStyleOpen] = useState(true);
+  const [activeChildIdx, setActiveChildIdx] = useState(0);
 
   // Rejection & Request New Quote States
   const [showReject, setShowReject] = useState(false);
@@ -370,21 +434,21 @@ export const PriceQuotePage = () => {
       try {
         const response = await apiService.getPriceQuote(id);
         if (response.success && response.data) {
-          setQuoteData(response.data);
-          // If api has recommended teachers, use them. Otherwise fallback to mock teachers
-          if (response.recommended_teachers && response.recommended_teachers.length > 0) {
-            setTeachers(response.recommended_teachers);
-          } else {
-            setTeachers(mockTeachers);
-          }
+          const data = { ...response.data };
+          setQuoteData(data);
+          // If API returns recommended teachers, use them, else fallback to mock
+          setTeachers(response.recommended_teachers && response.recommended_teachers.length > 0 ? response.recommended_teachers : mockTeachers);
         } else {
-          setQuoteData(null);
-          setError("Quote not found");
+          // Fallback to mock data for local testing
+          const mockData = getMockQuote(id);
+          setQuoteData(mockData);
+          setTeachers(mockTeachers);
         }
       } catch (err) {
-        console.warn("API fetch failed", err);
-        setQuoteData(null);
-        setError("Quote not found");
+        console.warn("API fetch failed, falling back to mock data", err);
+        const mockData = getMockQuote(id);
+        setQuoteData(mockData);
+        setTeachers(mockTeachers);
       } finally {
         setLoading(false);
       }
@@ -393,12 +457,7 @@ export const PriceQuotePage = () => {
     fetchQuote();
   }, [id]);
 
-  // Pre-select first teacher if available
-  useEffect(() => {
-    if (teachers.length > 0 && selectedTeacherId === null) {
-      setSelectedTeacherId(teachers[0].id);
-    }
-  }, [teachers, selectedTeacherId]);
+
 
   const handleScroll = (direction: 'left' | 'right') => {
     if (scrollRef.current) {
@@ -408,7 +467,8 @@ export const PriceQuotePage = () => {
   };
 
   const handleApprove = () => {
-    if (!selectedTeacherId) {
+    const hasUnselected = quoteData?.children_data?.some((_: any, idx: number) => !selectedTeacherIds[idx]);
+    if (hasUnselected) {
       setValidationError(t('validationTeacher'));
       return;
     }
@@ -422,13 +482,21 @@ export const PriceQuotePage = () => {
 
     try {
       if (id) {
-        const selectedTeacher = teachers.find(t => t.id === selectedTeacherId);
+        const firstTeacherId = selectedTeacherIds[0];
+        const firstSelectedTeacher = teachers.find(t => t.id === firstTeacherId);
         const payload = {
           status: 'Approved' as const,
           vacation_included: vacationPreference === 'included' ? 1 : 0,
           lesson_style: selectedStyle === '1to1' ? ('Private' as const) : ('Group' as const),
-          preferred_teacher_user_id: selectedTeacher?.user_id || null,
-          children_data: quoteData?.children_data || []
+          preferred_teacher_user_id: firstSelectedTeacher?.user_id || null,
+          children_data: quoteData?.children_data?.map((child: any, idx: number) => {
+            const childTeacherId = selectedTeacherIds[idx];
+            const childTeacher = teachers.find(t => t.id === childTeacherId);
+            return {
+              ...child,
+              preferred_teacher_user_id: childTeacher?.user_id || null
+            };
+          }) || []
         };
         const res = await apiService.updatePriceQuoteStatus(id, payload);
         console.log("Approve quote API response:", res);
@@ -448,13 +516,21 @@ export const PriceQuotePage = () => {
     setIsRejecting(true);
     try {
       if (id) {
-        const selectedTeacher = teachers.find(t => t.id === selectedTeacherId);
+        const firstTeacherId = selectedTeacherIds[0];
+        const firstSelectedTeacher = teachers.find(t => t.id === firstTeacherId);
         const payload = {
           status: 'Refused' as const,
           vacation_included: vacationPreference === 'included' ? 1 : 0,
           lesson_style: selectedStyle === '1to1' ? ('Private' as const) : ('Group' as const),
-          preferred_teacher_user_id: selectedTeacher?.user_id || null,
-          children_data: quoteData?.children_data || []
+          preferred_teacher_user_id: firstSelectedTeacher?.user_id || null,
+          children_data: quoteData?.children_data?.map((child: any, idx: number) => {
+            const childTeacherId = selectedTeacherIds[idx];
+            const childTeacher = teachers.find(t => t.id === childTeacherId);
+            return {
+              ...child,
+              preferred_teacher_user_id: childTeacher?.user_id || null
+            };
+          }) || []
         };
         const res = await apiService.updatePriceQuoteStatus(id, payload);
         console.log("Reject quote API response:", res);
@@ -595,13 +671,21 @@ export const PriceQuotePage = () => {
   const rateGroup = parseFloat((15 * childrenCount).toFixed(2));
   const costGroup = parseFloat((rateGroup * weeklyHoursFloat * 4.33).toFixed(2));
 
-  const currentMonthlyCost = selectedStyle === '1to1' ? cost1to1 : costGroup;
-  const currentHourlyRate = selectedStyle === '1to1' ? rate1to1 : rateGroup;
+  const currentMonthlyCost = selectedStyle === '1to1' ? cost1to1 : selectedStyle === 'group' ? costGroup : 0;
+  const currentHourlyRate = selectedStyle === '1to1' ? rate1to1 : selectedStyle === 'group' ? rateGroup : 0;
+
+  const isAllSelected = !!(
+    selectedStyle &&
+    vacationPreference &&
+    quoteData?.children_data &&
+    quoteData.children_data.length > 0 &&
+    quoteData.children_data.every((_: any, idx: number) => selectedTeacherIds[idx] !== undefined)
+  );
 
   // Child data
   const childrenNames = quoteData.children_data?.map((c: any) => c.child_name || "Student").join(', ') || "Student";
 
-  const selectedTeacher = teachers.find(t => t.id === selectedTeacherId);
+
 
   return (
     <div className="min-h-screen bg-brand-slate-bg pb-24 relative overflow-hidden font-sans">
@@ -627,7 +711,7 @@ export const PriceQuotePage = () => {
               <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight">
                 {language === 'fr' ? 'DEVIS' : 'QUOTE'} N° {getQuoteRef()}
               </h1>
-              <p className="text-[11px] text-slate-400 font-bold mt-1">
+              <p className="text-xs text-slate-600 font-bold mt-1">
                 {language === 'fr' ? 'Date de création' : 'Creation Date'}:{' '}
                 {getFormattedDate(quoteData.created_at)}
               </p>
@@ -675,11 +759,11 @@ export const PriceQuotePage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-8">
             {/* VENDEUR Box (Static Leonard.fr details) */}
             <div className="border border-slate-100/60 rounded-2xl p-4 bg-slate-50/20">
-              <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2.5">
+              <h3 className="text-xs font-black uppercase text-slate-600 tracking-wider mb-2.5">
                 {language === 'fr' ? 'VENDEUR:' : 'SELLER:'}
               </h3>
-              <div className="text-xs space-y-0.5 text-slate-600 font-medium">
-                <p className="font-extrabold text-slate-800 text-[13px] mb-1">Leonard.fr</p>
+              <div className="text-xs space-y-0.5 text-slate-700 font-medium">
+                <p className="font-extrabold text-slate-800 text-sm mb-1">Leonard.fr</p>
                 <p>180 Rue Judaïque</p>
                 <p>33000 Bordeaux, France</p>
                 <p className="pt-1">SIREN 809015407</p>
@@ -689,11 +773,11 @@ export const PriceQuotePage = () => {
 
             {/* ACHETEUR Box (Dynamic parent details from API) */}
             <div className="border border-slate-100/60 rounded-2xl p-4 bg-slate-50/20">
-              <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2.5">
+              <h3 className="text-xs font-black uppercase text-slate-600 tracking-wider mb-2.5">
                 {language === 'fr' ? 'ACHETEUR:' : 'BUYER:'}
               </h3>
-              <div className="text-xs space-y-0.5 text-slate-600 font-medium">
-                <p className="font-extrabold text-slate-800 text-[13px] mb-1">
+              <div className="text-xs space-y-0.5 text-slate-700 font-medium">
+                <p className="font-extrabold text-slate-800 text-sm mb-1">
                   {quoteData.parent?.firstName || 'Admin'} {quoteData.parent?.lastName || 'User'}
                 </p>
                 <p>{quoteData.parent?.address || 'Paris, France'}</p>
@@ -710,127 +794,119 @@ export const PriceQuotePage = () => {
 
               {/* LESSON SCHEDULES */}
               <div className="border border-slate-100 rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white space-y-4">
-                <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider flex items-center gap-2 border-b border-slate-50 pb-2.5">
+                <h3 className="text-sm font-black uppercase text-slate-600 tracking-wider flex items-center gap-2 border-b border-slate-50 pb-2.5">
                   <CalendarIcon className="text-brand-purple shrink-0" size={16} />
                   {language === 'fr' ? 'PLANNINGS DES COURS' : 'LESSON SCHEDULES'}
                 </h3>
 
                 {quoteData.children_data && quoteData.children_data.length > 0 && (
-                  <div className="pt-0 space-y-2">
-                    <div className="space-y-2">
-                      {quoteData.children_data.map((child: any, idx: number) => {
-                        const isExpanded = !!expandedChildren[idx];
-                        const scheduleEntries = Object.entries(child.lesson_schedule || {});
+                  <div className="pt-0 space-y-4">
+                    {/* Student Tabs for Lesson Schedules */}
+                    <div className="flex gap-2 flex-wrap border-b border-slate-100 pb-3">
+                      {quoteData.children_data.map((child: any, idx: number) => (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            setActiveScheduleChildIdx(idx);
+                            setEditingChildIdx(null); // Reset editing state on tab switch
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+                            activeScheduleChildIdx === idx
+                              ? 'bg-brand-indigo text-white shadow-sm'
+                              : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                          }`}
+                        >
+                          {child.child_name || `Student ${idx + 1}`}
+                        </button>
+                      ))}
+                    </div>
 
-                        return (
-                          <div key={idx} className="border border-slate-100 rounded-xl overflow-hidden bg-slate-50/10">
-                            <div
-                              onClick={() => setExpandedChildren(prev => ({ ...prev, [idx]: !prev[idx] }))}
-                              className="flex justify-between items-center p-2.5 cursor-pointer hover:bg-slate-50 transition-colors"
-                            >
-                              <span className="font-extrabold text-slate-700 text-xs flex items-center gap-1.5">
-                                <UserIcon size={12} className="text-brand-indigo shrink-0" />
-                                {child.child_name || `Student ${idx + 1}`}
-                              </span>
-                              <ChevronRight
-                                size={14}
-                                className={`text-slate-400 transition-transform duration-200 shrink-0 ${isExpanded ? 'rotate-90' : ''}`}
-                              />
+                    {/* Active Student Content */}
+                    {(() => {
+                      const child = quoteData.children_data[activeScheduleChildIdx];
+                      if (!child) return null;
+                      const scheduleEntries = Object.entries(child.lesson_schedule || {});
+
+                      return (
+                        <div className="border border-slate-100 rounded-xl overflow-hidden bg-white p-3.5 space-y-3.5 text-sm text-slate-600 font-medium">
+                          <div className="flex flex-col gap-2">
+                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5 sm:gap-2 text-xs">
+                              <span className="font-extrabold text-slate-700">{t('evaluationSession')}</span>
+                              {editingChildIdx !== activeScheduleChildIdx && (
+                                <div className="flex items-center gap-1.5 shrink-0 self-start sm:self-auto">
+                                  <span className="text-brand-purple font-black text-left sm:text-right">
+                                    {getFormattedDate(child.evaluation_class_date) || 'N/A'} @ {child.evaluation_class_time || 'N/A'}
+                                  </span>
+                                  {quoteData.status === 'Pending' && (
+                                    <button
+                                      onClick={() => handleStartEditEvaluation(activeScheduleChildIdx, child.evaluation_class_date, child.evaluation_class_time)}
+                                      className="text-slate-400 hover:text-brand-indigo transition-colors p-1 rounded hover:bg-slate-50 cursor-pointer"
+                                    >
+                                      <Edit3 size={12} />
+                                    </button>
+                                  )}
+                                </div>
+                              )}
                             </div>
 
-                            <AnimatePresence initial={false}>
-                              {isExpanded && (
-                                <motion.div
-                                  initial={{ height: 0, opacity: 0 }}
-                                  animate={{ height: 'auto', opacity: 1 }}
-                                  exit={{ height: 0, opacity: 0 }}
-                                  transition={{ duration: 0.2 }}
-                                  className="overflow-hidden border-t border-slate-100/50 bg-white"
-                                >
-                                  <div className="p-3 space-y-3.5 text-xs text-slate-500 font-medium">
-                                    <div className="flex flex-col gap-2 pt-1">
-                                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5 sm:gap-2 text-xs">
-                                        <span className="font-extrabold text-slate-700">{t('evaluationSession')}</span>
-                                        {editingChildIdx !== idx && (
-                                          <div className="flex items-center gap-1.5 shrink-0 self-start sm:self-auto">
-                                            <span className="text-brand-purple font-black text-left sm:text-right">
-                                              {getFormattedDate(child.evaluation_class_date) || 'N/A'} @ {child.evaluation_class_time || 'N/A'}
-                                            </span>
-                                            {quoteData.status === 'Pending' && (
-                                              <button
-                                                onClick={() => handleStartEditEvaluation(idx, child.evaluation_class_date, child.evaluation_class_time)}
-                                                className="text-slate-400 hover:text-brand-indigo transition-colors p-1 rounded hover:bg-slate-50 cursor-pointer"
-                                              >
-                                                <Edit3 size={12} />
-                                              </button>
-                                            )}
-                                          </div>
-                                        )}
-                                      </div>
-
-                                      {editingChildIdx === idx && (
-                                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-1 bg-slate-50 p-2 rounded-xl border border-slate-100/80">
-                                          <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                                            <input
-                                              type="date"
-                                              value={tempDate}
-                                              onChange={(e) => setTempDate(e.target.value)}
-                                              className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] sm:text-xs outline-none font-sans flex-1 min-w-0"
-                                            />
-                                            <input
-                                              type="time"
-                                              value={convertTo24Hour(tempTime)}
-                                              onChange={(e) => setTempTime(convertTo12Hour(e.target.value))}
-                                              className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] sm:text-xs outline-none font-sans flex-1 min-w-0"
-                                            />
-                                          </div>
-                                          <div className="flex items-center gap-1 justify-end shrink-0">
-                                            <button
-                                              onClick={() => handleSaveEvaluation(idx)}
-                                              className="text-white bg-emerald-500 hover:bg-emerald-600 p-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center shadow-sm flex-1 sm:flex-none"
-                                              title="Save"
-                                            >
-                                              <Check size={14} strokeWidth={3} className="mx-auto" />
-                                            </button>
-                                            <button
-                                              onClick={() => setEditingChildIdx(null)}
-                                              className="text-slate-500 bg-slate-200 hover:bg-slate-300 p-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center flex-1 sm:flex-none"
-                                              title="Cancel"
-                                            >
-                                              <X size={14} strokeWidth={3} className="mx-auto" />
-                                            </button>
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-
-                                    {scheduleEntries.length > 0 ? (
-                                      <div className="space-y-1.5 pt-2.5 border-t border-slate-50">
-                                        <p className="font-extrabold text-slate-400 uppercase tracking-wider text-[10px] mb-1">
-                                          {t('lessonSchedule')}
-                                        </p>
-                                        {scheduleEntries.map(([day, val]: [string, any]) => (
-                                          <div key={day} className="flex flex-wrap justify-between items-center gap-1.5 text-[10px] sm:text-[11px] bg-slate-50/50 p-2 rounded-lg border border-slate-100/20">
-                                            <span className="font-bold text-slate-600 capitalize">{day}</span>
-                                            <span className="font-medium text-slate-500 font-mono shrink-0">
-                                              {val.start_time} - {val.end_time}
-                                            </span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    ) : (
-                                      <p className="text-[10px] text-slate-400 italic pt-1 text-center">
-                                        {language === 'fr' ? 'Aucun planning défini' : 'No schedule defined'}
-                                      </p>
-                                    )}
-                                  </div>
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
+                            {editingChildIdx === activeScheduleChildIdx && (
+                              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-1 bg-slate-50 p-2 rounded-xl border border-slate-100/80">
+                                <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                  <input
+                                    type="date"
+                                    value={tempDate}
+                                    onChange={(e) => setTempDate(e.target.value)}
+                                    className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] sm:text-xs outline-none font-sans flex-1 min-w-0"
+                                  />
+                                  <input
+                                    type="time"
+                                    value={convertTo24Hour(tempTime)}
+                                    onChange={(e) => setTempTime(convertTo12Hour(e.target.value))}
+                                    className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] sm:text-xs outline-none font-sans flex-1 min-w-0"
+                                  />
+                                </div>
+                                <div className="flex items-center gap-1 justify-end shrink-0">
+                                  <button
+                                    onClick={() => handleSaveEvaluation(activeScheduleChildIdx)}
+                                    className="text-white bg-emerald-500 hover:bg-emerald-600 p-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center shadow-sm flex-1 sm:flex-none"
+                                    title="Save"
+                                  >
+                                    <Check size={14} strokeWidth={3} className="mx-auto" />
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingChildIdx(null)}
+                                    className="text-slate-500 bg-slate-200 hover:bg-slate-300 p-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center flex-1 sm:flex-none"
+                                    title="Cancel"
+                                  >
+                                    <X size={14} strokeWidth={3} className="mx-auto" />
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        );
-                      })}
-                    </div>
+
+                          {scheduleEntries.length > 0 ? (
+                            <div className="space-y-1.5 pt-2.5 border-t border-slate-50">
+                              <p className="font-extrabold text-slate-600 uppercase tracking-wider text-xs mb-1">
+                                {t('lessonSchedule')}
+                              </p>
+                              {scheduleEntries.map(([day, val]: [string, any]) => (
+                                <div key={day} className="flex flex-wrap justify-between items-center gap-1.5 text-xs bg-slate-50/50 p-2 rounded-lg border border-slate-100/20">
+                                  <span className="font-bold text-slate-700 capitalize">{day}</span>
+                                  <span className="font-medium text-slate-600 font-mono shrink-0">
+                                    {val.start_time} - {val.end_time}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-slate-500 italic pt-1 text-center">
+                              {language === 'fr' ? 'Aucun planning défini' : 'No schedule defined'}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
               </div>
@@ -859,6 +935,25 @@ export const PriceQuotePage = () => {
                   </div>
                 </div>
 
+                {/* Student Tabs */}
+                {quoteData.children_data && quoteData.children_data.length > 0 && (
+                  <div className="flex gap-2 mb-4 flex-wrap">
+                    {quoteData.children_data.map((child: any, idx: number) => (
+                      <button
+                        key={idx}
+                        onClick={() => setActiveChildIdx(idx)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all ${
+                          activeChildIdx === idx
+                            ? 'bg-brand-indigo text-white shadow-sm'
+                            : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                        }`}
+                      >
+                        {child.child_name || `Student ${idx + 1}`}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 {/* Carousel body */}
                 <div
                   ref={scrollRef}
@@ -866,7 +961,7 @@ export const PriceQuotePage = () => {
                   style={{ scrollbarWidth: 'thin' }}
                 >
                   {teachers.map((teacher) => {
-                    const isSelected = selectedTeacherId === teacher.id;
+                    const isSelected = selectedTeacherIds[activeChildIdx] === teacher.id;
                     const name = `${teacher.user?.firstName || 'Teacher'} ${teacher.user?.lastName || ''}`;
                     const firstInitial = teacher.user?.firstName?.[0] || '';
                     const lastInitial = teacher.user?.lastName?.[0] || '';
@@ -877,9 +972,12 @@ export const PriceQuotePage = () => {
                         key={teacher.id}
                         onClick={() => {
                           if (quoteData.status !== 'Pending') return;
-                          setSelectedTeacherId(teacher.id);
+                          setSelectedTeacherIds(prev => ({
+                            ...prev,
+                            [activeChildIdx]: teacher.id
+                          }));
                         }}
-                        className={`snap-start shrink-0 w-[17.5rem] sm:w-[26rem] border rounded-2xl transition-all flex flex-row items-stretch overflow-hidden relative ${
+                        className={`snap-start shrink-0 w-[16.5rem] sm:w-[19rem] border rounded-2xl transition-all flex flex-row items-stretch overflow-hidden relative ${
                           quoteData.status === 'Pending'
                             ? 'cursor-pointer hover:border-slate-200 hover:bg-slate-50/10'
                             : 'cursor-default'
@@ -890,7 +988,7 @@ export const PriceQuotePage = () => {
                         }`}
                       >
                         {/* Left Side: Portrait Image / Initials Fallback (Full Height) */}
-                        <div className={`w-24 sm:w-32 border-r shrink-0 flex items-center justify-center ${
+                        <div className={`w-24 sm:w-28 border-r shrink-0 flex items-center justify-center ${
                           isSelected ? 'border-brand-indigo/30' : 'border-slate-100'
                         }`}>
                           {teacher.profile_pic ? (
@@ -914,13 +1012,13 @@ export const PriceQuotePage = () => {
                             <div className="flex justify-between items-start gap-1.5">
                               <div className="min-w-0">
                                 <h4 className="font-extrabold text-slate-800 text-sm leading-tight break-words">{name}</h4>
-                                <div className="flex items-center gap-1 text-slate-400 text-[10px] mt-1">
+                                <div className="flex items-center gap-1 text-slate-600 text-xs mt-1">
                                   <MapPin size={10} className="shrink-0" />
                                   <span className="truncate">{teacher.city || 'Europe'}</span>
                                 </div>
                               </div>
                               
-                              <div className={`px-1.5 py-0.5 rounded-full font-bold text-[9px] flex items-center gap-1 shrink-0 transition-all select-none ${
+                              <div className={`px-1.5 py-0.5 rounded-full font-bold text-[11px] flex items-center gap-1 shrink-0 transition-all select-none ${
                                 isSelected ? 'bg-brand-indigo text-white shadow-sm' : 'bg-slate-100 text-slate-400'
                               }`}>
                                 <Check size={8} strokeWidth={3} />
@@ -930,7 +1028,7 @@ export const PriceQuotePage = () => {
                             </div>
 
                             {/* About me description inside right block */}
-                            <p className="text-slate-500 text-[10px] sm:text-[11px] leading-relaxed line-clamp-4 font-medium pt-2 border-t border-slate-100/60">
+                            <p className="text-slate-700 text-xs sm:text-sm leading-relaxed line-clamp-4 font-medium pt-2 border-t border-slate-100/60">
                               "{teacher.about_me}"
                             </p>
                           </div>
@@ -948,20 +1046,23 @@ export const PriceQuotePage = () => {
 
               {/* Quick Summary / Pricing breakdown */}
               <div className="border border-slate-100 rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white space-y-4">
-                <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider flex items-center gap-2 border-b border-slate-50 pb-2.5">
+                <h3 className="text-sm font-black uppercase text-slate-600 tracking-wider flex items-center gap-2 border-b border-slate-50 pb-2.5">
                   <CheckCircle2 className="text-brand-indigo shrink-0" size={16} />
                   {language === 'fr' ? 'DÉTAIL DU PRIX' : 'PRICING SUMMARY'}
                 </h3>
 
-                <div className="space-y-3 text-xs text-slate-600 font-medium">
+                <div className="space-y-3 text-sm text-slate-700 font-medium">
                   {/* Selected Style Detail */}
                   <div className="flex justify-between items-start gap-4">
                     <span className="leading-normal">
-                      {selectedStyle === '1to1' ? t('lessonStyle1to1') : t('lessonStyleGroup')} -{' '}
-                      {childrenNames} ({weeklyHoursFloat} hrs/{t('hour')})
+                      {selectedStyle 
+                        ? (selectedStyle === '1to1' ? t('lessonStyle1to1') : t('lessonStyleGroup'))
+                        : (language === 'fr' ? 'Sélectionnez un style de cours' : 'Select a lesson style')
+                      } -{' '}
+                      {childrenNames} ({weeklyHoursFloat} {t('hoursPerWeek')})
                     </span>
                     <span className="text-slate-800 font-extrabold shrink-0">
-                      {currentMonthlyCost} €
+                      {selectedStyle ? `${currentMonthlyCost} €` : '-'}
                     </span>
                   </div>
 
@@ -971,7 +1072,7 @@ export const PriceQuotePage = () => {
                     <div className="flex justify-between items-center">
                       <span className="text-xs font-black text-slate-800">{t('monthlyCost')}</span>
                       <span className="text-base font-black text-brand-indigo">
-                        {currentMonthlyCost} €
+                        {selectedStyle ? `${currentMonthlyCost} €` : '-'}
                       </span>
                     </div>
                   </div>
@@ -980,12 +1081,30 @@ export const PriceQuotePage = () => {
 
               {/* 1. SELECT LESSON STYLE CARD */}
               <div className="border border-slate-100 rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white">
-                <h2 className="text-base font-extrabold text-slate-800 mb-4 flex items-center gap-3">
-                  <span className="w-7 h-7 rounded-lg bg-indigo-50 text-brand-indigo flex items-center justify-center text-xs font-black">1</span>
-                  {t('selectStyleTitle')}
-                </h2>
+                <div
+                  onClick={() => setIsLessonStyleOpen(prev => !prev)}
+                  className="flex items-center justify-between cursor-pointer"
+                >
+                  <h2 className="text-base font-extrabold text-slate-800 flex items-center gap-3">
+                    <span className="w-7 h-7 rounded-lg bg-indigo-50 text-brand-indigo flex items-center justify-center text-xs font-black">1</span>
+                    {t('selectStyleTitle')}
+                  </h2>
+                  <ChevronDown
+                    size={16}
+                    className={`text-slate-400 transition-transform duration-200 shrink-0 ${isLessonStyleOpen ? '' : '-rotate-90'}`}
+                  />
+                </div>
 
-                <div className="grid grid-cols-1 gap-4">
+                <AnimatePresence initial={false}>
+                  {isLessonStyleOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                <div className="grid grid-cols-1 gap-4 mt-4">
 
                   {/* Option 1: 1:1 Lessons */}
                   <div
@@ -1012,10 +1131,10 @@ export const PriceQuotePage = () => {
                     </div>
 
                     <div>
-                      <span className="inline-block px-2.5 py-0.5 bg-indigo-50 text-brand-indigo font-bold text-[10px] rounded-full uppercase tracking-wide mb-2">
+                      <span className="inline-block px-2.5 py-0.5 bg-indigo-50 text-brand-indigo font-bold text-xs rounded-full uppercase tracking-wide mb-2">
                         {t('lessonStyle1to1')}
                       </span>
-                      <p className="text-slate-500 text-[11px] font-medium leading-normal pr-6">
+                      <p className="text-slate-700 text-xs font-medium leading-normal pr-6">
                         {t('formula1to1')}
                       </p>
                     </div>
@@ -1023,9 +1142,9 @@ export const PriceQuotePage = () => {
                     <div className="mt-4 flex flex-wrap items-baseline justify-between gap-1.5 pt-2.5 border-t border-slate-100/60">
                       <div className="flex items-baseline">
                         <span className="text-xl font-black text-slate-800">{cost1to1} €</span>
-                        <span className="text-[10px] text-slate-400 font-bold ml-0.5">{t('perMonth')}</span>
+                        <span className="text-xs text-slate-500 font-bold ml-0.5">{t('perMonth')}</span>
                       </div>
-                      <span className="text-[10px] text-slate-400 font-semibold">
+                      <span className="text-xs text-slate-500 font-semibold">
                         {rate1to1} €/{t('hour')}
                       </span>
                     </div>
@@ -1056,10 +1175,10 @@ export const PriceQuotePage = () => {
                     </div>
 
                     <div>
-                      <span className="inline-block px-2.5 py-0.5 bg-purple-50 text-brand-purple font-bold text-[10px] rounded-full uppercase tracking-wide mb-2">
+                      <span className="inline-block px-2.5 py-0.5 bg-purple-50 text-brand-purple font-bold text-xs rounded-full uppercase tracking-wide mb-2">
                         {t('lessonStyleGroup')}
                       </span>
-                      <p className="text-slate-500 text-[11px] font-medium leading-normal pr-6">
+                      <p className="text-slate-700 text-xs font-medium leading-normal pr-6">
                         {t('formulaGroup')}
                       </p>
                     </div>
@@ -1067,15 +1186,18 @@ export const PriceQuotePage = () => {
                     <div className="mt-4 flex flex-wrap items-baseline justify-between gap-1.5 pt-2.5 border-t border-slate-100/60">
                       <div className="flex items-baseline">
                         <span className="text-xl font-black text-slate-800">{costGroup} €</span>
-                        <span className="text-[10px] text-slate-400 font-bold ml-0.5">{t('perMonth')}</span>
+                        <span className="text-xs text-slate-500 font-bold ml-0.5">{t('perMonth')}</span>
                       </div>
-                      <span className="text-[10px] text-slate-400 font-semibold">
+                      <span className="text-xs text-slate-500 font-semibold">
                         {rateGroup} €/{t('hour')}
                       </span>
                     </div>
                   </div>
 
                 </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               {/* 2. SELECT SCHOOL VACATION PREFERENCE */}
@@ -1105,7 +1227,7 @@ export const PriceQuotePage = () => {
                   >
                     <div className="pr-6">
                       <p className="font-extrabold text-slate-800 text-xs">{t('vacationIncluded')}</p>
-                      <p className="text-slate-400 text-[10px] leading-tight mt-0.5">{t('vacationIncludedDesc')}</p>
+                      <p className="text-slate-600 text-xs leading-tight mt-0.5">{t('vacationIncludedDesc')}</p>
                     </div>
                     <div className="absolute top-4 right-4">
                       <div className={`w-4 h-4 rounded-full flex items-center justify-center border ${
@@ -1134,7 +1256,7 @@ export const PriceQuotePage = () => {
                   >
                     <div className="pr-6">
                       <p className="font-extrabold text-slate-800 text-xs">{t('vacationExcluded')}</p>
-                      <p className="text-slate-400 text-[10px] leading-tight mt-0.5">{t('vacationExcludedDesc')}</p>
+                      <p className="text-slate-600 text-xs leading-tight mt-0.5">{t('vacationExcludedDesc')}</p>
                     </div>
                     <div className="absolute top-4 right-4">
                       <div className={`w-4 h-4 rounded-full flex items-center justify-center border ${
@@ -1161,8 +1283,8 @@ export const PriceQuotePage = () => {
                     {/* Primary Action: Accept */}
                     <button
                       onClick={handleApprove}
-                      disabled={isSubmitting || isRejecting}
-                      className="w-full bloom-gradient text-white font-extrabold text-sm py-4 px-6 rounded-2xl shadow-lg shadow-indigo-100/50 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 group cursor-pointer disabled:opacity-50"
+                      disabled={!isAllSelected || isSubmitting || isRejecting}
+                      className="w-full bloom-gradient text-white font-extrabold text-sm py-4 px-6 rounded-2xl shadow-lg shadow-indigo-100/50 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isSubmitting ? (
                         <Loader2 className="animate-spin w-5 h-5" />
@@ -1308,14 +1430,18 @@ export const PriceQuotePage = () => {
                   </span>
                 </div>
 
-                {selectedTeacher && (
-                  <div className="flex justify-between items-center gap-4">
-                    <span className="text-slate-400 font-bold">{t('class.teacher')}</span>
-                    <span className="text-brand-indigo font-black text-right truncate">
-                      {selectedTeacher.user?.firstName} {selectedTeacher.user?.lastName}
-                    </span>
-                  </div>
-                )}
+                {quoteData.children_data?.map((child: any, idx: number) => {
+                  const childTeacherId = selectedTeacherIds[idx];
+                  const childTeacher = teachers.find(t => t.id === childTeacherId);
+                  return childTeacher ? (
+                    <div key={idx} className="flex justify-between items-center gap-4">
+                      <span className="text-slate-400 font-bold">{t('class.teacher')} ({child.child_name || `Student ${idx + 1}`})</span>
+                      <span className="text-brand-indigo font-black text-right truncate">
+                        {childTeacher.user?.firstName} {childTeacher.user?.lastName}
+                      </span>
+                    </div>
+                  ) : null;
+                })}
 
                 <div className="flex justify-between items-center gap-4 pt-2 border-t border-slate-200/60">
                   <span className="text-slate-400 font-bold">{t('monthlyCost')}</span>

@@ -197,12 +197,12 @@ export default function App() {
           } 
         />
         <Route 
-          path="/price-qoute/:id" 
+          path="/price-quote/:id" 
           element={<PriceQuotePage />} 
         />
         <Route 
-          path="/price-quote/:id" 
-          element={<Navigate to="/price-qoute/:id" replace />} 
+          path="/price-qoute/:id" 
+          element={<Navigate to="/price-quote/:id" replace />} 
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
