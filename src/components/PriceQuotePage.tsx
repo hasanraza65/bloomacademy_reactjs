@@ -610,15 +610,20 @@ export const PriceQuotePage = () => {
       <div className="absolute top-[30%] left-[-10%] w-[40%] h-[40%] bg-brand-indigo/5 blur-[120px] rounded-full pointer-events-none" />
 
       {/* Main Container */}
-      <div className="max-w-7xl mx-auto px-4 md:px-6 pt-10 md:pt-14 relative z-10">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 pt-6 md:pt-12 relative z-10">
         
         {/* Invoice / Devis Card Sheet Container */}
-        <div className="bg-white rounded-[1.5rem] sm:rounded-[2.5rem] border border-slate-100/80 p-4 sm:p-6 md:p-10 soft-shadow">
+        <div className="bg-white rounded-[1.25rem] sm:rounded-[2.5rem] border border-slate-100/80 p-3.5 sm:p-6 md:p-10 soft-shadow">
           
-          {/* Header Row: Logo & Invoice Metadata */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-slate-100 mb-8">
-            <img src={logo} alt="Bloom Buddies Academy" className="w-48 sm:w-56 h-auto" />
-            <div className="text-left sm:text-right">
+          {/* Header Row: Logo, Language Switcher & Invoice Metadata */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-6 border-b border-slate-100 mb-8">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full md:w-auto">
+              <img src={logo} alt="Bloom Buddies Academy" className="w-48 sm:w-56 h-auto" />
+              <div className="sm:ml-2">
+                <LanguageSwitcher />
+              </div>
+            </div>
+            <div className="text-left md:text-right">
               <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight">
                 {language === 'fr' ? 'DEVIS' : 'QUOTE'} N° {getQuoteRef()}
               </h1>
@@ -631,7 +636,7 @@ export const PriceQuotePage = () => {
 
           {/* Status Banner */}
           {quoteData.status === 'Approved' && (
-            <div className="mb-8 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-3 sm:gap-4 text-emerald-800">
+            <div className="mb-8 p-3 sm:p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-3 sm:gap-4 text-emerald-800">
               <div className="w-10 h-10 bg-emerald-500 text-white rounded-xl flex items-center justify-center shrink-0 shadow-sm">
                 <CheckCircle2 size={20} />
               </div>
@@ -649,7 +654,7 @@ export const PriceQuotePage = () => {
           )}
 
           {quoteData.status === 'Refused' && (
-            <div className="mb-8 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 sm:gap-4 text-red-800">
+            <div className="mb-8 p-3 sm:p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 sm:gap-4 text-red-800">
               <div className="w-10 h-10 bg-red-500 text-white rounded-xl flex items-center justify-center shrink-0 shadow-sm">
                 <X size={20} />
               </div>
@@ -667,7 +672,7 @@ export const PriceQuotePage = () => {
           )}
 
           {/* Vendeur & Acheteur Information Blocks */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-8">
             {/* VENDEUR Box (Static Leonard.fr details) */}
             <div className="border border-slate-100/60 rounded-2xl p-4 bg-slate-50/20">
               <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2.5">
@@ -704,7 +709,7 @@ export const PriceQuotePage = () => {
             <div className="lg:col-span-8 space-y-6">
               
               {/* 1. SELECT LESSON STYLE CARD */}
-              <div className="border border-slate-100 rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 bg-white">
+              <div className="border border-slate-100 rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white">
                 <h2 className="text-base font-extrabold text-slate-800 mb-4 flex items-center gap-3">
                   <span className="w-7 h-7 rounded-lg bg-indigo-50 text-brand-indigo flex items-center justify-center text-xs font-black">1</span>
                   {t('selectStyleTitle')}
@@ -718,7 +723,7 @@ export const PriceQuotePage = () => {
                       if (quoteData.status !== 'Pending') return;
                       setSelectedStyle('1to1');
                     }}
-                    className={`border rounded-xl p-4 transition-all relative flex flex-col justify-between min-h-[150px] ${
+                    className={`border rounded-xl p-3.5 sm:p-4 transition-all relative flex flex-col justify-between min-h-[150px] ${
                       quoteData.status === 'Pending'
                         ? 'cursor-pointer hover:border-slate-200 hover:bg-slate-50/20'
                         : 'cursor-default opacity-90'
@@ -745,7 +750,7 @@ export const PriceQuotePage = () => {
                       </p>
                     </div>
 
-                    <div className="mt-4 flex items-baseline justify-between pt-2.5 border-t border-slate-100/60">
+                    <div className="mt-4 flex flex-wrap items-baseline justify-between gap-1.5 pt-2.5 border-t border-slate-100/60">
                       <div className="flex items-baseline">
                         <span className="text-xl font-black text-slate-800">{cost1to1} €</span>
                         <span className="text-[10px] text-slate-400 font-bold ml-0.5">{t('perMonth')}</span>
@@ -762,7 +767,7 @@ export const PriceQuotePage = () => {
                       if (quoteData.status !== 'Pending') return;
                       setSelectedStyle('group');
                     }}
-                    className={`border rounded-xl p-4 transition-all relative flex flex-col justify-between min-h-[150px] ${
+                    className={`border rounded-xl p-3.5 sm:p-4 transition-all relative flex flex-col justify-between min-h-[150px] ${
                       quoteData.status === 'Pending'
                         ? 'cursor-pointer hover:border-slate-200 hover:bg-slate-50/20'
                         : 'cursor-default opacity-90'
@@ -789,7 +794,7 @@ export const PriceQuotePage = () => {
                       </p>
                     </div>
 
-                    <div className="mt-4 flex items-baseline justify-between pt-2.5 border-t border-slate-100/60">
+                    <div className="mt-4 flex flex-wrap items-baseline justify-between gap-1.5 pt-2.5 border-t border-slate-100/60">
                       <div className="flex items-baseline">
                         <span className="text-xl font-black text-slate-800">{costGroup} €</span>
                         <span className="text-[10px] text-slate-400 font-bold ml-0.5">{t('perMonth')}</span>
@@ -804,7 +809,7 @@ export const PriceQuotePage = () => {
               </div>
 
               {/* 2. SELECT SCHOOL VACATION PREFERENCE */}
-              <div className="border border-slate-100 rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 bg-white">
+              <div className="border border-slate-100 rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white">
                 <h2 className="text-base font-extrabold text-slate-800 mb-4 flex items-center gap-3">
                   <span className="w-7 h-7 rounded-lg bg-indigo-50 text-brand-indigo flex items-center justify-center text-xs font-black">2</span>
                   {t('vacationTitle')}
@@ -818,7 +823,7 @@ export const PriceQuotePage = () => {
                       if (quoteData.status !== 'Pending') return;
                       setVacationPreference('included');
                     }}
-                    className={`border rounded-xl p-4 transition-all flex items-center gap-3 relative ${
+                    className={`border rounded-xl p-3.5 sm:p-4 transition-all flex items-start gap-3 relative ${
                       quoteData.status === 'Pending'
                         ? 'cursor-pointer hover:border-slate-200 hover:bg-slate-50/20'
                         : 'cursor-default opacity-90'
@@ -847,7 +852,7 @@ export const PriceQuotePage = () => {
                       if (quoteData.status !== 'Pending') return;
                       setVacationPreference('excluded');
                     }}
-                    className={`border rounded-xl p-4 transition-all flex items-center gap-3 relative ${
+                    className={`border rounded-xl p-3.5 sm:p-4 transition-all flex items-start gap-3 relative ${
                       quoteData.status === 'Pending'
                         ? 'cursor-pointer hover:border-slate-200 hover:bg-slate-50/20'
                         : 'cursor-default opacity-90'
@@ -874,7 +879,7 @@ export const PriceQuotePage = () => {
               </div>
 
               {/* 3. CHOOSE YOUR PREFERRED TEACHER */}
-              <div className="border border-slate-100 rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 bg-white">
+              <div className="border border-slate-100 rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-base font-extrabold text-slate-800 flex items-center gap-3">
                     <span className="w-7 h-7 rounded-lg bg-indigo-50 text-brand-indigo flex items-center justify-center text-xs font-black">3</span>
@@ -917,7 +922,7 @@ export const PriceQuotePage = () => {
                           if (quoteData.status !== 'Pending') return;
                           setSelectedTeacherId(teacher.id);
                         }}
-                        className={`snap-start shrink-0 w-[18.5rem] sm:w-[26rem] border rounded-2xl transition-all flex flex-row items-stretch overflow-hidden relative ${
+                        className={`snap-start shrink-0 w-[17.5rem] sm:w-[26rem] border rounded-2xl transition-all flex flex-row items-stretch overflow-hidden relative ${
                           quoteData.status === 'Pending'
                             ? 'cursor-pointer hover:border-slate-200 hover:bg-slate-50/10'
                             : 'cursor-default'
@@ -928,7 +933,7 @@ export const PriceQuotePage = () => {
                         }`}
                       >
                         {/* Left Side: Portrait Image / Initials Fallback (Full Height) */}
-                        <div className={`w-28 sm:w-32 border-r shrink-0 flex items-center justify-center ${
+                        <div className={`w-24 sm:w-32 border-r shrink-0 flex items-center justify-center ${
                           isSelected ? 'border-brand-indigo/30' : 'border-slate-100'
                         }`}>
                           {teacher.profile_pic ? (
@@ -946,31 +951,29 @@ export const PriceQuotePage = () => {
                         </div>
 
                         {/* Right Side: Details & description next to image */}
-                        <div className="flex-1 p-4 flex flex-col justify-between relative min-w-0 pr-14">
-                          {/* Select indicator */}
-                          <div className="absolute top-4 right-4">
-                            <div className={`px-2 py-0.5 rounded-full font-bold text-[9px] flex items-center gap-1 transition-all ${
-                              isSelected ? 'bg-brand-indigo text-white shadow-sm' : 'bg-slate-100 text-slate-400'
-                            }`}>
-                              <Check size={8} strokeWidth={3} />
-                              {isSelected ? t('teacherSelected') : t('selectTeacherBtn')}
-                            </div>
-                          </div>
-
+                        <div className="flex-1 p-3.5 sm:p-4 flex flex-col justify-between relative min-w-0">
                           <div className="space-y-2">
-                            {/* Name and location */}
-                            <div>
-                              <h4 className="font-extrabold text-slate-800 text-sm leading-tight break-words pr-2">{name}</h4>
-                              <div className="flex items-center gap-1 text-slate-400 text-[10px] mt-1">
-                                <MapPin size={10} className="shrink-0" />
-                                <span className="truncate">{teacher.city || 'Europe'}</span>
+                            {/* Name and select indicator inline */}
+                            <div className="flex justify-between items-start gap-1.5">
+                              <div className="min-w-0">
+                                <h4 className="font-extrabold text-slate-800 text-sm leading-tight break-words">{name}</h4>
+                                <div className="flex items-center gap-1 text-slate-400 text-[10px] mt-1">
+                                  <MapPin size={10} className="shrink-0" />
+                                  <span className="truncate">{teacher.city || 'Europe'}</span>
+                                </div>
+                              </div>
+                              
+                              <div className={`px-1.5 py-0.5 rounded-full font-bold text-[9px] flex items-center gap-1 shrink-0 transition-all select-none ${
+                                isSelected ? 'bg-brand-indigo text-white shadow-sm' : 'bg-slate-100 text-slate-400'
+                              }`}>
+                                <Check size={8} strokeWidth={3} />
+                                <span className="hidden min-[380px]:inline">{isSelected ? t('teacherSelected') : t('selectTeacherBtn')}</span>
+                                <span className="inline min-[380px]:hidden">{isSelected ? t('teacherSelected') : t('selectTeacherBtnShort') || 'Select'}</span>
                               </div>
                             </div>
 
-
-
                             {/* About me description inside right block */}
-                            <p className="text-slate-500 text-[11px] leading-relaxed line-clamp-4 font-medium pt-2 border-t border-slate-100/60">
+                            <p className="text-slate-500 text-[10px] sm:text-[11px] leading-relaxed line-clamp-4 font-medium pt-2 border-t border-slate-100/60">
                               "{teacher.about_me}"
                             </p>
                           </div>
@@ -987,7 +990,7 @@ export const PriceQuotePage = () => {
             <div className="lg:col-span-4 space-y-6">
               
               {/* Sidebar Card 2: Lesson Schedules */}
-              <div className="border border-slate-100 rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 bg-white space-y-4">
+              <div className="border border-slate-100 rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white space-y-4">
                 <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider flex items-center gap-2 border-b border-slate-50 pb-2.5">
                   <CalendarIcon className="text-brand-purple shrink-0" size={16} />
                   {language === 'fr' ? 'PLANNINGS DES COURS' : 'LESSON SCHEDULES'}
@@ -1031,11 +1034,11 @@ export const PriceQuotePage = () => {
                                   <div className="p-3 space-y-3.5 text-xs text-slate-500 font-medium">
                                     {/* Evaluation Session */}
                                     <div className="flex flex-col gap-2 pt-1">
-                                      <div className="flex justify-between items-center text-xs">
+                                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5 sm:gap-2 text-xs">
                                         <span className="font-extrabold text-slate-700">{t('evaluationSession')}</span>
                                         {editingChildIdx !== idx && (
-                                          <div className="flex items-center gap-1.5 shrink-0">
-                                            <span className="text-brand-purple font-black text-right">
+                                          <div className="flex items-center gap-1.5 shrink-0 self-start sm:self-auto">
+                                            <span className="text-brand-purple font-black text-left sm:text-right">
                                               {getFormattedDate(child.evaluation_class_date) || 'N/A'} @ {child.evaluation_class_time || 'N/A'}
                                             </span>
                                             {quoteData.status === 'Pending' && (
@@ -1051,35 +1054,35 @@ export const PriceQuotePage = () => {
                                       </div>
 
                                       {editingChildIdx === idx && (
-                                        <div className="flex items-center gap-2 mt-1 justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-100/80">
+                                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-1 bg-slate-50 p-2 rounded-xl border border-slate-100/80">
                                           <div className="flex items-center gap-1.5 flex-1 min-w-0">
                                             <input
                                               type="date"
                                               value={tempDate}
                                               onChange={(e) => setTempDate(e.target.value)}
-                                              className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none font-sans flex-1 min-w-0"
+                                              className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] sm:text-xs outline-none font-sans flex-1 min-w-0"
                                             />
                                             <input
                                               type="time"
                                               value={convertTo24Hour(tempTime)}
                                               onChange={(e) => setTempTime(convertTo12Hour(e.target.value))}
-                                              className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none font-sans flex-1 min-w-0"
+                                              className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] sm:text-xs outline-none font-sans flex-1 min-w-0"
                                             />
                                           </div>
-                                          <div className="flex items-center gap-1 shrink-0">
+                                          <div className="flex items-center gap-1 justify-end shrink-0">
                                             <button
                                               onClick={() => handleSaveEvaluation(idx)}
-                                              className="text-white bg-emerald-500 hover:bg-emerald-600 p-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center shadow-sm"
+                                              className="text-white bg-emerald-500 hover:bg-emerald-600 p-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center shadow-sm flex-1 sm:flex-none"
                                               title="Save"
                                             >
-                                              <Check size={14} strokeWidth={3} />
+                                              <Check size={14} strokeWidth={3} className="mx-auto" />
                                             </button>
                                             <button
                                               onClick={() => setEditingChildIdx(null)}
-                                              className="text-slate-500 bg-slate-200 hover:bg-slate-300 p-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center"
+                                              className="text-slate-500 bg-slate-200 hover:bg-slate-300 p-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center flex-1 sm:flex-none"
                                               title="Cancel"
                                             >
-                                              <X size={14} strokeWidth={3} />
+                                              <X size={14} strokeWidth={3} className="mx-auto" />
                                             </button>
                                           </div>
                                         </div>
@@ -1093,9 +1096,9 @@ export const PriceQuotePage = () => {
                                           {t('lessonSchedule')}
                                         </p>
                                         {scheduleEntries.map(([day, val]: [string, any]) => (
-                                          <div key={day} className="flex justify-between items-center text-[11px] bg-slate-50/50 p-2 rounded-lg border border-slate-100/20">
+                                          <div key={day} className="flex flex-wrap justify-between items-center gap-1.5 text-[10px] sm:text-[11px] bg-slate-50/50 p-2 rounded-lg border border-slate-100/20">
                                             <span className="font-bold text-slate-600 capitalize">{day}</span>
-                                            <span className="font-medium text-slate-500 font-mono">
+                                            <span className="font-medium text-slate-500 font-mono shrink-0">
                                               {val.start_time} - {val.end_time}
                                             </span>
                                           </div>
@@ -1119,7 +1122,7 @@ export const PriceQuotePage = () => {
               </div>
 
               {/* Quick Summary / Pricing breakdown */}
-              <div className="border border-slate-100 rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 bg-white space-y-4">
+              <div className="border border-slate-100 rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white space-y-4">
                 <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider flex items-center gap-2 border-b border-slate-50 pb-2.5">
                   <CheckCircle2 className="text-brand-indigo shrink-0" size={16} />
                   {language === 'fr' ? 'DÉTAIL DU PRIX' : 'PRICING SUMMARY'}
@@ -1177,7 +1180,7 @@ export const PriceQuotePage = () => {
                     </button>
 
                     {/* Secondary Actions: Request New and Reject (Side-by-side) */}
-                    <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="grid grid-cols-2 gap-3 text-[11px] sm:text-xs">
                       {/* Request New Price Quote */}
                       <button
                         onClick={() => {
