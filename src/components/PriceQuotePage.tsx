@@ -1073,13 +1073,17 @@ export const PriceQuotePage = () => {
                                 </div>
                               </div>
                               
-                              <div className={`px-2 py-0.5 rounded-full font-bold text-[10px] sm:text-[11px] flex items-center gap-1 shrink-0 transition-all select-none ${
-                                isSelected ? 'bg-brand-indigo text-white shadow-sm' : 'bg-slate-50 text-slate-400 border border-slate-200/50'
-                              }`}>
-                                <Check size={8} strokeWidth={3} />
-                                <span className="hidden min-[380px]:inline">{isSelected ? t('teacherSelected') : t('selectTeacherBtn')}</span>
-                                <span className="inline min-[380px]:hidden">{isSelected ? t('teacherSelected') : t('selectTeacherBtnShort') || 'Select'}</span>
-                              </div>
+                              {isSelected ? (
+                                <div className="w-5.5 h-5.5 rounded-full bg-brand-indigo text-white flex items-center justify-center shadow-sm shrink-0 transition-all select-none">
+                                  <Check size={11} strokeWidth={3.5} />
+                                </div>
+                              ) : (
+                                <div className="px-2 py-0.5 rounded-full font-bold text-[10px] sm:text-[11px] flex items-center gap-1 shrink-0 transition-all select-none bg-slate-50 text-slate-400 border border-slate-200/50">
+                                  <Check size={8} strokeWidth={3} />
+                                  <span className="hidden min-[380px]:inline">{t('selectTeacherBtn')}</span>
+                                  <span className="inline min-[380px]:hidden">{t('selectTeacherBtnShort') || 'Select'}</span>
+                                </div>
+                              )}
                             </div>
 
                             {/* About me description inside right block */}
