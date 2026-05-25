@@ -369,6 +369,14 @@ export const PriceQuotePage = () => {
   const { language } = useLanguage();
   const t = (key: string) => translations[language]?.[key] || translations['en']?.[key] || key;
 
+  const formatNumber = (val: number | string) => {
+    const str = String(val);
+    if (language === 'fr') {
+      return str.replace('.', ',');
+    }
+    return str;
+  };
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -715,8 +723,8 @@ export const PriceQuotePage = () => {
       if (isNaN(d.getTime())) return dateStr;
       const dd = String(d.getDate()).padStart(2, '0');
       const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const yy = String(d.getFullYear()).slice(-2);
-      return `${dd}/${mm}/${yy}`;
+      const yyyy = d.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
     } catch (e) {
       return dateStr;
     }
@@ -897,11 +905,11 @@ export const PriceQuotePage = () => {
     </div>
     <div className="mt-4 flex flex-wrap items-baseline justify-between gap-1.5 pt-3 border-t border-slate-100/60">
       <div className="flex items-baseline">
-        <span className="text-2xl font-black text-slate-800">{rate1to1} €</span>
+        <span className="text-2xl font-black text-slate-800">{formatNumber(rate1to1)} €</span>
         <span className="text-xs text-slate-500 font-bold ml-0.5">/{t('hour')}</span>
       </div>
       <span className="text-xs text-slate-500 font-semibold bg-slate-50 px-2 py-1 rounded-md border border-slate-100/50">
-        {cost1to1} €{t('perMonth')}
+        {formatNumber(cost1to1)} €{t('perMonth')}
       </span>
     </div>
   </div>
@@ -939,11 +947,11 @@ export const PriceQuotePage = () => {
     </div>
     <div className="mt-4 flex flex-wrap items-baseline justify-between gap-1.5 pt-3 border-t border-slate-100/60">
       <div className="flex items-baseline">
-        <span className="text-2xl font-black text-slate-800">{rateGroup} €</span>
+        <span className="text-2xl font-black text-slate-800">{formatNumber(rateGroup)} €</span>
         <span className="text-xs text-slate-500 font-bold ml-0.5">/{t('hour')}</span>
       </div>
       <span className="text-xs text-slate-500 font-semibold bg-slate-50 px-2 py-1 rounded-md border border-slate-100/50">
-        {costGroup} €{t('perMonth')}
+        {formatNumber(costGroup)} €{t('perMonth')}
       </span>
     </div>
   </div>
@@ -1024,18 +1032,18 @@ export const PriceQuotePage = () => {
                             [activeChildIdx]: teacher.id
                           }));
                         }}
-                        className={`snap-start shrink-0 w-[16.5rem] sm:w-[19rem] border rounded-2xl transition-all flex flex-row items-stretch overflow-hidden relative ${
+                        className={`snap-start shrink-0 w-[calc((100%-1rem)/1.35)] sm:w-[calc((100%-2rem)/2.5)] border rounded-2xl transition-all duration-300 flex flex-row items-stretch overflow-hidden relative ${
                           quoteData.status === 'Pending'
-                            ? 'cursor-pointer hover:border-slate-200 hover:bg-slate-50/10'
+                            ? 'cursor-pointer hover:border-brand-indigo/40 hover:shadow-md hover:bg-slate-50/20'
                             : 'cursor-default'
                         } ${
                           isSelected
-                            ? 'border-brand-indigo bg-indigo-50/10 shadow-sm'
-                            : 'border-slate-100'
+                            ? 'border-brand-indigo bg-indigo-50/20 shadow-sm ring-1 ring-brand-indigo/10'
+                            : 'border-slate-100 shadow-sm'
                         }`}
                       >
                         {/* Left Side: Portrait Image / Initials Fallback (Full Height) */}
-                        <div className={`w-24 sm:w-28 border-r shrink-0 flex items-center justify-center ${
+                        <div className={`w-20 sm:w-24 border-r shrink-0 flex items-center justify-center ${
                           isSelected ? 'border-brand-indigo/30' : 'border-slate-100'
                         }`}>
                           {teacher.profile_pic ? (
@@ -1046,27 +1054,27 @@ export const PriceQuotePage = () => {
                               referrerPolicy="no-referrer"
                             />
                           ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-slate-800 to-slate-950 text-slate-100 flex items-center justify-center font-extrabold text-2xl tracking-wider select-none">
+                            <div className="w-full h-full bg-gradient-to-br from-slate-800 to-slate-900 text-slate-100 flex items-center justify-center font-black text-xl tracking-wider select-none">
                               {initials}
                             </div>
                           )}
                         </div>
 
                         {/* Right Side: Details & description next to image */}
-                        <div className="flex-1 p-3.5 sm:p-4 flex flex-col justify-between relative min-w-0">
+                        <div className="flex-1 p-4 flex flex-col justify-between min-w-0">
                           <div className="space-y-2">
                             {/* Name and select indicator inline */}
                             <div className="flex justify-between items-start gap-1.5">
                               <div className="min-w-0">
                                 <h4 className="font-extrabold text-slate-800 text-sm leading-tight break-words">{name}</h4>
-                                <div className="flex items-center gap-1 text-slate-600 text-xs mt-1">
-                                  <MapPin size={10} className="shrink-0" />
-                                  <span className="truncate">{teacher.city || 'Europe'}</span>
+                                <div className="flex items-center gap-1 text-slate-500 text-xs mt-1">
+                                  <MapPin size={11} className="text-brand-indigo/70 shrink-0" />
+                                  <span className="truncate font-semibold">{teacher.city || 'Europe'}</span>
                                 </div>
                               </div>
                               
-                              <div className={`px-1.5 py-0.5 rounded-full font-bold text-[11px] flex items-center gap-1 shrink-0 transition-all select-none ${
-                                isSelected ? 'bg-brand-indigo text-white shadow-sm' : 'bg-slate-100 text-slate-400'
+                              <div className={`px-2 py-0.5 rounded-full font-bold text-[10px] sm:text-[11px] flex items-center gap-1 shrink-0 transition-all select-none ${
+                                isSelected ? 'bg-brand-indigo text-white shadow-sm' : 'bg-slate-50 text-slate-400 border border-slate-200/50'
                               }`}>
                                 <Check size={8} strokeWidth={3} />
                                 <span className="hidden min-[380px]:inline">{isSelected ? t('teacherSelected') : t('selectTeacherBtn')}</span>
@@ -1075,8 +1083,8 @@ export const PriceQuotePage = () => {
                             </div>
 
                             {/* About me description inside right block */}
-                            <p className="text-slate-700 text-xs sm:text-sm leading-relaxed line-clamp-4 font-medium pt-2 border-t border-slate-100/60">
-                              "{teacher.about_me}"
+                            <p className="text-slate-500 italic text-[11px] sm:text-xs leading-relaxed line-clamp-4 pt-2.5 border-t border-slate-100/80">
+                              “ {teacher.about_me} ”
                             </p>
                           </div>
                         </div>
@@ -1444,7 +1452,7 @@ export const PriceQuotePage = () => {
                 <div className="flex justify-between items-center gap-4 pt-2 border-t border-slate-200/60">
                   <span className="text-slate-400 font-bold">{t('monthlyCost')}</span>
                   <span className="text-brand-purple font-black text-xs sm:text-sm text-right">
-                    {currentMonthlyCost} €
+                    {formatNumber(currentMonthlyCost)} €
                   </span>
                 </div>
               </div>
