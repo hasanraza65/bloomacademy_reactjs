@@ -427,6 +427,17 @@ export const PriceQuotePage = () => {
   };
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const isInitializedRef = useRef(false);
+
+  const findTeacherById = (teacherId: number) => {
+    // 1. Search inside recommendedTeachersResponse across all children
+    for (const item of recommendedTeachersResponse) {
+      const found = item.recommended_teachers?.find((t: any) => t.id === teacherId);
+      if (found) return found;
+    }
+    // 2. Fallback to mockTeachers list
+    return mockTeachers.find(t => t.id === teacherId);
+  };
 
   useEffect(() => {
     const fetchQuote = async () => {
@@ -485,6 +496,45 @@ export const PriceQuotePage = () => {
     setTeachers(mockTeachers);
   }, [activeChildIdx, recommendedTeachersResponse, quoteData]);
 
+  // Initialize state from loaded quoteData
+  useEffect(() => {
+    if (!quoteData || isInitializedRef.current) return;
+
+    // 1. Initialize Lesson Style
+    if (quoteData.lesson_style) {
+      if (quoteData.lesson_style === 'Private') {
+        setSelectedStyle('1to1');
+      } else if (quoteData.lesson_style === 'Group') {
+        setSelectedStyle('group');
+      }
+    }
+
+    // 2. Initialize Vacation Preference
+    if (quoteData.vacation_included !== undefined && quoteData.vacation_included !== null) {
+      const isIncluded = quoteData.vacation_included === 1 || quoteData.vacation_included === true;
+      setVacationPreference(isIncluded ? 'included' : 'excluded');
+    }
+
+    // 3. Initialize Selected Teacher IDs per child
+    if (quoteData.children_data && quoteData.children_data.length > 0) {
+      const initialTeacherIds: Record<number, number> = {};
+      quoteData.children_data.forEach((child: any, idx: number) => {
+        if (child.preferred_teacher_user_id) {
+          initialTeacherIds[idx] = child.preferred_teacher_user_id;
+        } else if (child.preferred_teacher_id) {
+          initialTeacherIds[idx] = child.preferred_teacher_id;
+        } else if (idx === 0 && quoteData.preferred_teacher_user_id) {
+          initialTeacherIds[idx] = quoteData.preferred_teacher_user_id;
+        }
+      });
+      if (Object.keys(initialTeacherIds).length > 0) {
+        setSelectedTeacherIds(initialTeacherIds);
+      }
+    }
+
+    isInitializedRef.current = true;
+  }, [quoteData]);
+
 
 
   const handleScroll = (direction: 'left' | 'right') => {
@@ -511,7 +561,7 @@ export const PriceQuotePage = () => {
     try {
       if (id) {
         const firstTeacherId = selectedTeacherIds[0];
-        const firstSelectedTeacher = teachers.find(t => t.id === firstTeacherId);
+        const firstSelectedTeacher = findTeacherById(firstTeacherId);
         const payload = {
           status: 'Approved' as const,
           vacation_included: vacationPreference === 'included' ? 1 : 0,
@@ -519,7 +569,7 @@ export const PriceQuotePage = () => {
           preferred_teacher_user_id: firstSelectedTeacher?.user_id || null,
           children_data: quoteData?.children_data?.map((child: any, idx: number) => {
             const childTeacherId = selectedTeacherIds[idx];
-            const childTeacher = teachers.find(t => t.id === childTeacherId);
+            const childTeacher = findTeacherById(childTeacherId);
             return {
               ...child,
               preferred_teacher_user_id: childTeacher?.user_id || null
@@ -545,7 +595,7 @@ export const PriceQuotePage = () => {
     try {
       if (id) {
         const firstTeacherId = selectedTeacherIds[0];
-        const firstSelectedTeacher = teachers.find(t => t.id === firstTeacherId);
+        const firstSelectedTeacher = findTeacherById(firstTeacherId);
         const payload = {
           status: 'Refused' as const,
           vacation_included: vacationPreference === 'included' ? 1 : 0,
@@ -553,7 +603,7 @@ export const PriceQuotePage = () => {
           preferred_teacher_user_id: firstSelectedTeacher?.user_id || null,
           children_data: quoteData?.children_data?.map((child: any, idx: number) => {
             const childTeacherId = selectedTeacherIds[idx];
-            const childTeacher = teachers.find(t => t.id === childTeacherId);
+            const childTeacher = findTeacherById(childTeacherId);
             return {
               ...child,
               preferred_teacher_user_id: childTeacher?.user_id || null
@@ -738,49 +788,30 @@ export const PriceQuotePage = () => {
               <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight">
                 {language === 'fr' ? 'DEVIS' : 'QUOTE'} N° {getQuoteRef()}
               </h1>
-              <p className="text-xs text-slate-600 font-bold mt-1">
-                {language === 'fr' ? 'Date de création' : 'Creation Date'}:{' '}
-                {getFormattedDate(quoteData.created_at)}
-              </p>
+              <div className="flex flex-col md:items-end gap-1 mt-1">
+                <p className="text-xs text-slate-600 font-bold">
+                  {language === 'fr' ? 'Date de création' : 'Creation Date'}:{' '}
+                  {getFormattedDate(quoteData.created_at)}
+                </p>
+                <p className="text-xs text-slate-600 font-bold">
+                  {language === 'fr' ? 'Statut' : 'Status'}:{' '}
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                    quoteData.status === 'Approved'
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                      : quoteData.status === 'Refused'
+                      ? 'bg-red-50 text-red-700 border-red-100'
+                      : 'bg-amber-50 text-amber-700 border-amber-100'
+                  }`}>
+                    {quoteData.status === 'Approved' && (language === 'fr' ? 'Approuvé' : 'Approved')}
+                    {quoteData.status === 'Refused' && (language === 'fr' ? 'Refusé' : 'Rejected')}
+                    {quoteData.status === 'Pending' && (language === 'fr' ? 'En attente' : 'Pending')}
+                  </span>
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* Status Banner */}
-          {quoteData.status === 'Approved' && (
-            <div className="mb-8 p-3 sm:p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-3 sm:gap-4 text-emerald-800">
-              <div className="w-10 h-10 bg-emerald-500 text-white rounded-xl flex items-center justify-center shrink-0 shadow-sm">
-                <CheckCircle2 size={20} />
-              </div>
-              <div>
-                <h3 className="font-extrabold text-sm sm:text-base leading-tight">
-                  {language === 'fr' ? 'Devis approuvé avec succès !' : 'Quote Approved Successfully!'}
-                </h3>
-                <p className="text-[11px] sm:text-xs text-emerald-600/90 font-medium mt-0.5">
-                  {language === 'fr' 
-                    ? 'Merci d\'avoir choisi Bloom Buddies Academy. Nous sommes ravis de commencer ce parcours d\'apprentissage !' 
-                    : 'Thank you for choosing Bloom Buddies Academy. We are thrilled to start this learning journey!'}
-                </p>
-              </div>
-            </div>
-          )}
 
-          {quoteData.status === 'Refused' && (
-            <div className="mb-8 p-3 sm:p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 sm:gap-4 text-red-800">
-              <div className="w-10 h-10 bg-red-500 text-white rounded-xl flex items-center justify-center shrink-0 shadow-sm">
-                <X size={20} />
-              </div>
-              <div>
-                <h3 className="font-extrabold text-sm sm:text-base leading-tight">
-                  {language === 'fr' ? 'Proposition refusée' : 'Proposal Rejected'}
-                </h3>
-                <p className="text-[11px] sm:text-xs text-red-600/90 font-medium mt-0.5">
-                  {language === 'fr'
-                    ? 'Nous sommes désolés que cette proposition ne convienne pas. Notre équipe vous contactera rapidement.'
-                    : 'We are sorry this proposal didn\'t fit. Our team will reach out to you shortly.'}
-                </p>
-              </div>
-            </div>
-          )}
 
           {/* Vendeur & Acheteur Information Blocks */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-8">
@@ -1435,7 +1466,7 @@ export const PriceQuotePage = () => {
 
                 {quoteData.children_data?.map((child: any, idx: number) => {
                   const childTeacherId = selectedTeacherIds[idx];
-                  const childTeacher = teachers.find(t => t.id === childTeacherId);
+                  const childTeacher = findTeacherById(childTeacherId);
                   return childTeacher ? (
                     <div key={idx} className="flex justify-between items-center gap-4">
                       <span className="text-slate-400 font-bold">{t('class.teacher')} ({child.child_name || `Student ${idx + 1}`})</span>
