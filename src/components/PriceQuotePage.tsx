@@ -384,6 +384,11 @@ export const PriceQuotePage = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [highlightMissing, setHighlightMissing] = useState<{
+    style: boolean;
+    vacation: boolean;
+    teachers: boolean;
+  }>({ style: false, vacation: false, teachers: false });
   const [activeScheduleChildIdx, setActiveScheduleChildIdx] = useState(0);
   const [isLessonStyleOpen, setIsLessonStyleOpen] = useState(true);
   const [activeChildIdx, setActiveChildIdx] = useState(0);
@@ -427,6 +432,9 @@ export const PriceQuotePage = () => {
   };
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const styleRef = useRef<HTMLDivElement>(null);
+  const vacationRef = useRef<HTMLDivElement>(null);
+  const teacherRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchQuote = async () => {
@@ -495,14 +503,26 @@ export const PriceQuotePage = () => {
   };
 
   const handleApprove = () => {
-    const hasUnselected = quoteData?.children_data?.some((_: any, idx: number) => !selectedTeacherIds[idx]);
-    if (hasUnselected) {
-      setValidationError(t('validationTeacher'));
-      return;
+  const missingStyle = !selectedStyle;
+  const missingVacation = !vacationPreference;
+  const missingTeachers = quoteData?.children_data?.some((_: any, idx: number) => !selectedTeacherIds[idx]);
+
+  if (missingStyle || missingVacation || missingTeachers) {
+    setHighlightMissing({ style: missingStyle, vacation: missingVacation, teachers: !!missingTeachers });
+    // Scroll to first missing section
+    if (missingStyle && styleRef.current) {
+      styleRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else if (missingVacation && vacationRef.current) {
+      vacationRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else if (missingTeachers && teacherRef.current) {
+      teacherRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-    setValidationError(null);
-    setShowApproveConfirm(true);
-  };
+    return;
+  }
+  setHighlightMissing({ style: false, vacation: false, teachers: false });
+  setValidationError(null);
+  setShowApproveConfirm(true);
+};
 
   const submitApprove = async () => {
     setShowApproveConfirm(false);
@@ -820,171 +840,104 @@ export const PriceQuotePage = () => {
             <div className="lg:col-span-8 space-y-6">
 
               {/* PRICING DETAILS DISPLAY CARDS (Only show, not selectable) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Option 1: 1:1 Private Lessons Card */}
-                <div className="border border-slate-100 rounded-xl sm:rounded-3xl p-4 sm:p-5 md:p-6 bg-white shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[160px]">
-                  <div>
-                    <span className="inline-block px-2.5 py-0.5 bg-indigo-50 text-brand-indigo font-bold text-xs rounded-full uppercase tracking-wide mb-2">
-                      {t('lessonStyle1to1')}
-                    </span>
-                    <p className="text-slate-600 text-xs sm:text-sm font-medium leading-normal pr-2">
-                      {t('formula1to1')}
-                    </p>
-                  </div>
-                  <div className="mt-4 flex flex-wrap items-baseline justify-between gap-1.5 pt-3 border-t border-slate-100/60">
-                    <div className="flex items-baseline">
-                      <span className="text-2xl font-black text-slate-800">{cost1to1} €</span>
-                      <span className="text-xs text-slate-500 font-bold ml-0.5">{t('perMonth')}</span>
-                    </div>
-                    <span className="text-xs text-slate-500 font-semibold bg-slate-50 px-2 py-1 rounded-md border border-slate-100/50">
-                      {rate1to1} €/{t('hour')}
-                    </span>
-                  </div>
-                </div>
+              {/* SELECTABLE LESSON STYLE CARDS */}
+<div ref={styleRef} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+  {/* Option 1: 1:1 Private Lessons Card */}
+  <div
+    onClick={() => {
+      if (quoteData.status !== 'Pending') return;
+      setSelectedStyle('1to1');
+      setHighlightMissing(prev => ({ ...prev, style: false }));
+    }}
+    className={`border rounded-xl sm:rounded-3xl p-4 sm:p-5 md:p-6 bg-white shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[160px] transition-all duration-200 ${
+      quoteData.status === 'Pending' ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : 'cursor-default'
+    } ${
+      selectedStyle === '1to1'
+        ? 'border-brand-indigo ring-2 ring-brand-indigo/20 bg-indigo-50/20'
+        : highlightMissing.style
+        ? 'border-red-300'
+        : 'border-slate-100'
+    }`}
+  >
+    {/* Selected checkmark badge */}
+    {selectedStyle === '1to1' && (
+      <div className="absolute top-3 right-3 w-6 h-6 bg-brand-indigo text-white rounded-full flex items-center justify-center shadow-sm">
+        <Check size={12} strokeWidth={3} />
+      </div>
+    )}
+    <div>
+      <span className="inline-block px-2.5 py-0.5 bg-indigo-50 text-brand-indigo font-bold text-xs rounded-full uppercase tracking-wide mb-2">
+        {t('lessonStyle1to1')}
+      </span>
+      <p className="text-slate-600 text-xs sm:text-sm font-medium leading-normal pr-2">
+        {t('formula1to1')}
+      </p>
+    </div>
+    <div className="mt-4 flex flex-wrap items-baseline justify-between gap-1.5 pt-3 border-t border-slate-100/60">
+      <div className="flex items-baseline">
+        <span className="text-2xl font-black text-slate-800">{cost1to1} €</span>
+        <span className="text-xs text-slate-500 font-bold ml-0.5">{t('perMonth')}</span>
+      </div>
+      <span className="text-xs text-slate-500 font-semibold bg-slate-50 px-2 py-1 rounded-md border border-slate-100/50">
+        {rate1to1} €/{t('hour')}
+      </span>
+    </div>
+  </div>
 
-                {/* Option 2: Group of 4 Lessons Card */}
-                <div className="border border-slate-100 rounded-xl sm:rounded-3xl p-4 sm:p-5 md:p-6 bg-white shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[160px]">
-                  <div>
-                    <span className="inline-block px-2.5 py-0.5 bg-purple-50 text-brand-purple font-bold text-xs rounded-full uppercase tracking-wide mb-2">
-                      {t('lessonStyleGroup')}
-                    </span>
-                    <p className="text-slate-600 text-xs sm:text-sm font-medium leading-normal pr-2">
-                      {t('formulaGroup')}
-                    </p>
-                  </div>
-                  <div className="mt-4 flex flex-wrap items-baseline justify-between gap-1.5 pt-3 border-t border-slate-100/60">
-                    <div className="flex items-baseline">
-                      <span className="text-2xl font-black text-slate-800">{costGroup} €</span>
-                      <span className="text-xs text-slate-500 font-bold ml-0.5">{t('perMonth')}</span>
-                    </div>
-                    <span className="text-xs text-slate-500 font-semibold bg-slate-50 px-2 py-1 rounded-md border border-slate-100/50">
-                      {rateGroup} €/{t('hour')}
-                    </span>
-                  </div>
-                </div>
-              </div>
+  {/* Option 2: Group of 4 Lessons Card */}
+  <div
+    onClick={() => {
+      if (quoteData.status !== 'Pending') return;
+      setSelectedStyle('group');
+      setHighlightMissing(prev => ({ ...prev, style: false }));
+    }}
+    className={`border rounded-xl sm:rounded-3xl p-4 sm:p-5 md:p-6 bg-white shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[160px] transition-all duration-200 ${
+      quoteData.status === 'Pending' ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : 'cursor-default'
+    } ${
+      selectedStyle === 'group'
+        ? 'border-brand-indigo ring-2 ring-brand-indigo/20 bg-indigo-50/20'
+        : highlightMissing.style
+        ? 'border-red-300'
+        : 'border-slate-100'
+    }`}
+  >
+    {/* Selected checkmark badge */}
+    {selectedStyle === 'group' && (
+      <div className="absolute top-3 right-3 w-6 h-6 bg-brand-indigo text-white rounded-full flex items-center justify-center shadow-sm">
+        <Check size={12} strokeWidth={3} />
+      </div>
+    )}
+    <div>
+      <span className="inline-block px-2.5 py-0.5 bg-purple-50 text-brand-purple font-bold text-xs rounded-full uppercase tracking-wide mb-2">
+        {t('lessonStyleGroup')}
+      </span>
+      <p className="text-slate-600 text-xs sm:text-sm font-medium leading-normal pr-2">
+        {t('formulaGroup')}
+      </p>
+    </div>
+    <div className="mt-4 flex flex-wrap items-baseline justify-between gap-1.5 pt-3 border-t border-slate-100/60">
+      <div className="flex items-baseline">
+        <span className="text-2xl font-black text-slate-800">{costGroup} €</span>
+        <span className="text-xs text-slate-500 font-bold ml-0.5">{t('perMonth')}</span>
+      </div>
+      <span className="text-xs text-slate-500 font-semibold bg-slate-50 px-2 py-1 rounded-md border border-slate-100/50">
+        {rateGroup} €/{t('hour')}
+      </span>
+    </div>
+  </div>
+</div>
+
+{highlightMissing.style && (
+  <p className="text-red-500 text-xs font-semibold mt-1 flex items-center gap-1">
+    <X size={12} /> {language === 'fr' ? 'Veuillez sélectionner un style de cours' : 'Please select a lesson style'}
+  </p>
+)}
 
               {/* LESSON SCHEDULES */}
-              <div className="border border-slate-100 rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white space-y-4">
-                <h3 className="text-sm font-black uppercase text-slate-600 tracking-wider flex items-center gap-2 border-b border-slate-50 pb-2.5">
-                  <CalendarIcon className="text-brand-purple shrink-0" size={16} />
-                  {language === 'fr' ? 'PLANNINGS DES COURS' : 'LESSON SCHEDULES'}
-                </h3>
-
-                {quoteData.children_data && quoteData.children_data.length > 0 && (
-                  <div className="pt-0 space-y-4">
-                    {/* Student Tabs for Lesson Schedules */}
-                    <div className="flex gap-2 flex-wrap border-b border-slate-100 pb-3">
-                      {quoteData.children_data.map((child: any, idx: number) => (
-                        <button
-                          key={idx}
-                          onClick={() => {
-                            setActiveScheduleChildIdx(idx);
-                            setEditingChildIdx(null); // Reset editing state on tab switch
-                          }}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
-                            activeScheduleChildIdx === idx
-                              ? 'bg-brand-indigo text-white shadow-sm'
-                              : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                          }`}
-                        >
-                          {child.child_name || `Student ${idx + 1}`}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Active Student Content */}
-                    {(() => {
-                      const child = quoteData.children_data[activeScheduleChildIdx];
-                      if (!child) return null;
-                      const scheduleEntries = Object.entries(child.lesson_schedule || {});
-
-                      return (
-                        <div className="border border-slate-100 rounded-xl overflow-hidden bg-white p-3.5 space-y-3.5 text-sm text-slate-600 font-medium">
-                          <div className="flex flex-col gap-2">
-                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5 sm:gap-2 text-xs">
-                              <span className="font-extrabold text-slate-700">{t('evaluationSession')}</span>
-                              {editingChildIdx !== activeScheduleChildIdx && (
-                                <div className="flex items-center gap-1.5 shrink-0 self-start sm:self-auto">
-                                  <span className="text-brand-purple font-black text-left sm:text-right">
-                                    {getFormattedDate(child.evaluation_class_date) || 'N/A'} @ {child.evaluation_class_time || 'N/A'}
-                                  </span>
-                                  {quoteData.status === 'Pending' && (
-                                    <button
-                                      onClick={() => handleStartEditEvaluation(activeScheduleChildIdx, child.evaluation_class_date, child.evaluation_class_time)}
-                                      className="text-slate-400 hover:text-brand-indigo transition-colors p-1 rounded hover:bg-slate-50 cursor-pointer"
-                                    >
-                                      <Edit3 size={12} />
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-
-                            {editingChildIdx === activeScheduleChildIdx && (
-                              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-1 bg-slate-50 p-2 rounded-xl border border-slate-100/80">
-                                <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                                  <input
-                                    type="date"
-                                    value={tempDate}
-                                    onChange={(e) => setTempDate(e.target.value)}
-                                    className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] sm:text-xs outline-none font-sans flex-1 min-w-0"
-                                  />
-                                  <input
-                                    type="time"
-                                    value={convertTo24Hour(tempTime)}
-                                    onChange={(e) => setTempTime(convertTo12Hour(e.target.value))}
-                                    className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] sm:text-xs outline-none font-sans flex-1 min-w-0"
-                                  />
-                                </div>
-                                <div className="flex items-center gap-1 justify-end shrink-0">
-                                  <button
-                                    onClick={() => handleSaveEvaluation(activeScheduleChildIdx)}
-                                    className="text-white bg-emerald-500 hover:bg-emerald-600 p-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center shadow-sm flex-1 sm:flex-none"
-                                    title="Save"
-                                  >
-                                    <Check size={14} strokeWidth={3} className="mx-auto" />
-                                  </button>
-                                  <button
-                                    onClick={() => setEditingChildIdx(null)}
-                                    className="text-slate-500 bg-slate-200 hover:bg-slate-300 p-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center flex-1 sm:flex-none"
-                                    title="Cancel"
-                                  >
-                                    <X size={14} strokeWidth={3} className="mx-auto" />
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          {scheduleEntries.length > 0 ? (
-                            <div className="space-y-1.5 pt-2.5 border-t border-slate-50">
-                              <p className="font-extrabold text-slate-600 uppercase tracking-wider text-xs mb-1">
-                                {t('lessonSchedule')}
-                              </p>
-                              {scheduleEntries.map(([day, val]: [string, any]) => (
-                                <div key={day} className="flex flex-wrap justify-between items-center gap-1.5 text-xs bg-slate-50/50 p-2 rounded-lg border border-slate-100/20">
-                                  <span className="font-bold text-slate-700 capitalize">{day}</span>
-                                  <span className="font-medium text-slate-600 font-mono shrink-0">
-                                    {val.start_time} - {val.end_time}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-xs text-slate-500 italic pt-1 text-center">
-                              {language === 'fr' ? 'Aucun planning défini' : 'No schedule defined'}
-                            </p>
-                          )}
-                        </div>
-                      );
-                    })()}
-                  </div>
-                )}
-              </div>
+              
 
               {/* 3. CHOOSE YOUR PREFERRED TEACHER */}
-              <div className="border border-slate-100 rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white">
+              <div ref={teacherRef} className={`border rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white transition-all duration-300 ${highlightMissing.teachers ? 'border-red-400 ring-2 ring-red-300/40' : 'border-slate-100'}`}>
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-base font-extrabold text-slate-800 flex items-center gap-3">
                     <span className="w-7 h-7 rounded-lg bg-indigo-50 text-brand-indigo flex items-center justify-center text-xs font-black">3</span>
@@ -1111,270 +1064,290 @@ export const PriceQuotePage = () => {
                 </div>
               </div>
 
+              {highlightMissing.teachers && (
+              <p className="text-red-500 text-xs font-semibold mt-3 flex items-center gap-1">
+                <X size={12} /> {language === 'fr' ? 'Veuillez sélectionner un professeur pour chaque enfant' : 'Please select a teacher for each student'}
+              </p>
+            )}
+
             </div>
 
+            
+
             {/* RIGHT 4-COLUMN SIDEBAR AREA (Totals, banking details, and actions) */}
-            <div className="lg:col-span-4 space-y-6">
+            {/* RIGHT 4-COLUMN SIDEBAR AREA */}
+<div className="lg:col-span-4 space-y-6">
 
-
-
-              {/* 1. SELECT LESSON STYLE CARD */}
-              <div className="border border-slate-100 rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white">
-                <div
-                  onClick={() => setIsLessonStyleOpen(prev => !prev)}
-                  className="flex items-center justify-between cursor-pointer"
-                >
-                  <h2 className="text-base font-extrabold text-slate-800 flex items-center gap-3">
-                    <span className="w-7 h-7 rounded-lg bg-indigo-50 text-brand-indigo flex items-center justify-center text-xs font-black">1</span>
-                    {t('selectStyleTitle')}
-                  </h2>
-                  <ChevronDown
-                    size={16}
-                    className={`text-slate-400 transition-transform duration-200 shrink-0 ${isLessonStyleOpen ? '' : '-rotate-90'}`}
-                  />
-                </div>
-
-                <AnimatePresence initial={false}>
-                  {isLessonStyleOpen && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="overflow-hidden"
-                    >
-                <div className="grid grid-cols-1 gap-3 mt-4">
-
-                  {/* Option 1: 1:1 Lessons */}
-                  <div
-                    onClick={() => {
-                      if (quoteData.status !== 'Pending') return;
-                      setSelectedStyle('1to1');
-                    }}
-                    className={`border rounded-xl p-3.5 sm:p-4 transition-all flex items-center justify-between relative ${
-                      quoteData.status === 'Pending'
-                        ? 'cursor-pointer hover:border-slate-200 hover:bg-slate-50/20'
-                        : 'cursor-default opacity-90'
-                    } ${
-                      selectedStyle === '1to1'
-                        ? 'border-brand-indigo bg-indigo-50/10'
-                        : 'border-slate-100'
-                    }`}
-                  >
-                    <span className="font-extrabold text-slate-800 text-xs sm:text-sm">
-                      {t('lessonStyle1to1')}
-                    </span>
-                    <div className={`w-4 h-4 rounded-full flex items-center justify-center border shrink-0 ${
-                      selectedStyle === '1to1' ? 'border-brand-indigo bg-brand-indigo text-white' : 'border-slate-300'
-                    }`}>
-                      {selectedStyle === '1to1' && <Check size={8} strokeWidth={3} />}
-                    </div>
-                  </div>
-
-                  {/* Option 2: Group of 4 */}
-                  <div
-                    onClick={() => {
-                      if (quoteData.status !== 'Pending') return;
-                      setSelectedStyle('group');
-                    }}
-                    className={`border rounded-xl p-3.5 sm:p-4 transition-all flex items-center justify-between relative ${
-                      quoteData.status === 'Pending'
-                        ? 'cursor-pointer hover:border-slate-200 hover:bg-slate-50/20'
-                        : 'cursor-default opacity-90'
-                    } ${
-                      selectedStyle === 'group'
-                        ? 'border-brand-indigo bg-indigo-50/10'
-                        : 'border-slate-100'
-                    }`}
-                  >
-                    <span className="font-extrabold text-slate-800 text-xs sm:text-sm">
-                      {t('lessonStyleGroup')}
-                    </span>
-                    <div className={`w-4 h-4 rounded-full flex items-center justify-center border shrink-0 ${
-                      selectedStyle === 'group' ? 'border-brand-indigo bg-brand-indigo text-white' : 'border-slate-300'
-                    }`}>
-                      {selectedStyle === 'group' && <Check size={8} strokeWidth={3} />}
-                    </div>
-                  </div>
-
-                </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              {/* 2. SELECT SCHOOL VACATION PREFERENCE */}
-              <div className="border border-slate-100 rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white">
-                <h2 className="text-base font-extrabold text-slate-800 mb-4 flex items-center gap-3">
-                  <span className="w-7 h-7 rounded-lg bg-indigo-50 text-brand-indigo flex items-center justify-center text-xs font-black">2</span>
-                  {t('vacationTitle')}
-                </h2>
-
-                <div className="grid grid-cols-1 gap-4">
-
-                  {/* Option 1: Included */}
-                  <div
-                    onClick={() => {
-                      if (quoteData.status !== 'Pending') return;
-                      setVacationPreference('included');
-                    }}
-                    className={`border rounded-xl p-3.5 sm:p-4 transition-all flex items-start gap-3 relative ${
-                      quoteData.status === 'Pending'
-                        ? 'cursor-pointer hover:border-slate-200 hover:bg-slate-50/20'
-                        : 'cursor-default opacity-90'
-                    } ${
-                      vacationPreference === 'included'
-                        ? 'border-brand-indigo bg-indigo-50/10'
-                        : 'border-slate-100'
-                    }`}
-                  >
-                    <div className="pr-6">
-                      <p className="font-extrabold text-slate-800 text-xs">{t('vacationIncluded')}</p>
-                      <p className="text-slate-600 text-xs leading-tight mt-0.5">{t('vacationIncludedDesc')}</p>
-                    </div>
-                    <div className="absolute top-4 right-4">
-                      <div className={`w-4 h-4 rounded-full flex items-center justify-center border ${
-                        vacationPreference === 'included' ? 'border-brand-indigo bg-brand-indigo text-white' : 'border-slate-300'
-                      }`}>
-                        {vacationPreference === 'included' && <Check size={8} strokeWidth={3} />}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Option 2: Excluded */}
-                  <div
-                    onClick={() => {
-                      if (quoteData.status !== 'Pending') return;
-                      setVacationPreference('excluded');
-                    }}
-                    className={`border rounded-xl p-3.5 sm:p-4 transition-all flex items-start gap-3 relative ${
-                      quoteData.status === 'Pending'
-                        ? 'cursor-pointer hover:border-slate-200 hover:bg-slate-50/20'
-                        : 'cursor-default opacity-90'
-                    } ${
-                      vacationPreference === 'excluded'
-                        ? 'border-brand-indigo bg-indigo-50/10'
-                        : 'border-slate-100'
-                    }`}
-                  >
-                    <div className="pr-6">
-                      <p className="font-extrabold text-slate-800 text-xs">{t('vacationExcluded')}</p>
-                      <p className="text-slate-600 text-xs leading-tight mt-0.5">{t('vacationExcludedDesc')}</p>
-                    </div>
-                    <div className="absolute top-4 right-4">
-                      <div className={`w-4 h-4 rounded-full flex items-center justify-center border ${
-                        vacationPreference === 'excluded' ? 'border-brand-indigo bg-brand-indigo text-white' : 'border-slate-300'
-                      }`}>
-                        {vacationPreference === 'excluded' && <Check size={8} strokeWidth={3} />}
-                      </div>
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-
-              {/* Action Box: Validation Alert and Action Buttons (Accept, Reject, Request New) */}
-              <div className="space-y-3">
-                {quoteData.status === 'Pending' ? (
-                  <>
-                    {validationError && (
-                      <div className="p-3 bg-red-50 text-red-500 rounded-xl text-[11px] font-semibold border border-red-100">
-                        {validationError}
-                      </div>
-                    )}
-
-                    {/* Primary Action: Accept */}
-                    <button
-                      onClick={handleApprove}
-                      disabled={!isAllSelected || isSubmitting || isRejecting}
-                      className="w-full bloom-gradient text-white font-extrabold text-sm py-4 px-6 rounded-2xl shadow-lg shadow-indigo-100/50 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isSubmitting ? (
-                        <Loader2 className="animate-spin w-5 h-5" />
-                      ) : (
-                        <>
-                          <CheckCircle2 size={18} />
-                          <span>{t('acceptQuoteBtn')}</span>
-                        </>
+  {/* LESSON SCHEDULES — moved here from left */}
+  <div className="border border-slate-100 rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white space-y-4">
+    <h3 className="text-sm font-black uppercase text-slate-600 tracking-wider flex items-center gap-2 border-b border-slate-50 pb-2.5">
+      <CalendarIcon className="text-brand-purple shrink-0" size={16} />
+      {language === 'fr' ? 'PLANNINGS DES COURS' : 'LESSON SCHEDULES'}
+    </h3>
+    {quoteData.children_data && quoteData.children_data.length > 0 && (
+      <div className="pt-0 space-y-4">
+        <div className="flex gap-2 flex-wrap border-b border-slate-100 pb-3">
+          {quoteData.children_data.map((child: any, idx: number) => (
+            <button
+              key={idx}
+              onClick={() => {
+                setActiveScheduleChildIdx(idx);
+                setEditingChildIdx(null);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+                activeScheduleChildIdx === idx
+                  ? 'bg-brand-indigo text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+              }`}
+            >
+              {child.child_name || `Student ${idx + 1}`}
+            </button>
+          ))}
+        </div>
+        {(() => {
+          const child = quoteData.children_data[activeScheduleChildIdx];
+          if (!child) return null;
+          const scheduleEntries = Object.entries(child.lesson_schedule || {});
+          return (
+            <div className="border border-slate-100 rounded-xl overflow-hidden bg-white p-3.5 space-y-3.5 text-sm text-slate-600 font-medium">
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5 sm:gap-2 text-xs">
+                  <span className="font-extrabold text-slate-700">{t('evaluationSession')}</span>
+                  {editingChildIdx !== activeScheduleChildIdx && (
+                    <div className="flex items-center gap-1.5 shrink-0 self-start sm:self-auto">
+                      <span className="text-brand-purple font-black text-left sm:text-right">
+                        {getFormattedDate(child.evaluation_class_date) || 'N/A'} @ {child.evaluation_class_time || 'N/A'}
+                      </span>
+                      {quoteData.status === 'Pending' && (
+                        <button
+                          onClick={() => handleStartEditEvaluation(activeScheduleChildIdx, child.evaluation_class_date, child.evaluation_class_time)}
+                          className="text-slate-400 hover:text-brand-indigo transition-colors p-1 rounded hover:bg-slate-50 cursor-pointer"
+                        >
+                          <Edit3 size={12} />
+                        </button>
                       )}
-                    </button>
-
-                    {/* Secondary Actions: Request New and Reject (Side-by-side) */}
-                    <div className="grid grid-cols-2 gap-3 text-[11px] sm:text-xs">
-                      {/* Request New Price Quote */}
+                    </div>
+                  )}
+                </div>
+                {editingChildIdx === activeScheduleChildIdx && (
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-1 bg-slate-50 p-2 rounded-xl border border-slate-100/80">
+                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                      <input
+                        type="date"
+                        value={tempDate}
+                        onChange={(e) => setTempDate(e.target.value)}
+                        className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] sm:text-xs outline-none font-sans flex-1 min-w-0"
+                      />
+                      <input
+                        type="time"
+                        value={convertTo24Hour(tempTime)}
+                        onChange={(e) => setTempTime(convertTo12Hour(e.target.value))}
+                        className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] sm:text-xs outline-none font-sans flex-1 min-w-0"
+                      />
+                    </div>
+                    <div className="flex items-center gap-1 justify-end shrink-0">
                       <button
-                        onClick={() => {
-                          const whatsappNumber = "33757820121"; // Replace with your support WhatsApp number
-                          const message = language === 'fr'
-                            ? `Bonjour, je souhaite demander une nouvelle proposition pour le devis N° ${getQuoteRef()}.`
-                            : `Hello, I would like to request a new proposal for Quote N° ${getQuoteRef()}.`;
-                          const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
-                          window.open(url, '_blank');
-                        }}
-                        disabled={isSubmitting || isRejecting}
-                        className="py-3.5 px-2.5 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-extrabold rounded-xl transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 text-center flex items-center justify-center gap-1.5"
+                        onClick={() => handleSaveEvaluation(activeScheduleChildIdx)}
+                        className="text-white bg-emerald-500 hover:bg-emerald-600 p-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center shadow-sm flex-1 sm:flex-none"
+                        title="Save"
                       >
-                        <span>{t('requestNewQuoteBtnShort')}</span>
+                        <Check size={14} strokeWidth={3} className="mx-auto" />
                       </button>
-
-                      {/* Reject Price Quote */}
                       <button
-                        onClick={() => setShowRejectConfirm(true)}
-                        disabled={isSubmitting || isRejecting}
-                        className="py-3.5 px-2.5 border border-red-200 hover:border-red-300 hover:bg-red-50/50 text-red-500 font-extrabold rounded-xl transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 text-center flex items-center justify-center gap-1.5"
+                        onClick={() => setEditingChildIdx(null)}
+                        className="text-slate-500 bg-slate-200 hover:bg-slate-300 p-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center flex-1 sm:flex-none"
+                        title="Cancel"
                       >
-                        {isRejecting ? (
-                          <Loader2 className="animate-spin w-4 h-4" />
-                        ) : (
-                          <span>{t('rejectQuoteBtnShort')}</span>
-                        )}
+                        <X size={14} strokeWidth={3} className="mx-auto" />
                       </button>
                     </div>
-                  </>
-                ) : quoteData.status === 'Approved' ? (
-                  <div className="space-y-3">
-                    <div className="w-full py-4 px-6 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-2xl font-black text-center text-sm flex items-center justify-center gap-2 select-none">
-                      <CheckCircle2 size={16} />
-                      <span>{language === 'fr' ? 'APPROUVÉ' : 'APPROVED'}</span>
-                    </div>
-                    <button
-                      onClick={() => {
-                        const whatsappNumber = "33757820121"; // Replace with your support WhatsApp number
-                        const message = language === 'fr'
-                          ? `Bonjour, je souhaite demander une nouvelle proposition pour le devis N° ${getQuoteRef()}.`
-                          : `Hello, I would like to request a new proposal for Quote N° ${getQuoteRef()}.`;
-                        const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
-                        window.open(url, '_blank');
-                      }}
-                      className="w-full py-3.5 px-2.5 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-extrabold rounded-xl transition-all active:scale-[0.98] cursor-pointer text-center flex items-center justify-center gap-1.5 text-xs animate-fadeIn"
-                    >
-                      <span>{t('requestNewQuoteBtnShort')}</span>
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="w-full py-4 px-6 bg-red-50 border border-red-100 text-red-600 rounded-2xl font-black text-center text-sm flex items-center justify-center gap-2 select-none">
-                      <X size={16} />
-                      <span>{language === 'fr' ? 'REFUSÉ' : 'REFUSED'}</span>
-                    </div>
-                    <button
-                      onClick={() => {
-                        const whatsappNumber = "33757820121"; // Replace with your support WhatsApp number
-                        const message = language === 'fr'
-                          ? `Bonjour, je souhaite demander une nouvelle proposition pour le devis N° ${getQuoteRef()}.`
-                          : `Hello, I would like to request a new proposal for Quote N° ${getQuoteRef()}.`;
-                        const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
-                        window.open(url, '_blank');
-                      }}
-                      className="w-full py-3.5 px-2.5 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-extrabold rounded-xl transition-all active:scale-[0.98] cursor-pointer text-center flex items-center justify-center gap-1.5 text-xs animate-fadeIn"
-                    >
-                      <span>{t('requestNewQuoteBtnShort')}</span>
-                    </button>
                   </div>
                 )}
               </div>
-
+              {scheduleEntries.length > 0 ? (
+                <div className="space-y-1.5 pt-2.5 border-t border-slate-50">
+                  <p className="font-extrabold text-slate-600 uppercase tracking-wider text-xs mb-1">
+                    {t('lessonSchedule')}
+                  </p>
+                  {scheduleEntries.map(([day, val]: [string, any]) => (
+                    <div key={day} className="flex flex-wrap justify-between items-center gap-1.5 text-xs bg-slate-50/50 p-2 rounded-lg border border-slate-100/20">
+                      <span className="font-bold text-slate-700 capitalize">{day}</span>
+                      <span className="font-medium text-slate-600 font-mono shrink-0">
+                        {val.start_time} - {val.end_time}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500 italic pt-1 text-center">
+                  {language === 'fr' ? 'Aucun planning défini' : 'No schedule defined'}
+                </p>
+              )}
             </div>
+          );
+        })()}
+      </div>
+    )}
+  </div>
+
+  {/* SELECT SCHOOL VACATION PREFERENCE */}
+  <div ref={vacationRef} className={`border rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white transition-all duration-300 ${highlightMissing.vacation ? 'border-red-400 ring-2 ring-red-300/40' : 'border-slate-100'}`}>
+    <h2 className="text-base font-extrabold text-slate-800 mb-4 flex items-center gap-3">
+      <span className="w-7 h-7 rounded-lg bg-indigo-50 text-brand-indigo flex items-center justify-center text-xs font-black">2</span>
+      {t('vacationTitle')}
+    </h2>
+    <div className="grid grid-cols-1 gap-4">
+      <div
+        onClick={() => {
+          if (quoteData.status !== 'Pending') return;
+          setVacationPreference('included');
+          setHighlightMissing(prev => ({ ...prev, vacation: false }));
+        }}
+        className={`border rounded-xl p-3.5 sm:p-4 transition-all flex items-start gap-3 relative ${
+          quoteData.status === 'Pending'
+            ? 'cursor-pointer hover:border-slate-200 hover:bg-slate-50/20'
+            : 'cursor-default opacity-90'
+        } ${
+          vacationPreference === 'included'
+            ? 'border-brand-indigo bg-indigo-50/10'
+            : highlightMissing.vacation
+            ? 'border-red-300'
+            : 'border-slate-100'
+        }`}
+      >
+        <div className="pr-6">
+          <p className="font-extrabold text-slate-800 text-xs">{t('vacationIncluded')}</p>
+          <p className="text-slate-600 text-xs leading-tight mt-0.5">{t('vacationIncludedDesc')}</p>
+        </div>
+        <div className="absolute top-4 right-4">
+          <div className={`w-4 h-4 rounded-full flex items-center justify-center border ${
+            vacationPreference === 'included' ? 'border-brand-indigo bg-brand-indigo text-white' : 'border-slate-300'
+          }`}>
+            {vacationPreference === 'included' && <Check size={8} strokeWidth={3} />}
+          </div>
+        </div>
+      </div>
+      <div
+        onClick={() => {
+          if (quoteData.status !== 'Pending') return;
+          setVacationPreference('excluded');
+          setHighlightMissing(prev => ({ ...prev, vacation: false }));
+        }}
+        className={`border rounded-xl p-3.5 sm:p-4 transition-all flex items-start gap-3 relative ${
+          quoteData.status === 'Pending'
+            ? 'cursor-pointer hover:border-slate-200 hover:bg-slate-50/20'
+            : 'cursor-default opacity-90'
+        } ${
+          vacationPreference === 'excluded'
+            ? 'border-brand-indigo bg-indigo-50/10'
+            : highlightMissing.vacation
+            ? 'border-red-300'
+            : 'border-slate-100'
+        }`}
+      >
+        <div className="pr-6">
+          <p className="font-extrabold text-slate-800 text-xs">{t('vacationExcluded')}</p>
+          <p className="text-slate-600 text-xs leading-tight mt-0.5">{t('vacationExcludedDesc')}</p>
+        </div>
+        <div className="absolute top-4 right-4">
+          <div className={`w-4 h-4 rounded-full flex items-center justify-center border ${
+            vacationPreference === 'excluded' ? 'border-brand-indigo bg-brand-indigo text-white' : 'border-slate-300'
+          }`}>
+            {vacationPreference === 'excluded' && <Check size={8} strokeWidth={3} />}
+          </div>
+        </div>
+      </div>
+    </div>
+    {highlightMissing.vacation && (
+      <p className="text-red-500 text-xs font-semibold mt-2 flex items-center gap-1">
+        <X size={12} /> {language === 'fr' ? 'Veuillez sélectionner une préférence de vacances' : 'Please select a vacation preference'}
+      </p>
+    )}
+  </div>
+
+  {/* Action Buttons */}
+  <div className="space-y-3">
+    {quoteData.status === 'Pending' ? (
+      <>
+        {/* Primary Action: Accept — always clickable now */}
+        <button
+          onClick={handleApprove}
+          disabled={isSubmitting || isRejecting}
+          className="w-full bloom-gradient text-white font-extrabold text-sm py-4 px-6 rounded-2xl shadow-lg shadow-indigo-100/50 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isSubmitting ? (
+            <Loader2 className="animate-spin w-5 h-5" />
+          ) : (
+            <>
+              <CheckCircle2 size={18} />
+              <span>{t('acceptQuoteBtn')}</span>
+            </>
+          )}
+        </button>
+        <div className="grid grid-cols-2 gap-3 text-[11px] sm:text-xs">
+          <button
+            onClick={() => {
+              const whatsappNumber = "33757820121";
+              const message = language === 'fr'
+                ? `Bonjour, je souhaite demander une nouvelle proposition pour le devis N° ${getQuoteRef()}.`
+                : `Hello, I would like to request a new proposal for Quote N° ${getQuoteRef()}.`;
+              window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`, '_blank');
+            }}
+            disabled={isSubmitting || isRejecting}
+            className="py-3.5 px-2.5 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-extrabold rounded-xl transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 text-center flex items-center justify-center gap-1.5"
+          >
+            <span>{t('requestNewQuoteBtnShort')}</span>
+          </button>
+          <button
+            onClick={() => setShowRejectConfirm(true)}
+            disabled={isSubmitting || isRejecting}
+            className="py-3.5 px-2.5 border border-red-200 hover:border-red-300 hover:bg-red-50/50 text-red-500 font-extrabold rounded-xl transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 text-center flex items-center justify-center gap-1.5"
+          >
+            {isRejecting ? <Loader2 className="animate-spin w-4 h-4" /> : <span>{t('rejectQuoteBtnShort')}</span>}
+          </button>
+        </div>
+      </>
+    ) : quoteData.status === 'Approved' ? (
+      <div className="space-y-3">
+        <div className="w-full py-4 px-6 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-2xl font-black text-center text-sm flex items-center justify-center gap-2 select-none">
+          <CheckCircle2 size={16} />
+          <span>{language === 'fr' ? 'APPROUVÉ' : 'APPROVED'}</span>
+        </div>
+        <button
+          onClick={() => {
+            const whatsappNumber = "33757820121";
+            const message = language === 'fr'
+              ? `Bonjour, je souhaite demander une nouvelle proposition pour le devis N° ${getQuoteRef()}.`
+              : `Hello, I would like to request a new proposal for Quote N° ${getQuoteRef()}.`;
+            window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`, '_blank');
+          }}
+          className="w-full py-3.5 px-2.5 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-extrabold rounded-xl transition-all active:scale-[0.98] cursor-pointer text-center flex items-center justify-center gap-1.5 text-xs"
+        >
+          <span>{t('requestNewQuoteBtnShort')}</span>
+        </button>
+      </div>
+    ) : (
+      <div className="space-y-3">
+        <div className="w-full py-4 px-6 bg-red-50 border border-red-100 text-red-600 rounded-2xl font-black text-center text-sm flex items-center justify-center gap-2 select-none">
+          <X size={16} />
+          <span>{language === 'fr' ? 'REFUSÉ' : 'REFUSED'}</span>
+        </div>
+        <button
+          onClick={() => {
+            const whatsappNumber = "33757820121";
+            const message = language === 'fr'
+              ? `Bonjour, je souhaite demander une nouvelle proposition pour le devis N° ${getQuoteRef()}.`
+              : `Hello, I would like to request a new proposal for Quote N° ${getQuoteRef()}.`;
+            window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`, '_blank');
+          }}
+          className="w-full py-3.5 px-2.5 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-extrabold rounded-xl transition-all active:scale-[0.98] cursor-pointer text-center flex items-center justify-center gap-1.5 text-xs"
+        >
+          <span>{t('requestNewQuoteBtnShort')}</span>
+        </button>
+      </div>
+    )}
+  </div>
+</div>
 
           </div>
 
