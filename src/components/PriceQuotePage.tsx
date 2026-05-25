@@ -375,6 +375,7 @@ export const PriceQuotePage = () => {
   // Quote States
   const [quoteData, setQuoteData] = useState<any>(null);
   const [teachers, setTeachers] = useState<any[]>([]);
+  const [recommendedTeachersResponse, setRecommendedTeachersResponse] = useState<any[]>([]);
   
   // Interactive choices
   const [selectedStyle, setSelectedStyle] = useState<'1to1' | 'group' | null>(null);
@@ -436,19 +437,30 @@ export const PriceQuotePage = () => {
         if (response.success && response.data) {
           const data = { ...response.data };
           setQuoteData(data);
-          // If API returns recommended teachers, use them, else fallback to mock
-          setTeachers(response.recommended_teachers && response.recommended_teachers.length > 0 ? response.recommended_teachers : mockTeachers);
+          setRecommendedTeachersResponse(response.recommended_teachers || []);
         } else {
           // Fallback to mock data for local testing
           const mockData = getMockQuote(id);
           setQuoteData(mockData);
-          setTeachers(mockTeachers);
+          setRecommendedTeachersResponse([
+            { child_name: "Ali", recommended_teachers: [mockTeachers[0]] },
+            { child_name: "Ahmad", recommended_teachers: [mockTeachers[1]] },
+            { child_name: "Mubeen", recommended_teachers: [mockTeachers[2]] },
+            { child_name: "Hassan", recommended_teachers: [mockTeachers[3]] },
+            { child_name: "Bilal", recommended_teachers: [mockTeachers[0], mockTeachers[1]] }
+          ]);
         }
       } catch (err) {
         console.warn("API fetch failed, falling back to mock data", err);
         const mockData = getMockQuote(id);
         setQuoteData(mockData);
-        setTeachers(mockTeachers);
+        setRecommendedTeachersResponse([
+          { child_name: "Ali", recommended_teachers: [mockTeachers[0]] },
+          { child_name: "Ahmad", recommended_teachers: [mockTeachers[1]] },
+          { child_name: "Mubeen", recommended_teachers: [mockTeachers[2]] },
+          { child_name: "Hassan", recommended_teachers: [mockTeachers[3]] },
+          { child_name: "Bilal", recommended_teachers: [mockTeachers[0], mockTeachers[1]] }
+        ]);
       } finally {
         setLoading(false);
       }
@@ -456,6 +468,22 @@ export const PriceQuotePage = () => {
 
     fetchQuote();
   }, [id]);
+
+  // Update the teachers list based on the active child tab
+  useEffect(() => {
+    const activeChildName = quoteData?.children_data?.[activeChildIdx]?.child_name;
+    if (activeChildName && recommendedTeachersResponse.length > 0) {
+      const match = recommendedTeachersResponse.find(
+        (item: any) => item.child_name?.toLowerCase() === activeChildName.toLowerCase()
+      );
+      if (match && match.recommended_teachers && match.recommended_teachers.length > 0) {
+        setTeachers(match.recommended_teachers);
+        return;
+      }
+    }
+    // Fallback to all mock teachers if no specific recommendations found
+    setTeachers(mockTeachers);
+  }, [activeChildIdx, recommendedTeachersResponse, quoteData]);
 
 
 
@@ -682,8 +710,7 @@ export const PriceQuotePage = () => {
     quoteData.children_data.every((_: any, idx: number) => selectedTeacherIds[idx] !== undefined)
   );
 
-  // Child data
-  const childrenNames = quoteData.children_data?.map((c: any) => c.child_name || "Student").join(', ') || "Student";
+
 
 
 
@@ -1044,40 +1071,7 @@ export const PriceQuotePage = () => {
             {/* RIGHT 4-COLUMN SIDEBAR AREA (Totals, banking details, and actions) */}
             <div className="lg:col-span-4 space-y-6">
 
-              {/* Quick Summary / Pricing breakdown */}
-              <div className="border border-slate-100 rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white space-y-4">
-                <h3 className="text-sm font-black uppercase text-slate-600 tracking-wider flex items-center gap-2 border-b border-slate-50 pb-2.5">
-                  <CheckCircle2 className="text-brand-indigo shrink-0" size={16} />
-                  {language === 'fr' ? 'DÉTAIL DU PRIX' : 'PRICING SUMMARY'}
-                </h3>
 
-                <div className="space-y-3 text-sm text-slate-700 font-medium">
-                  {/* Selected Style Detail */}
-                  <div className="flex justify-between items-start gap-4">
-                    <span className="leading-normal">
-                      {selectedStyle 
-                        ? (selectedStyle === '1to1' ? t('lessonStyle1to1') : t('lessonStyleGroup'))
-                        : (language === 'fr' ? 'Sélectionnez un style de cours' : 'Select a lesson style')
-                      } -{' '}
-                      {childrenNames} ({weeklyHoursFloat} {t('hoursPerWeek')})
-                    </span>
-                    <span className="text-slate-800 font-extrabold shrink-0">
-                      {selectedStyle ? `${currentMonthlyCost} €` : '-'}
-                    </span>
-                  </div>
-
-
-                  {/* Totals Section matching Devis format */}
-                  <div className="pt-3.5 border-t border-slate-100">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-black text-slate-800">{t('monthlyCost')}</span>
-                      <span className="text-base font-black text-brand-indigo">
-                        {selectedStyle ? `${currentMonthlyCost} €` : '-'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
 
               {/* 1. SELECT LESSON STYLE CARD */}
               <div className="border border-slate-100 rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white">
