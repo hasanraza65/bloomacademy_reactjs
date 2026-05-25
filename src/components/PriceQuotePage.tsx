@@ -707,175 +707,132 @@ export const PriceQuotePage = () => {
             
             {/* LEFT 8-COLUMN GRID AREA */}
             <div className="lg:col-span-8 space-y-6">
-              
-              {/* 1. SELECT LESSON STYLE CARD */}
-              <div className="border border-slate-100 rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white">
-                <h2 className="text-base font-extrabold text-slate-800 mb-4 flex items-center gap-3">
-                  <span className="w-7 h-7 rounded-lg bg-indigo-50 text-brand-indigo flex items-center justify-center text-xs font-black">1</span>
-                  {t('selectStyleTitle')}
-                </h2>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  
-                  {/* Option 1: 1:1 Lessons */}
-                  <div
-                    onClick={() => {
-                      if (quoteData.status !== 'Pending') return;
-                      setSelectedStyle('1to1');
-                    }}
-                    className={`border rounded-xl p-3.5 sm:p-4 transition-all relative flex flex-col justify-between min-h-[150px] ${
-                      quoteData.status === 'Pending'
-                        ? 'cursor-pointer hover:border-slate-200 hover:bg-slate-50/20'
-                        : 'cursor-default opacity-90'
-                    } ${
-                      selectedStyle === '1to1'
-                        ? 'border-brand-indigo bg-indigo-50/10'
-                        : 'border-slate-100'
-                    }`}
-                  >
-                    <div className="absolute top-4 right-4">
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center border ${
-                        selectedStyle === '1to1' ? 'border-brand-indigo bg-brand-indigo text-white' : 'border-slate-300'
-                      }`}>
-                        {selectedStyle === '1to1' && <Check size={10} strokeWidth={3} />}
-                      </div>
-                    </div>
+              {/* LESSON SCHEDULES */}
+              <div className="border border-slate-100 rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white space-y-4">
+                <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider flex items-center gap-2 border-b border-slate-50 pb-2.5">
+                  <CalendarIcon className="text-brand-purple shrink-0" size={16} />
+                  {language === 'fr' ? 'PLANNINGS DES COURS' : 'LESSON SCHEDULES'}
+                </h3>
 
-                    <div>
-                      <span className="inline-block px-2.5 py-0.5 bg-indigo-50 text-brand-indigo font-bold text-[10px] rounded-full uppercase tracking-wide mb-2">
-                        {t('lessonStyle1to1')}
-                      </span>
-                      <p className="text-slate-500 text-[11px] font-medium leading-normal pr-6">
-                        {t('formula1to1')}
-                      </p>
-                    </div>
+                {quoteData.children_data && quoteData.children_data.length > 0 && (
+                  <div className="pt-0 space-y-2">
+                    <div className="space-y-2">
+                      {quoteData.children_data.map((child: any, idx: number) => {
+                        const isExpanded = !!expandedChildren[idx];
+                        const scheduleEntries = Object.entries(child.lesson_schedule || {});
 
-                    <div className="mt-4 flex flex-wrap items-baseline justify-between gap-1.5 pt-2.5 border-t border-slate-100/60">
-                      <div className="flex items-baseline">
-                        <span className="text-xl font-black text-slate-800">{cost1to1} €</span>
-                        <span className="text-[10px] text-slate-400 font-bold ml-0.5">{t('perMonth')}</span>
-                      </div>
-                      <span className="text-[10px] text-slate-400 font-semibold">
-                        {rate1to1} €/{t('hour')}
-                      </span>
-                    </div>
-                  </div>
+                        return (
+                          <div key={idx} className="border border-slate-100 rounded-xl overflow-hidden bg-slate-50/10">
+                            <div
+                              onClick={() => setExpandedChildren(prev => ({ ...prev, [idx]: !prev[idx] }))}
+                              className="flex justify-between items-center p-2.5 cursor-pointer hover:bg-slate-50 transition-colors"
+                            >
+                              <span className="font-extrabold text-slate-700 text-xs flex items-center gap-1.5">
+                                <UserIcon size={12} className="text-brand-indigo shrink-0" />
+                                {child.child_name || `Student ${idx + 1}`}
+                              </span>
+                              <ChevronRight
+                                size={14}
+                                className={`text-slate-400 transition-transform duration-200 shrink-0 ${isExpanded ? 'rotate-90' : ''}`}
+                              />
+                            </div>
 
-                  {/* Option 2: Group of 4 */}
-                  <div
-                    onClick={() => {
-                      if (quoteData.status !== 'Pending') return;
-                      setSelectedStyle('group');
-                    }}
-                    className={`border rounded-xl p-3.5 sm:p-4 transition-all relative flex flex-col justify-between min-h-[150px] ${
-                      quoteData.status === 'Pending'
-                        ? 'cursor-pointer hover:border-slate-200 hover:bg-slate-50/20'
-                        : 'cursor-default opacity-90'
-                    } ${
-                      selectedStyle === 'group'
-                        ? 'border-brand-indigo bg-indigo-50/10'
-                        : 'border-slate-100'
-                    }`}
-                  >
-                    <div className="absolute top-4 right-4">
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center border ${
-                        selectedStyle === 'group' ? 'border-brand-indigo bg-brand-indigo text-white' : 'border-slate-300'
-                      }`}>
-                        {selectedStyle === 'group' && <Check size={10} strokeWidth={3} />}
-                      </div>
-                    </div>
+                            <AnimatePresence initial={false}>
+                              {isExpanded && (
+                                <motion.div
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: 'auto', opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  transition={{ duration: 0.2 }}
+                                  className="overflow-hidden border-t border-slate-100/50 bg-white"
+                                >
+                                  <div className="p-3 space-y-3.5 text-xs text-slate-500 font-medium">
+                                    <div className="flex flex-col gap-2 pt-1">
+                                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5 sm:gap-2 text-xs">
+                                        <span className="font-extrabold text-slate-700">{t('evaluationSession')}</span>
+                                        {editingChildIdx !== idx && (
+                                          <div className="flex items-center gap-1.5 shrink-0 self-start sm:self-auto">
+                                            <span className="text-brand-purple font-black text-left sm:text-right">
+                                              {getFormattedDate(child.evaluation_class_date) || 'N/A'} @ {child.evaluation_class_time || 'N/A'}
+                                            </span>
+                                            {quoteData.status === 'Pending' && (
+                                              <button
+                                                onClick={() => handleStartEditEvaluation(idx, child.evaluation_class_date, child.evaluation_class_time)}
+                                                className="text-slate-400 hover:text-brand-indigo transition-colors p-1 rounded hover:bg-slate-50 cursor-pointer"
+                                              >
+                                                <Edit3 size={12} />
+                                              </button>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
 
-                    <div>
-                      <span className="inline-block px-2.5 py-0.5 bg-purple-50 text-brand-purple font-bold text-[10px] rounded-full uppercase tracking-wide mb-2">
-                        {t('lessonStyleGroup')}
-                      </span>
-                      <p className="text-slate-500 text-[11px] font-medium leading-normal pr-6">
-                        {t('formulaGroup')}
-                      </p>
-                    </div>
+                                      {editingChildIdx === idx && (
+                                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-1 bg-slate-50 p-2 rounded-xl border border-slate-100/80">
+                                          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                            <input
+                                              type="date"
+                                              value={tempDate}
+                                              onChange={(e) => setTempDate(e.target.value)}
+                                              className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] sm:text-xs outline-none font-sans flex-1 min-w-0"
+                                            />
+                                            <input
+                                              type="time"
+                                              value={convertTo24Hour(tempTime)}
+                                              onChange={(e) => setTempTime(convertTo12Hour(e.target.value))}
+                                              className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] sm:text-xs outline-none font-sans flex-1 min-w-0"
+                                            />
+                                          </div>
+                                          <div className="flex items-center gap-1 justify-end shrink-0">
+                                            <button
+                                              onClick={() => handleSaveEvaluation(idx)}
+                                              className="text-white bg-emerald-500 hover:bg-emerald-600 p-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center shadow-sm flex-1 sm:flex-none"
+                                              title="Save"
+                                            >
+                                              <Check size={14} strokeWidth={3} className="mx-auto" />
+                                            </button>
+                                            <button
+                                              onClick={() => setEditingChildIdx(null)}
+                                              className="text-slate-500 bg-slate-200 hover:bg-slate-300 p-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center flex-1 sm:flex-none"
+                                              title="Cancel"
+                                            >
+                                              <X size={14} strokeWidth={3} className="mx-auto" />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
 
-                    <div className="mt-4 flex flex-wrap items-baseline justify-between gap-1.5 pt-2.5 border-t border-slate-100/60">
-                      <div className="flex items-baseline">
-                        <span className="text-xl font-black text-slate-800">{costGroup} €</span>
-                        <span className="text-[10px] text-slate-400 font-bold ml-0.5">{t('perMonth')}</span>
-                      </div>
-                      <span className="text-[10px] text-slate-400 font-semibold">
-                        {rateGroup} €/{t('hour')}
-                      </span>
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-
-              {/* 2. SELECT SCHOOL VACATION PREFERENCE */}
-              <div className="border border-slate-100 rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white">
-                <h2 className="text-base font-extrabold text-slate-800 mb-4 flex items-center gap-3">
-                  <span className="w-7 h-7 rounded-lg bg-indigo-50 text-brand-indigo flex items-center justify-center text-xs font-black">2</span>
-                  {t('vacationTitle')}
-                </h2>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  
-                  {/* Option 1: Included */}
-                  <div
-                    onClick={() => {
-                      if (quoteData.status !== 'Pending') return;
-                      setVacationPreference('included');
-                    }}
-                    className={`border rounded-xl p-3.5 sm:p-4 transition-all flex items-start gap-3 relative ${
-                      quoteData.status === 'Pending'
-                        ? 'cursor-pointer hover:border-slate-200 hover:bg-slate-50/20'
-                        : 'cursor-default opacity-90'
-                    } ${
-                      vacationPreference === 'included'
-                        ? 'border-brand-indigo bg-indigo-50/10'
-                        : 'border-slate-100'
-                    }`}
-                  >
-                    <div className="pr-6">
-                      <p className="font-extrabold text-slate-800 text-xs">{t('vacationIncluded')}</p>
-                      <p className="text-slate-400 text-[10px] leading-tight mt-0.5">{t('vacationIncludedDesc')}</p>
-                    </div>
-                    <div className="absolute top-4 right-4">
-                      <div className={`w-4 h-4 rounded-full flex items-center justify-center border ${
-                        vacationPreference === 'included' ? 'border-brand-indigo bg-brand-indigo text-white' : 'border-slate-300'
-                      }`}>
-                        {vacationPreference === 'included' && <Check size={8} strokeWidth={3} />}
-                      </div>
+                                    {scheduleEntries.length > 0 ? (
+                                      <div className="space-y-1.5 pt-2.5 border-t border-slate-50">
+                                        <p className="font-extrabold text-slate-400 uppercase tracking-wider text-[10px] mb-1">
+                                          {t('lessonSchedule')}
+                                        </p>
+                                        {scheduleEntries.map(([day, val]: [string, any]) => (
+                                          <div key={day} className="flex flex-wrap justify-between items-center gap-1.5 text-[10px] sm:text-[11px] bg-slate-50/50 p-2 rounded-lg border border-slate-100/20">
+                                            <span className="font-bold text-slate-600 capitalize">{day}</span>
+                                            <span className="font-medium text-slate-500 font-mono shrink-0">
+                                              {val.start_time} - {val.end_time}
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <p className="text-[10px] text-slate-400 italic pt-1 text-center">
+                                        {language === 'fr' ? 'Aucun planning défini' : 'No schedule defined'}
+                                      </p>
+                                    )}
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
-
-                  {/* Option 2: Excluded */}
-                  <div
-                    onClick={() => {
-                      if (quoteData.status !== 'Pending') return;
-                      setVacationPreference('excluded');
-                    }}
-                    className={`border rounded-xl p-3.5 sm:p-4 transition-all flex items-start gap-3 relative ${
-                      quoteData.status === 'Pending'
-                        ? 'cursor-pointer hover:border-slate-200 hover:bg-slate-50/20'
-                        : 'cursor-default opacity-90'
-                    } ${
-                      vacationPreference === 'excluded'
-                        ? 'border-brand-indigo bg-indigo-50/10'
-                        : 'border-slate-100'
-                    }`}
-                  >
-                    <div className="pr-6">
-                      <p className="font-extrabold text-slate-800 text-xs">{t('vacationExcluded')}</p>
-                      <p className="text-slate-400 text-[10px] leading-tight mt-0.5">{t('vacationExcludedDesc')}</p>
-                    </div>
-                    <div className="absolute top-4 right-4">
-                      <div className={`w-4 h-4 rounded-full flex items-center justify-center border ${
-                        vacationPreference === 'excluded' ? 'border-brand-indigo bg-brand-indigo text-white' : 'border-slate-300'
-                      }`}>
-                        {vacationPreference === 'excluded' && <Check size={8} strokeWidth={3} />}
-                      </div>
-                    </div>
-                  </div>
-
-                </div>
+                )}
               </div>
 
               {/* 3. CHOOSE YOUR PREFERRED TEACHER */}
@@ -988,138 +945,6 @@ export const PriceQuotePage = () => {
 
             {/* RIGHT 4-COLUMN SIDEBAR AREA (Totals, banking details, and actions) */}
             <div className="lg:col-span-4 space-y-6">
-              
-              {/* Sidebar Card 2: Lesson Schedules */}
-              <div className="border border-slate-100 rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white space-y-4">
-                <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider flex items-center gap-2 border-b border-slate-50 pb-2.5">
-                  <CalendarIcon className="text-brand-purple shrink-0" size={16} />
-                  {language === 'fr' ? 'PLANNINGS DES COURS' : 'LESSON SCHEDULES'}
-                </h3>
-
-                {/* Schedules rendered dynamically per child as expandable sections */}
-                {quoteData.children_data && quoteData.children_data.length > 0 && (
-                  <div className="pt-0 space-y-2">
-                    <div className="space-y-2">
-                      {quoteData.children_data.map((child: any, idx: number) => {
-                        const isExpanded = !!expandedChildren[idx];
-                        const scheduleEntries = Object.entries(child.lesson_schedule || {});
-
-                        return (
-                          <div key={idx} className="border border-slate-100 rounded-xl overflow-hidden bg-slate-50/10">
-                            {/* Toggle Header */}
-                            <div
-                              onClick={() => setExpandedChildren(prev => ({ ...prev, [idx]: !prev[idx] }))}
-                              className="flex justify-between items-center p-2.5 cursor-pointer hover:bg-slate-50 transition-colors"
-                            >
-                              <span className="font-extrabold text-slate-700 text-xs flex items-center gap-1.5">
-                                <UserIcon size={12} className="text-brand-indigo shrink-0" />
-                                {child.child_name || `Student ${idx + 1}`}
-                              </span>
-                              <ChevronRight
-                                size={14}
-                                className={`text-slate-400 transition-transform duration-200 shrink-0 ${isExpanded ? 'rotate-90' : ''}`}
-                              />
-                            </div>
-
-                            {/* Collapsible Content */}
-                            <AnimatePresence initial={false}>
-                              {isExpanded && (
-                                <motion.div
-                                  initial={{ height: 0, opacity: 0 }}
-                                  animate={{ height: 'auto', opacity: 1 }}
-                                  exit={{ height: 0, opacity: 0 }}
-                                  transition={{ duration: 0.2 }}
-                                  className="overflow-hidden border-t border-slate-100/50 bg-white"
-                                >
-                                  <div className="p-3 space-y-3.5 text-xs text-slate-500 font-medium">
-                                    {/* Evaluation Session */}
-                                    <div className="flex flex-col gap-2 pt-1">
-                                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5 sm:gap-2 text-xs">
-                                        <span className="font-extrabold text-slate-700">{t('evaluationSession')}</span>
-                                        {editingChildIdx !== idx && (
-                                          <div className="flex items-center gap-1.5 shrink-0 self-start sm:self-auto">
-                                            <span className="text-brand-purple font-black text-left sm:text-right">
-                                              {getFormattedDate(child.evaluation_class_date) || 'N/A'} @ {child.evaluation_class_time || 'N/A'}
-                                            </span>
-                                            {quoteData.status === 'Pending' && (
-                                              <button
-                                                onClick={() => handleStartEditEvaluation(idx, child.evaluation_class_date, child.evaluation_class_time)}
-                                                className="text-slate-400 hover:text-brand-indigo transition-colors p-1 rounded hover:bg-slate-50 cursor-pointer"
-                                              >
-                                                <Edit3 size={12} />
-                                              </button>
-                                            )}
-                                          </div>
-                                        )}
-                                      </div>
-
-                                      {editingChildIdx === idx && (
-                                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-1 bg-slate-50 p-2 rounded-xl border border-slate-100/80">
-                                          <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                                            <input
-                                              type="date"
-                                              value={tempDate}
-                                              onChange={(e) => setTempDate(e.target.value)}
-                                              className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] sm:text-xs outline-none font-sans flex-1 min-w-0"
-                                            />
-                                            <input
-                                              type="time"
-                                              value={convertTo24Hour(tempTime)}
-                                              onChange={(e) => setTempTime(convertTo12Hour(e.target.value))}
-                                              className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] sm:text-xs outline-none font-sans flex-1 min-w-0"
-                                            />
-                                          </div>
-                                          <div className="flex items-center gap-1 justify-end shrink-0">
-                                            <button
-                                              onClick={() => handleSaveEvaluation(idx)}
-                                              className="text-white bg-emerald-500 hover:bg-emerald-600 p-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center shadow-sm flex-1 sm:flex-none"
-                                              title="Save"
-                                            >
-                                              <Check size={14} strokeWidth={3} className="mx-auto" />
-                                            </button>
-                                            <button
-                                              onClick={() => setEditingChildIdx(null)}
-                                              className="text-slate-500 bg-slate-200 hover:bg-slate-300 p-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center flex-1 sm:flex-none"
-                                              title="Cancel"
-                                            >
-                                              <X size={14} strokeWidth={3} className="mx-auto" />
-                                            </button>
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-
-                                    {/* Weekly schedule */}
-                                    {scheduleEntries.length > 0 ? (
-                                      <div className="space-y-1.5 pt-2.5 border-t border-slate-50">
-                                        <p className="font-extrabold text-slate-400 uppercase tracking-wider text-[10px] mb-1">
-                                          {t('lessonSchedule')}
-                                        </p>
-                                        {scheduleEntries.map(([day, val]: [string, any]) => (
-                                          <div key={day} className="flex flex-wrap justify-between items-center gap-1.5 text-[10px] sm:text-[11px] bg-slate-50/50 p-2 rounded-lg border border-slate-100/20">
-                                            <span className="font-bold text-slate-600 capitalize">{day}</span>
-                                            <span className="font-medium text-slate-500 font-mono shrink-0">
-                                              {val.start_time} - {val.end_time}
-                                            </span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    ) : (
-                                      <p className="text-[10px] text-slate-400 italic pt-1 text-center">
-                                        {language === 'fr' ? 'Aucun planning défini' : 'No schedule defined'}
-                                      </p>
-                                    )}
-                                  </div>
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
 
               {/* Quick Summary / Pricing breakdown */}
               <div className="border border-slate-100 rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white space-y-4">
@@ -1150,6 +975,176 @@ export const PriceQuotePage = () => {
                       </span>
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* 1. SELECT LESSON STYLE CARD */}
+              <div className="border border-slate-100 rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white">
+                <h2 className="text-base font-extrabold text-slate-800 mb-4 flex items-center gap-3">
+                  <span className="w-7 h-7 rounded-lg bg-indigo-50 text-brand-indigo flex items-center justify-center text-xs font-black">1</span>
+                  {t('selectStyleTitle')}
+                </h2>
+
+                <div className="grid grid-cols-1 gap-4">
+
+                  {/* Option 1: 1:1 Lessons */}
+                  <div
+                    onClick={() => {
+                      if (quoteData.status !== 'Pending') return;
+                      setSelectedStyle('1to1');
+                    }}
+                    className={`border rounded-xl p-3.5 sm:p-4 transition-all relative flex flex-col justify-between min-h-[150px] ${
+                      quoteData.status === 'Pending'
+                        ? 'cursor-pointer hover:border-slate-200 hover:bg-slate-50/20'
+                        : 'cursor-default opacity-90'
+                    } ${
+                      selectedStyle === '1to1'
+                        ? 'border-brand-indigo bg-indigo-50/10'
+                        : 'border-slate-100'
+                    }`}
+                  >
+                    <div className="absolute top-4 right-4">
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center border ${
+                        selectedStyle === '1to1' ? 'border-brand-indigo bg-brand-indigo text-white' : 'border-slate-300'
+                      }`}>
+                        {selectedStyle === '1to1' && <Check size={10} strokeWidth={3} />}
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="inline-block px-2.5 py-0.5 bg-indigo-50 text-brand-indigo font-bold text-[10px] rounded-full uppercase tracking-wide mb-2">
+                        {t('lessonStyle1to1')}
+                      </span>
+                      <p className="text-slate-500 text-[11px] font-medium leading-normal pr-6">
+                        {t('formula1to1')}
+                      </p>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap items-baseline justify-between gap-1.5 pt-2.5 border-t border-slate-100/60">
+                      <div className="flex items-baseline">
+                        <span className="text-xl font-black text-slate-800">{cost1to1} €</span>
+                        <span className="text-[10px] text-slate-400 font-bold ml-0.5">{t('perMonth')}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-semibold">
+                        {rate1to1} €/{t('hour')}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Option 2: Group of 4 */}
+                  <div
+                    onClick={() => {
+                      if (quoteData.status !== 'Pending') return;
+                      setSelectedStyle('group');
+                    }}
+                    className={`border rounded-xl p-3.5 sm:p-4 transition-all relative flex flex-col justify-between min-h-[150px] ${
+                      quoteData.status === 'Pending'
+                        ? 'cursor-pointer hover:border-slate-200 hover:bg-slate-50/20'
+                        : 'cursor-default opacity-90'
+                    } ${
+                      selectedStyle === 'group'
+                        ? 'border-brand-indigo bg-indigo-50/10'
+                        : 'border-slate-100'
+                    }`}
+                  >
+                    <div className="absolute top-4 right-4">
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center border ${
+                        selectedStyle === 'group' ? 'border-brand-indigo bg-brand-indigo text-white' : 'border-slate-300'
+                      }`}>
+                        {selectedStyle === 'group' && <Check size={10} strokeWidth={3} />}
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="inline-block px-2.5 py-0.5 bg-purple-50 text-brand-purple font-bold text-[10px] rounded-full uppercase tracking-wide mb-2">
+                        {t('lessonStyleGroup')}
+                      </span>
+                      <p className="text-slate-500 text-[11px] font-medium leading-normal pr-6">
+                        {t('formulaGroup')}
+                      </p>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap items-baseline justify-between gap-1.5 pt-2.5 border-t border-slate-100/60">
+                      <div className="flex items-baseline">
+                        <span className="text-xl font-black text-slate-800">{costGroup} €</span>
+                        <span className="text-[10px] text-slate-400 font-bold ml-0.5">{t('perMonth')}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-semibold">
+                        {rateGroup} €/{t('hour')}
+                      </span>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* 2. SELECT SCHOOL VACATION PREFERENCE */}
+              <div className="border border-slate-100 rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white">
+                <h2 className="text-base font-extrabold text-slate-800 mb-4 flex items-center gap-3">
+                  <span className="w-7 h-7 rounded-lg bg-indigo-50 text-brand-indigo flex items-center justify-center text-xs font-black">2</span>
+                  {t('vacationTitle')}
+                </h2>
+
+                <div className="grid grid-cols-1 gap-4">
+
+                  {/* Option 1: Included */}
+                  <div
+                    onClick={() => {
+                      if (quoteData.status !== 'Pending') return;
+                      setVacationPreference('included');
+                    }}
+                    className={`border rounded-xl p-3.5 sm:p-4 transition-all flex items-start gap-3 relative ${
+                      quoteData.status === 'Pending'
+                        ? 'cursor-pointer hover:border-slate-200 hover:bg-slate-50/20'
+                        : 'cursor-default opacity-90'
+                    } ${
+                      vacationPreference === 'included'
+                        ? 'border-brand-indigo bg-indigo-50/10'
+                        : 'border-slate-100'
+                    }`}
+                  >
+                    <div className="pr-6">
+                      <p className="font-extrabold text-slate-800 text-xs">{t('vacationIncluded')}</p>
+                      <p className="text-slate-400 text-[10px] leading-tight mt-0.5">{t('vacationIncludedDesc')}</p>
+                    </div>
+                    <div className="absolute top-4 right-4">
+                      <div className={`w-4 h-4 rounded-full flex items-center justify-center border ${
+                        vacationPreference === 'included' ? 'border-brand-indigo bg-brand-indigo text-white' : 'border-slate-300'
+                      }`}>
+                        {vacationPreference === 'included' && <Check size={8} strokeWidth={3} />}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Option 2: Excluded */}
+                  <div
+                    onClick={() => {
+                      if (quoteData.status !== 'Pending') return;
+                      setVacationPreference('excluded');
+                    }}
+                    className={`border rounded-xl p-3.5 sm:p-4 transition-all flex items-start gap-3 relative ${
+                      quoteData.status === 'Pending'
+                        ? 'cursor-pointer hover:border-slate-200 hover:bg-slate-50/20'
+                        : 'cursor-default opacity-90'
+                    } ${
+                      vacationPreference === 'excluded'
+                        ? 'border-brand-indigo bg-indigo-50/10'
+                        : 'border-slate-100'
+                    }`}
+                  >
+                    <div className="pr-6">
+                      <p className="font-extrabold text-slate-800 text-xs">{t('vacationExcluded')}</p>
+                      <p className="text-slate-400 text-[10px] leading-tight mt-0.5">{t('vacationExcludedDesc')}</p>
+                    </div>
+                    <div className="absolute top-4 right-4">
+                      <div className={`w-4 h-4 rounded-full flex items-center justify-center border ${
+                        vacationPreference === 'excluded' ? 'border-brand-indigo bg-brand-indigo text-white' : 'border-slate-300'
+                      }`}>
+                        {vacationPreference === 'excluded' && <Check size={8} strokeWidth={3} />}
+                      </div>
+                    </div>
+                  </div>
+
                 </div>
               </div>
 

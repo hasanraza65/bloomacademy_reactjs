@@ -12,3 +12,4 @@ temp_interactive_push.bat
 .gitignore
 public/fonts/fa-solid-400.woff2
 docs
+nul
