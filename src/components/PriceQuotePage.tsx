@@ -440,36 +440,77 @@ export const PriceQuotePage = () => {
     const fetchQuote = async () => {
       if (!id) return;
       setLoading(true);
+      
+      let data: any = null;
+      let recTeachers: any[] = [];
+      
       try {
         const response = await apiService.getPriceQuote(id);
         if (response.success && response.data) {
-          const data = { ...response.data };
-          setQuoteData(data);
-          setRecommendedTeachersResponse(response.recommended_teachers || []);
+          data = { ...response.data };
+          recTeachers = response.recommended_teachers || [];
         } else {
-          // Fallback to mock data for local testing
-          const mockData = getMockQuote(id);
-          setQuoteData(mockData);
-          setRecommendedTeachersResponse([
-            { child_name: "Ali", recommended_teachers: [mockTeachers[0]] },
-            { child_name: "Ahmad", recommended_teachers: [mockTeachers[1]] },
-            { child_name: "Mubeen", recommended_teachers: [mockTeachers[2]] },
-            { child_name: "Hassan", recommended_teachers: [mockTeachers[3]] },
-            { child_name: "Bilal", recommended_teachers: [mockTeachers[0], mockTeachers[1]] }
-          ]);
+          throw new Error("Invalid response format");
         }
       } catch (err) {
         console.warn("API fetch failed, falling back to mock data", err);
-        const mockData = getMockQuote(id);
-        setQuoteData(mockData);
-        setRecommendedTeachersResponse([
+        data = getMockQuote(id);
+        recTeachers = [
           { child_name: "Ali", recommended_teachers: [mockTeachers[0]] },
           { child_name: "Ahmad", recommended_teachers: [mockTeachers[1]] },
           { child_name: "Mubeen", recommended_teachers: [mockTeachers[2]] },
           { child_name: "Hassan", recommended_teachers: [mockTeachers[3]] },
           { child_name: "Bilal", recommended_teachers: [mockTeachers[0], mockTeachers[1]] }
-        ]);
+        ];
       } finally {
+        setQuoteData(data);
+        setRecommendedTeachersResponse(recTeachers);
+        
+        if (data) {
+          // Initialize interactive choices from loaded data
+          if (data.lesson_style === 'Private') {
+            setSelectedStyle('1to1');
+          } else if (data.lesson_style === 'Group') {
+            setSelectedStyle('group');
+          }
+
+          if (data.vacation_included == 1) {
+            setVacationPreference('included');
+          } else if (data.vacation_included == 0) {
+            setVacationPreference('excluded');
+          }
+
+          if (data.children_data && data.children_data.length > 0) {
+            const initialTeacherIds: Record<number, number> = {};
+            data.children_data.forEach((child: any, idx: number) => {
+              const preferredTeacherUserId = child.preferred_teacher_user_id || data.preferred_teacher_user_id;
+              if (preferredTeacherUserId) {
+                let foundTeacher = null;
+                if (recTeachers && recTeachers.length > 0) {
+                  const match = recTeachers.find(
+                    (item: any) => item.child_name?.toLowerCase() === child.child_name?.toLowerCase()
+                  );
+                  if (match && match.recommended_teachers) {
+                    foundTeacher = match.recommended_teachers.find(
+                      (t: any) => t.user_id === preferredTeacherUserId
+                    );
+                  }
+                }
+                if (!foundTeacher) {
+                  foundTeacher = mockTeachers.find((t: any) => t.user_id === preferredTeacherUserId);
+                }
+                if (!foundTeacher) {
+                  foundTeacher = mockTeachers.find((t: any) => t.user?.id === preferredTeacherUserId);
+                }
+                if (foundTeacher) {
+                  initialTeacherIds[idx] = foundTeacher.id;
+                }
+              }
+            });
+            setSelectedTeacherIds(initialTeacherIds);
+          }
+        }
+        
         setLoading(false);
       }
     };
@@ -762,45 +803,26 @@ export const PriceQuotePage = () => {
                 {language === 'fr' ? 'Date de création' : 'Creation Date'}:{' '}
                 {getFormattedDate(quoteData.created_at)}
               </p>
+              <p className="text-xs text-slate-600 font-bold mt-1">
+                {language === 'fr' ? 'Statut' : 'Status'}:{' '}
+                <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-extrabold capitalize ${
+                  quoteData.status === 'Approved'
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                    : quoteData.status === 'Refused'
+                    ? 'bg-red-50 text-red-700 border border-red-100'
+                    : 'bg-amber-50 text-amber-700 border border-amber-100'
+                }`}>
+                  {quoteData.status === 'Approved'
+                    ? (language === 'fr' ? 'Approuvé' : 'Approved')
+                    : quoteData.status === 'Refused'
+                    ? (language === 'fr' ? 'Refusé' : 'Refused')
+                    : (language === 'fr' ? 'En attente' : 'Pending')}
+                </span>
+              </p>
             </div>
           </div>
 
-          {/* Status Banner */}
-          {quoteData.status === 'Approved' && (
-            <div className="mb-8 p-3 sm:p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-3 sm:gap-4 text-emerald-800">
-              <div className="w-10 h-10 bg-emerald-500 text-white rounded-xl flex items-center justify-center shrink-0 shadow-sm">
-                <CheckCircle2 size={20} />
-              </div>
-              <div>
-                <h3 className="font-extrabold text-sm sm:text-base leading-tight">
-                  {language === 'fr' ? 'Devis approuvé avec succès !' : 'Quote Approved Successfully!'}
-                </h3>
-                <p className="text-[11px] sm:text-xs text-emerald-600/90 font-medium mt-0.5">
-                  {language === 'fr' 
-                    ? 'Merci d\'avoir choisi Bloom Buddies Academy. Nous sommes ravis de commencer ce parcours d\'apprentissage !' 
-                    : 'Thank you for choosing Bloom Buddies Academy. We are thrilled to start this learning journey!'}
-                </p>
-              </div>
-            </div>
-          )}
 
-          {quoteData.status === 'Refused' && (
-            <div className="mb-8 p-3 sm:p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 sm:gap-4 text-red-800">
-              <div className="w-10 h-10 bg-red-500 text-white rounded-xl flex items-center justify-center shrink-0 shadow-sm">
-                <X size={20} />
-              </div>
-              <div>
-                <h3 className="font-extrabold text-sm sm:text-base leading-tight">
-                  {language === 'fr' ? 'Proposition refusée' : 'Proposal Rejected'}
-                </h3>
-                <p className="text-[11px] sm:text-xs text-red-600/90 font-medium mt-0.5">
-                  {language === 'fr'
-                    ? 'Nous sommes désolés que cette proposition ne convienne pas. Notre équipe vous contactera rapidement.'
-                    : 'We are sorry this proposal didn\'t fit. Our team will reach out to you shortly.'}
-                </p>
-              </div>
-            </div>
-          )}
 
           {/* Vendeur & Acheteur Information Blocks */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-8">
@@ -875,11 +897,11 @@ export const PriceQuotePage = () => {
     </div>
     <div className="mt-4 flex flex-wrap items-baseline justify-between gap-1.5 pt-3 border-t border-slate-100/60">
       <div className="flex items-baseline">
-        <span className="text-2xl font-black text-slate-800">{cost1to1} €</span>
-        <span className="text-xs text-slate-500 font-bold ml-0.5">{t('perMonth')}</span>
+        <span className="text-2xl font-black text-slate-800">{rate1to1} €</span>
+        <span className="text-xs text-slate-500 font-bold ml-0.5">/{t('hour')}</span>
       </div>
       <span className="text-xs text-slate-500 font-semibold bg-slate-50 px-2 py-1 rounded-md border border-slate-100/50">
-        {rate1to1} €/{t('hour')}
+        {cost1to1} €{t('perMonth')}
       </span>
     </div>
   </div>
@@ -917,11 +939,11 @@ export const PriceQuotePage = () => {
     </div>
     <div className="mt-4 flex flex-wrap items-baseline justify-between gap-1.5 pt-3 border-t border-slate-100/60">
       <div className="flex items-baseline">
-        <span className="text-2xl font-black text-slate-800">{costGroup} €</span>
-        <span className="text-xs text-slate-500 font-bold ml-0.5">{t('perMonth')}</span>
+        <span className="text-2xl font-black text-slate-800">{rateGroup} €</span>
+        <span className="text-xs text-slate-500 font-bold ml-0.5">/{t('hour')}</span>
       </div>
       <span className="text-xs text-slate-500 font-semibold bg-slate-50 px-2 py-1 rounded-md border border-slate-100/50">
-        {rateGroup} €/{t('hour')}
+        {costGroup} €{t('perMonth')}
       </span>
     </div>
   </div>
