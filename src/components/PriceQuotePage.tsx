@@ -819,6 +819,51 @@ export const PriceQuotePage = () => {
             {/* LEFT 8-COLUMN GRID AREA */}
             <div className="lg:col-span-8 space-y-6">
 
+              {/* PRICING DETAILS DISPLAY CARDS (Only show, not selectable) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Option 1: 1:1 Private Lessons Card */}
+                <div className="border border-slate-100 rounded-xl sm:rounded-3xl p-4 sm:p-5 md:p-6 bg-white shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[160px]">
+                  <div>
+                    <span className="inline-block px-2.5 py-0.5 bg-indigo-50 text-brand-indigo font-bold text-xs rounded-full uppercase tracking-wide mb-2">
+                      {t('lessonStyle1to1')}
+                    </span>
+                    <p className="text-slate-600 text-xs sm:text-sm font-medium leading-normal pr-2">
+                      {t('formula1to1')}
+                    </p>
+                  </div>
+                  <div className="mt-4 flex flex-wrap items-baseline justify-between gap-1.5 pt-3 border-t border-slate-100/60">
+                    <div className="flex items-baseline">
+                      <span className="text-2xl font-black text-slate-800">{cost1to1} €</span>
+                      <span className="text-xs text-slate-500 font-bold ml-0.5">{t('perMonth')}</span>
+                    </div>
+                    <span className="text-xs text-slate-500 font-semibold bg-slate-50 px-2 py-1 rounded-md border border-slate-100/50">
+                      {rate1to1} €/{t('hour')}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Option 2: Group of 4 Lessons Card */}
+                <div className="border border-slate-100 rounded-xl sm:rounded-3xl p-4 sm:p-5 md:p-6 bg-white shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[160px]">
+                  <div>
+                    <span className="inline-block px-2.5 py-0.5 bg-purple-50 text-brand-purple font-bold text-xs rounded-full uppercase tracking-wide mb-2">
+                      {t('lessonStyleGroup')}
+                    </span>
+                    <p className="text-slate-600 text-xs sm:text-sm font-medium leading-normal pr-2">
+                      {t('formulaGroup')}
+                    </p>
+                  </div>
+                  <div className="mt-4 flex flex-wrap items-baseline justify-between gap-1.5 pt-3 border-t border-slate-100/60">
+                    <div className="flex items-baseline">
+                      <span className="text-2xl font-black text-slate-800">{costGroup} €</span>
+                      <span className="text-xs text-slate-500 font-bold ml-0.5">{t('perMonth')}</span>
+                    </div>
+                    <span className="text-xs text-slate-500 font-semibold bg-slate-50 px-2 py-1 rounded-md border border-slate-100/50">
+                      {rateGroup} €/{t('hour')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               {/* LESSON SCHEDULES */}
               <div className="border border-slate-100 rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white space-y-4">
                 <h3 className="text-sm font-black uppercase text-slate-600 tracking-wider flex items-center gap-2 border-b border-slate-50 pb-2.5">
@@ -1098,7 +1143,7 @@ export const PriceQuotePage = () => {
                       transition={{ duration: 0.2 }}
                       className="overflow-hidden"
                     >
-                <div className="grid grid-cols-1 gap-4 mt-4">
+                <div className="grid grid-cols-1 gap-3 mt-4">
 
                   {/* Option 1: 1:1 Lessons */}
                   <div
@@ -1106,7 +1151,7 @@ export const PriceQuotePage = () => {
                       if (quoteData.status !== 'Pending') return;
                       setSelectedStyle('1to1');
                     }}
-                    className={`border rounded-xl p-3.5 sm:p-4 transition-all relative flex flex-col justify-between min-h-[150px] ${
+                    className={`border rounded-xl p-3.5 sm:p-4 transition-all flex items-center justify-between relative ${
                       quoteData.status === 'Pending'
                         ? 'cursor-pointer hover:border-slate-200 hover:bg-slate-50/20'
                         : 'cursor-default opacity-90'
@@ -1116,31 +1161,13 @@ export const PriceQuotePage = () => {
                         : 'border-slate-100'
                     }`}
                   >
-                    <div className="absolute top-4 right-4">
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center border ${
-                        selectedStyle === '1to1' ? 'border-brand-indigo bg-brand-indigo text-white' : 'border-slate-300'
-                      }`}>
-                        {selectedStyle === '1to1' && <Check size={10} strokeWidth={3} />}
-                      </div>
-                    </div>
-
-                    <div>
-                      <span className="inline-block px-2.5 py-0.5 bg-indigo-50 text-brand-indigo font-bold text-xs rounded-full uppercase tracking-wide mb-2">
-                        {t('lessonStyle1to1')}
-                      </span>
-                      <p className="text-slate-700 text-xs font-medium leading-normal pr-6">
-                        {t('formula1to1')}
-                      </p>
-                    </div>
-
-                    <div className="mt-4 flex flex-wrap items-baseline justify-between gap-1.5 pt-2.5 border-t border-slate-100/60">
-                      <div className="flex items-baseline">
-                        <span className="text-xl font-black text-slate-800">{cost1to1} €</span>
-                        <span className="text-xs text-slate-500 font-bold ml-0.5">{t('perMonth')}</span>
-                      </div>
-                      <span className="text-xs text-slate-500 font-semibold">
-                        {rate1to1} €/{t('hour')}
-                      </span>
+                    <span className="font-extrabold text-slate-800 text-xs sm:text-sm">
+                      {t('lessonStyle1to1')}
+                    </span>
+                    <div className={`w-4 h-4 rounded-full flex items-center justify-center border shrink-0 ${
+                      selectedStyle === '1to1' ? 'border-brand-indigo bg-brand-indigo text-white' : 'border-slate-300'
+                    }`}>
+                      {selectedStyle === '1to1' && <Check size={8} strokeWidth={3} />}
                     </div>
                   </div>
 
@@ -1150,7 +1177,7 @@ export const PriceQuotePage = () => {
                       if (quoteData.status !== 'Pending') return;
                       setSelectedStyle('group');
                     }}
-                    className={`border rounded-xl p-3.5 sm:p-4 transition-all relative flex flex-col justify-between min-h-[150px] ${
+                    className={`border rounded-xl p-3.5 sm:p-4 transition-all flex items-center justify-between relative ${
                       quoteData.status === 'Pending'
                         ? 'cursor-pointer hover:border-slate-200 hover:bg-slate-50/20'
                         : 'cursor-default opacity-90'
@@ -1160,31 +1187,13 @@ export const PriceQuotePage = () => {
                         : 'border-slate-100'
                     }`}
                   >
-                    <div className="absolute top-4 right-4">
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center border ${
-                        selectedStyle === 'group' ? 'border-brand-indigo bg-brand-indigo text-white' : 'border-slate-300'
-                      }`}>
-                        {selectedStyle === 'group' && <Check size={10} strokeWidth={3} />}
-                      </div>
-                    </div>
-
-                    <div>
-                      <span className="inline-block px-2.5 py-0.5 bg-purple-50 text-brand-purple font-bold text-xs rounded-full uppercase tracking-wide mb-2">
-                        {t('lessonStyleGroup')}
-                      </span>
-                      <p className="text-slate-700 text-xs font-medium leading-normal pr-6">
-                        {t('formulaGroup')}
-                      </p>
-                    </div>
-
-                    <div className="mt-4 flex flex-wrap items-baseline justify-between gap-1.5 pt-2.5 border-t border-slate-100/60">
-                      <div className="flex items-baseline">
-                        <span className="text-xl font-black text-slate-800">{costGroup} €</span>
-                        <span className="text-xs text-slate-500 font-bold ml-0.5">{t('perMonth')}</span>
-                      </div>
-                      <span className="text-xs text-slate-500 font-semibold">
-                        {rateGroup} €/{t('hour')}
-                      </span>
+                    <span className="font-extrabold text-slate-800 text-xs sm:text-sm">
+                      {t('lessonStyleGroup')}
+                    </span>
+                    <div className={`w-4 h-4 rounded-full flex items-center justify-center border shrink-0 ${
+                      selectedStyle === 'group' ? 'border-brand-indigo bg-brand-indigo text-white' : 'border-slate-300'
+                    }`}>
+                      {selectedStyle === 'group' && <Check size={8} strokeWidth={3} />}
                     </div>
                   </div>
 
