@@ -744,7 +744,7 @@ export const PriceQuotePage = () => {
   const isPending = quoteData.status === 'Pending';
 
   return (
-    <div className="min-h-screen bg-brand-slate-bg pb-24 lg:pb-8 relative overflow-hidden font-sans">
+    <div className="min-h-screen bg-brand-slate-bg pb-36 lg:pb-8 relative overflow-hidden font-sans">
       {/* Background blobs */}
       <div className="absolute top-[-10%] right-[-10%] w-[45%] h-[45%] bg-brand-purple/5 blur-[120px] rounded-full pointer-events-none" />
       <div className="absolute top-[30%] left-[-10%] w-[40%] h-[40%] bg-brand-indigo/5 blur-[120px] rounded-full pointer-events-none" />
@@ -791,29 +791,29 @@ export const PriceQuotePage = () => {
           </div>
 
           {/* Seller & Buyer Blocks */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-8">
-            <div className="border border-slate-100/60 rounded-2xl p-4 bg-slate-50/20">
-              <h3 className="text-xs font-black uppercase text-slate-600 tracking-wider mb-2.5">
+          <div className="grid grid-cols-2 gap-3 sm:gap-6 mb-4 md:mb-8">
+            <div className="border border-slate-100/60 rounded-xl sm:rounded-2xl p-2.5 sm:p-4 bg-slate-50/20">
+              <h3 className="text-[10px] sm:text-xs font-black uppercase text-slate-600 tracking-wider mb-1.5 sm:mb-2.5">
                 {language === 'fr' ? 'VENDEUR:' : 'SELLER:'}
               </h3>
-              <div className="text-xs space-y-0.5 text-slate-700 font-medium">
-                <p className="font-extrabold text-slate-800 text-sm mb-1">Leonard.fr</p>
+              <div className="text-[10px] sm:text-xs space-y-0.5 text-slate-700 font-medium break-all">
+                <p className="font-extrabold text-slate-800 text-xs sm:text-sm mb-0.5 sm:mb-1">Leonard.fr</p>
                 <p>180 Rue Judaïque</p>
                 <p>33000 Bordeaux, France</p>
-                <p className="pt-1">SIREN 809015407</p>
-                <p className="pt-1">Email: contact@leonard.fr</p>
+                <p className="pt-0.5 sm:pt-1">SIREN 809015407</p>
+                <p className="pt-0.5 sm:pt-1">Email: contact@leonard.fr</p>
               </div>
             </div>
-            <div className="border border-slate-100/60 rounded-2xl p-4 bg-slate-50/20">
-              <h3 className="text-xs font-black uppercase text-slate-600 tracking-wider mb-2.5">
+            <div className="border border-slate-100/60 rounded-xl sm:rounded-2xl p-2.5 sm:p-4 bg-slate-50/20">
+              <h3 className="text-[10px] sm:text-xs font-black uppercase text-slate-600 tracking-wider mb-1.5 sm:mb-2.5">
                 {language === 'fr' ? 'ACHETEUR:' : 'BUYER:'}
               </h3>
-              <div className="text-xs space-y-0.5 text-slate-700 font-medium">
-                <p className="font-extrabold text-slate-800 text-sm mb-1">
+              <div className="text-[10px] sm:text-xs space-y-0.5 text-slate-700 font-medium break-all">
+                <p className="font-extrabold text-slate-800 text-xs sm:text-sm mb-0.5 sm:mb-1">
                   {quoteData.parent?.firstName || 'Admin'} {quoteData.parent?.lastName || 'User'}
                 </p>
                 <p>{quoteData.parent?.address || 'Paris, France'}</p>
-                {quoteData.parent?.email && <p className="pt-1">Email: {quoteData.parent.email}</p>}
+                {quoteData.parent?.email && <p className="pt-0.5 sm:pt-1">Email: {quoteData.parent.email}</p>}
               </div>
             </div>
           </div>
