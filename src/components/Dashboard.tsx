@@ -144,8 +144,13 @@ const myClassesLabel =
                                       <BookOpen size={20} />
                                    </div>
                                    <div className="text-left">
-                                      <p className="text-[12px] font-black uppercase tracking-widest leading-none mb-1">{t("class.teacher")}</p>
-                                      <p className="text-4xl font-bold uppercase leading-none transform -translate-x-.5">{classroom.teacher.firstName} {classroom.teacher.lastName}</p>
+
+                                       <p className="text-[12px] font-black uppercase tracking-widest leading-none mb-1 ">{t("class.child")}</p>
+                                      <p className="text-4xl font-bold uppercase leading-none transform -translate-x-.5">{classroom.child.child_name}</p>
+
+                                      <p className="text-[12px] font-black uppercase tracking-widest leading-none mb-1 mt-3">{t("class.teacher")}</p>
+                                      <p className="text-4xl font-bold uppercase leading-none transform -translate-x-.5">{classroom.teacher.firstName}</p>
+                                     
                                    </div>
                                 </div>
                               )
