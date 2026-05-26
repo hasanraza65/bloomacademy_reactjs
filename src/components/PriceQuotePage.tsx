@@ -128,7 +128,7 @@ const translations = {
     hourlyRate: "euros / heure",
     formula1to1: "Cours individuels 1:1 (Focus complet et rythme adapté)",
     formulaGroup: "Cours en groupe (Apprentissage collaboratif - 15 €/heure par élève)",
-    vacationTitle: "School Vacation Preference",
+    vacationTitle: "Préférence pour les Vacances Scolaires",
     vacationIncluded: "Vacances Scolaires Incluses",
     vacationIncludedDesc: "Mon enfant aura cours pendant les vacances scolaires et les jours fériés",
     vacationExcluded: "Vacances Scolaires Exclues",
@@ -362,7 +362,7 @@ const Confetti = () => {
 
 export const PriceQuotePage = () => {
   const { id } = useParams<{ id: string }>();
-  const { language } = useLanguage();
+  const { language, setLanguage } = useLanguage();
   const t = (key: string) => translations[language]?.[key] || translations['en']?.[key] || key;
   const formatNumber = (val: number | string) => {
     const str = String(val);
@@ -462,6 +462,12 @@ export const PriceQuotePage = () => {
         setQuoteData(data);
         setRecommendedTeachersResponse(recTeachers);
         if (data) {
+          const parentLang = data.parent?.language;
+          if (parentLang === 'fr' || parentLang === 'en') {
+            setLanguage(parentLang);
+          } else {
+            setLanguage('en');
+          }
           if (data.lesson_style === 'Private') setSelectedStyle('1to1');
           else if (data.lesson_style === 'Group') setSelectedStyle('group');
           if (data.vacation_included == 1) setVacationPreference('included');
