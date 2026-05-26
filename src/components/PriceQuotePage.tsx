@@ -30,6 +30,63 @@ import { useLanguage } from '../context/LanguageContext';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import logo from '../public/images/logo.png';
 
+// ─── CSS for animations ───────────────────────────────────────────────────────
+const animationStyles = `
+  @keyframes fall {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+  }
+  @keyframes pulse-attention {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+    50% { box-shadow: 0 0 0 6px rgba(99, 102, 241, 0.18); }
+  }
+  @keyframes shimmer-border {
+    0%, 100% { border-color: rgba(99,102,241,0.25); }
+    50% { border-color: rgba(99,102,241,0.7); }
+  }
+  @keyframes teacher-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+    40% { box-shadow: 0 0 0 8px rgba(99, 102, 241, 0.15); }
+  }
+  @keyframes vacation-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+    40% { box-shadow: 0 0 0 8px rgba(99, 102, 241, 0.15); }
+  }
+  @keyframes badge-pop {
+    0% { transform: scale(0.7); opacity: 0; }
+    70% { transform: scale(1.15); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .style-attention {
+    animation: pulse-attention 1.8s ease-in-out infinite, shimmer-border 1.8s ease-in-out infinite;
+  }
+  .teacher-attention {
+    animation: teacher-pulse 1s ease-out 1;
+  }
+  .vacation-attention {
+    animation: vacation-pulse 1s ease-out 1;
+  }
+  .badge-pop {
+    animation: badge-pop 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards;
+  }
+  .select-prompt-badge {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #6366f1;
+    color: white;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 10px;
+    border-radius: 99px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 10;
+    letter-spacing: 0.04em;
+  }
+`;
+
 // Localized strings
 const translations = {
   en: {
@@ -114,6 +171,8 @@ const translations = {
     cancelBtn: "Cancel",
     selectTeacherBtnShort: "Select",
     validationSaveEvaluation: "Please save the evaluation date/time before approving.",
+    selectFirst: "Select one to continue",
+    selectTeacherFirst: "Select a teacher to continue",
   },
   fr: {
     title: "Votre Proposition Personnalisée",
@@ -197,10 +256,11 @@ const translations = {
     cancelBtn: "Annuler",
     selectTeacherBtnShort: "Choisir",
     validationSaveEvaluation: "Veuillez enregistrer la date/l'heure d'évaluation avant d'approuver.",
+    selectFirst: "Sélectionnez pour continuer",
+    selectTeacherFirst: "Choisissez un professeur pour continuer",
   }
 };
 
-// Fallback high-fidelity mock data based on ID
 const getMockQuote = (id: string) => {
   return {
     id: parseInt(id) || 1,
@@ -317,7 +377,6 @@ const mockTeachers = [
   }
 ];
 
-// Custom Confetti Animation
 const Confetti = () => {
   const particles = Array.from({ length: 60 });
   return (
@@ -327,35 +386,16 @@ const Confetti = () => {
         const delay = Math.random() * 2;
         const duration = 2 + Math.random() * 2.5;
         const size = 6 + Math.random() * 12;
-        const colors = [
-          'bg-indigo-500',
-          'bg-purple-500',
-          'bg-pink-500',
-          'bg-teal-500',
-          'bg-yellow-500',
-          'bg-blue-400'
-        ];
+        const colors = ['bg-indigo-500','bg-purple-500','bg-pink-500','bg-teal-500','bg-yellow-500','bg-blue-400'];
         const color = colors[Math.floor(Math.random() * colors.length)];
         return (
           <div
             key={i}
             className={`absolute rounded-full opacity-80 ${color}`}
-            style={{
-              left: `${left}%`,
-              top: `-20px`,
-              width: `${size}px`,
-              height: `${size}px`,
-              animation: `fall ${duration}s linear ${delay}s infinite`,
-            }}
+            style={{ left: `${left}%`, top: `-20px`, width: `${size}px`, height: `${size}px`, animation: `fall ${duration}s linear ${delay}s infinite` }}
           />
         );
       })}
-      <style>{`
-        @keyframes fall {
-          0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-          100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
-        }
-      `}</style>
     </div>
   );
 };
@@ -372,13 +412,10 @@ export const PriceQuotePage = () => {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Quote States
   const [quoteData, setQuoteData] = useState<any>(null);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [recommendedTeachersResponse, setRecommendedTeachersResponse] = useState<any[]>([]);
 
-  // Interactive choices
   const [selectedStyle, setSelectedStyle] = useState<'1to1' | 'group' | null>(null);
   const [vacationPreference, setVacationPreference] = useState<'included' | 'excluded' | null>(null);
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<Record<number, number>>({});
@@ -391,10 +428,8 @@ export const PriceQuotePage = () => {
     teachers: boolean;
   }>({ style: false, vacation: false, teachers: false });
   const [activeScheduleChildIdx, setActiveScheduleChildIdx] = useState(0);
-  const [isLessonStyleOpen, setIsLessonStyleOpen] = useState(true);
   const [activeChildIdx, setActiveChildIdx] = useState(0);
 
-  // Rejection & Request New Quote States
   const [showReject, setShowReject] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
@@ -404,10 +439,23 @@ export const PriceQuotePage = () => {
   const [showRequestSuccess, setShowRequestSuccess] = useState(false);
   const [requestNotes, setRequestNotes] = useState('');
 
-  // Inline edit state variables
   const [editingChildIdx, setEditingChildIdx] = useState<number | null>(null);
   const [tempDate, setTempDate] = useState('');
   const [tempTime, setTempTime] = useState('');
+
+  // Animation state
+  const [styleAnimating, setStyleAnimating] = useState(true); // attention pulse on load
+  const [teacherAnimating, setTeacherAnimating] = useState(false);
+  const [vacationAnimating, setVacationAnimating] = useState(false);
+  // Track if teacher section has been prompted (to avoid re-animating)
+  const teacherAnimatedOnce = useRef(false);
+  const vacationAnimatedOnce = useRef(false);
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const styleRef = useRef<HTMLDivElement>(null);
+  const vacationRef = useRef<HTMLDivElement>(null);
+  const teacherRef = useRef<HTMLDivElement>(null);
+  const teacherSectionRef = useRef<HTMLDivElement>(null);
 
   const handleStartEditEvaluation = (idx: number, currentDate: string, currentTime: string) => {
     setEditingChildIdx(idx);
@@ -429,10 +477,46 @@ export const PriceQuotePage = () => {
     setEditingChildIdx(null);
   };
 
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const styleRef = useRef<HTMLDivElement>(null);
-  const vacationRef = useRef<HTMLDivElement>(null);
-  const teacherRef = useRef<HTMLDivElement>(null);
+  // When lesson style selected: stop style attention, scroll to teacher section, animate teacher section
+  const handleSelectStyle = (style: '1to1' | 'group') => {
+    const isPending = quoteData?.status === 'Pending';
+    if (!isPending) return;
+    setSelectedStyle(style);
+    setHighlightMissing(prev => ({ ...prev, style: false }));
+    setStyleAnimating(false);
+
+    if (!teacherAnimatedOnce.current) {
+      teacherAnimatedOnce.current = true;
+      setTimeout(() => {
+        teacherSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTeacherAnimating(true);
+        setTimeout(() => setTeacherAnimating(false), 1200);
+      }, 300);
+    }
+  };
+
+  // When teacher selected: animate vacation section
+  const handleSelectTeacher = (childIdx: number, teacherId: number) => {
+    const isPending = quoteData?.status === 'Pending';
+    if (!isPending) return;
+    setSelectedTeacherIds(prev => ({ ...prev, [childIdx]: teacherId }));
+    setHighlightMissing(prev => ({ ...prev, teachers: false }));
+
+    // Check if this completes ALL teachers
+    const childrenCount = quoteData?.children_data?.length || 0;
+    const allSelected = Array.from({ length: childrenCount }, (_, i) => i).every(
+      i => i === childIdx || selectedTeacherIds[i] !== undefined
+    );
+
+    if (allSelected && !vacationAnimatedOnce.current) {
+      vacationAnimatedOnce.current = true;
+      setTimeout(() => {
+        vacationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setVacationAnimating(true);
+        setTimeout(() => setVacationAnimating(false), 1200);
+      }, 300);
+    }
+  };
 
   useEffect(() => {
     const fetchQuote = async () => {
@@ -463,15 +547,15 @@ export const PriceQuotePage = () => {
         setRecommendedTeachersResponse(recTeachers);
         if (data) {
           const parentLang = data.parent?.language;
-          if (parentLang === 'fr' || parentLang === 'en') {
-            setLanguage(parentLang);
-          } else {
-            setLanguage('en');
-          }
-          if (data.lesson_style === 'Private') setSelectedStyle('1to1');
-          else if (data.lesson_style === 'Group') setSelectedStyle('group');
+          if (parentLang === 'fr' || parentLang === 'en') setLanguage(parentLang);
+          else setLanguage('en');
+
+          if (data.lesson_style === 'Private') { setSelectedStyle('1to1'); setStyleAnimating(false); }
+          else if (data.lesson_style === 'Group') { setSelectedStyle('group'); setStyleAnimating(false); }
+
           if (data.vacation_included == 1) setVacationPreference('included');
           else if (data.vacation_included == 0) setVacationPreference('excluded');
+
           if (data.children_data && data.children_data.length > 0) {
             const initialTeacherIds: Record<number, number> = {};
             data.children_data.forEach((child: any, idx: number) => {
@@ -524,29 +608,31 @@ export const PriceQuotePage = () => {
   };
 
   const handleApprove = () => {
-    // Check if any evaluation is currently in edit mode
     if (editingChildIdx !== null) {
       setValidationError(t('validationSaveEvaluation'));
-      if (vacationRef.current) {
-        vacationRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
+      vacationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
 
     const missingStyle = !selectedStyle;
     const missingVacation = !vacationPreference;
-    // Validate ALL children have a teacher selected
-    const missingTeachers = quoteData?.children_data?.some((_: any, idx: number) => !selectedTeacherIds[idx]);
+
+    // Find first child without a teacher
+    const firstMissingChildIdx = quoteData?.children_data?.findIndex((_: any, idx: number) => !selectedTeacherIds[idx]) ?? -1;
+    const missingTeachers = firstMissingChildIdx !== -1;
 
     if (missingStyle || missingVacation || missingTeachers) {
-      setHighlightMissing({ style: missingStyle, vacation: missingVacation, teachers: !!missingTeachers });
+      setHighlightMissing({ style: missingStyle, vacation: missingVacation, teachers: missingTeachers });
       setValidationError(null);
+
       if (missingStyle && styleRef.current) {
         styleRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else if (missingTeachers && teacherRef.current) {
+        // Auto-switch to the tab of the missing child
+        setActiveChildIdx(firstMissingChildIdx);
+        teacherRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
       } else if (missingVacation && vacationRef.current) {
         vacationRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      } else if (missingTeachers && teacherRef.current) {
-        teacherRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
       return;
     }
@@ -622,7 +708,6 @@ export const PriceQuotePage = () => {
     setIsRequesting(true);
     try {
       await new Promise(resolve => setTimeout(resolve, 1200));
-      console.log("Submitted request notes:", requestNotes);
     } catch (err) {
       console.warn("Request new failed", err);
     } finally {
@@ -656,10 +741,7 @@ export const PriceQuotePage = () => {
           </div>
           <h2 className="text-2xl font-bold text-slate-800 mb-3">{t('errorTitle')}</h2>
           <p className="text-slate-500 mb-8">{t('errorSubtitle')}</p>
-          <Link
-            to="/"
-            className="w-full inline-flex justify-center items-center gap-2 bloom-gradient text-white px-6 py-3.5 rounded-xl font-bold shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"
-          >
+          <Link to="/" className="w-full inline-flex justify-center items-center gap-2 bloom-gradient text-white px-6 py-3.5 rounded-xl font-bold shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all">
             <Home size={18} />
             <span>{t('errorBtn')}</span>
           </Link>
@@ -668,7 +750,6 @@ export const PriceQuotePage = () => {
     );
   }
 
-  // Helpers
   const getQuoteRef = () => {
     if (!quoteData) return '';
     const dateStr = quoteData.created_at || quoteData.updated_at;
@@ -679,9 +760,7 @@ export const PriceQuotePage = () => {
       const mm = String(d.getMonth() + 1).padStart(2, '0');
       const dd = String(d.getDate()).padStart(2, '0');
       return `D/${yy}${mm}${dd}-${quoteData.id || id}`;
-    } catch (e) {
-      return `D/2605-${quoteData.id || id}`;
-    }
+    } catch (e) { return `D/2605-${quoteData.id || id}`; }
   };
 
   const getFormattedDate = (dateStr?: string) => {
@@ -699,9 +778,7 @@ export const PriceQuotePage = () => {
       const mm = String(d.getMonth() + 1).padStart(2, '0');
       const yyyy = d.getFullYear();
       return `${dd}/${mm}/${yyyy}`;
-    } catch (e) {
-      return dateStr;
-    }
+    } catch (e) { return dateStr; }
   };
 
   const convertTo12Hour = (time24: string) => {
@@ -712,8 +789,7 @@ export const PriceQuotePage = () => {
     const ampm = hour >= 12 ? 'PM' : 'AM';
     hour = hour % 12;
     hour = hour ? hour : 12;
-    const hourFormatted = String(hour).padStart(2, '0');
-    return `${hourFormatted}:${min} ${ampm}`;
+    return `${String(hour).padStart(2, '0')}:${min} ${ampm}`;
   };
 
   const convertTo24Hour = (time12: string) => {
@@ -728,7 +804,6 @@ export const PriceQuotePage = () => {
     return `${String(hour).padStart(2, '0')}:${min}`;
   };
 
-  // Cost calculations
   const hourlyRateFloat = parseFloat(quoteData.hourly_rate) || 25.0;
   const weeklyHoursFloat = parseFloat(quoteData.weekly_hours) || 12.0;
   const originalMonthlyCost = parseFloat(quoteData.monthly_cost) || parseFloat((hourlyRateFloat * weeklyHoursFloat * 4.33).toFixed(2));
@@ -739,51 +814,42 @@ export const PriceQuotePage = () => {
   const rateGroup = parseFloat((15 * childrenCount).toFixed(2));
   const costGroup = parseFloat((rateGroup * weeklyHoursFloat * 4.33).toFixed(2));
   const currentMonthlyCost = selectedStyle === '1to1' ? cost1to1 : selectedStyle === 'group' ? costGroup : 0;
-  const currentHourlyRate = selectedStyle === '1to1' ? rate1to1 : selectedStyle === 'group' ? rateGroup : 0;
 
   const isPending = quoteData.status === 'Pending';
 
   return (
     <div className="min-h-screen bg-brand-slate-bg pb-36 lg:pb-8 relative overflow-hidden font-sans">
-      {/* Background blobs */}
+      {/* Inject animation styles */}
+      <style>{animationStyles}</style>
+
       <div className="absolute top-[-10%] right-[-10%] w-[45%] h-[45%] bg-brand-purple/5 blur-[120px] rounded-full pointer-events-none" />
       <div className="absolute top-[30%] left-[-10%] w-[40%] h-[40%] bg-brand-indigo/5 blur-[120px] rounded-full pointer-events-none" />
 
-      {/* Main Container */}
       <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 pt-6 md:pt-12 relative z-10">
-
-        {/* Invoice Card Sheet Container */}
         <div className="bg-white rounded-[1.25rem] sm:rounded-[2.5rem] border border-slate-100/80 p-3.5 sm:p-6 md:p-10 soft-shadow">
 
           {/* Header Row */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-2 md:pb-6 border-b border-slate-100 mb-2 md:mb-8">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full md:w-auto">
               <img src={logo} alt="Bloom Buddies Academy" className="w-48 sm:w-56 h-auto" />
-              <div className="sm:ml-2">
-                <LanguageSwitcher />
-              </div>
+              <div className="sm:ml-2"><LanguageSwitcher /></div>
             </div>
             <div className="text-left md:text-right">
               <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight">
                 {language === 'fr' ? 'DEVIS' : 'QUOTE'} N° {getQuoteRef()}
               </h1>
               <p className="text-xs text-slate-600 font-bold mt-1">
-                {language === 'fr' ? 'Date de création' : 'Creation Date'}:{' '}
-                {getFormattedDate(quoteData.created_at)}
+                {language === 'fr' ? 'Date de création' : 'Creation Date'}: {getFormattedDate(quoteData.created_at)}
               </p>
               <p className="text-xs text-slate-600 font-bold mt-1">
                 {language === 'fr' ? 'Statut' : 'Status'}:{' '}
                 <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-extrabold capitalize ${
-                  quoteData.status === 'Approved'
-                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                    : quoteData.status === 'Refused'
-                    ? 'bg-red-50 text-red-700 border border-red-100'
-                    : 'bg-amber-50 text-amber-700 border border-amber-100'
+                  quoteData.status === 'Approved' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                  : quoteData.status === 'Refused' ? 'bg-red-50 text-red-700 border border-red-100'
+                  : 'bg-amber-50 text-amber-700 border border-amber-100'
                 }`}>
-                  {quoteData.status === 'Approved'
-                    ? (language === 'fr' ? 'Approuvé' : 'Approved')
-                    : quoteData.status === 'Refused'
-                    ? (language === 'fr' ? 'Refusé' : 'Refused')
+                  {quoteData.status === 'Approved' ? (language === 'fr' ? 'Approuvé' : 'Approved')
+                    : quoteData.status === 'Refused' ? (language === 'fr' ? 'Refusé' : 'Refused')
                     : (language === 'fr' ? 'En attente' : 'Pending')}
                 </span>
               </p>
@@ -818,30 +884,35 @@ export const PriceQuotePage = () => {
             </div>
           </div>
 
-          {/* Outer 12-col grid */}
+          {/* Main Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
-            {/* LEFT 8-COLUMN AREA */}
+            {/* LEFT 8-COLUMN */}
             <div className="lg:col-span-8 space-y-6">
 
-              {/* SELECTABLE LESSON STYLE CARDS */}
+              {/* ─── LESSON STYLE SECTION ─── */}
               <div ref={styleRef}>
-                {/* Section heading — same style as LESSON SCHEDULES */}
                 <h3 className={`text-sm font-black uppercase tracking-wider flex items-center gap-2 mb-3 ${
                   highlightMissing.style ? 'text-red-500' : 'text-slate-600'
                 }`}>
-                  <CalendarIcon className={highlightMissing.style ? 'text-red-400' : 'text-brand-indigo'} size={16} />
                   {t('selectStyleTitle')}
+                  {/* Step indicator badge */}
+                  {isPending && !selectedStyle && (
+                    <span className="ml-auto inline-flex items-center gap-1 bg-indigo-50 text-brand-indigo text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-indigo-100 animate-pulse">
+                      <span className="w-1.5 h-1.5 bg-brand-indigo rounded-full inline-block" />
+                      {t('selectFirst')}
+                    </span>
+                  )}
                 </h3>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Option 1: 1:1 Private Lessons */}
+                {/* Outer wrapper for attention animation */}
+                <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-2xl transition-all duration-300 ${
+                  isPending && styleAnimating && !selectedStyle ? 'p-1 -m-1' : ''
+                }`}>
+
+                  {/* Option 1: 1:1 */}
                   <div
-                    onClick={() => {
-                      if (!isPending) return;
-                      setSelectedStyle('1to1');
-                      setHighlightMissing(prev => ({ ...prev, style: false }));
-                    }}
+                    onClick={() => handleSelectStyle('1to1')}
                     className={`border rounded-xl sm:rounded-3xl p-4 sm:p-5 md:p-6 bg-white shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[160px] transition-all duration-200 ${
                       isPending ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : 'cursor-default'
                     } ${
@@ -849,19 +920,25 @@ export const PriceQuotePage = () => {
                         ? 'border-brand-indigo ring-2 ring-brand-indigo/20 bg-indigo-50/20'
                         : highlightMissing.style
                         ? 'border-red-300'
+                        : isPending && styleAnimating
+                        ? 'border-indigo-300 style-attention'
                         : 'border-slate-100'
                     }`}
                   >
-                    {selectedStyle === '1to1' && (
-                      <div className="absolute top-3 right-3 w-6 h-6 bg-brand-indigo text-white rounded-full flex items-center justify-center shadow-sm">
-                        <Check size={12} strokeWidth={3} />
-                      </div>
-                    )}
+                    {/* Radio circle top-right — empty when not selected, filled check when selected */}
+                    <div className={`absolute top-3 right-3 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
+                      selectedStyle === '1to1'
+                        ? 'bg-brand-indigo border-brand-indigo text-white shadow-sm'
+                        : 'border-slate-300 bg-white'
+                    }`}>
+                      {selectedStyle === '1to1' && <Check size={10} strokeWidth={3.5} />}
+                    </div>
+
                     <div>
                       <span className="inline-block px-2.5 py-0.5 bg-indigo-50 text-brand-indigo font-bold text-xs rounded-full uppercase tracking-wide mb-2">
                         {t('lessonStyle1to1')}
                       </span>
-                      <p className="text-slate-600 text-xs sm:text-sm font-medium leading-normal pr-2">
+                      <p className="text-slate-600 text-xs sm:text-sm font-medium leading-normal pr-6">
                         {t('formula1to1')}
                       </p>
                     </div>
@@ -876,13 +953,9 @@ export const PriceQuotePage = () => {
                     </div>
                   </div>
 
-                  {/* Option 2: Group of 4 Lessons */}
+                  {/* Option 2: Group */}
                   <div
-                    onClick={() => {
-                      if (!isPending) return;
-                      setSelectedStyle('group');
-                      setHighlightMissing(prev => ({ ...prev, style: false }));
-                    }}
+                    onClick={() => handleSelectStyle('group')}
                     className={`border rounded-xl sm:rounded-3xl p-4 sm:p-5 md:p-6 bg-white shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[160px] transition-all duration-200 ${
                       isPending ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : 'cursor-default'
                     } ${
@@ -890,19 +963,25 @@ export const PriceQuotePage = () => {
                         ? 'border-brand-indigo ring-2 ring-brand-indigo/20 bg-indigo-50/20'
                         : highlightMissing.style
                         ? 'border-red-300'
+                        : isPending && styleAnimating
+                        ? 'border-indigo-300 style-attention'
                         : 'border-slate-100'
                     }`}
                   >
-                    {selectedStyle === 'group' && (
-                      <div className="absolute top-3 right-3 w-6 h-6 bg-brand-indigo text-white rounded-full flex items-center justify-center shadow-sm">
-                        <Check size={12} strokeWidth={3} />
-                      </div>
-                    )}
+                    {/* Radio circle top-right */}
+                    <div className={`absolute top-3 right-3 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
+                      selectedStyle === 'group'
+                        ? 'bg-brand-indigo border-brand-indigo text-white shadow-sm'
+                        : 'border-slate-300 bg-white'
+                    }`}>
+                      {selectedStyle === 'group' && <Check size={10} strokeWidth={3.5} />}
+                    </div>
+
                     <div>
                       <span className="inline-block px-2.5 py-0.5 bg-purple-50 text-brand-purple font-bold text-xs rounded-full uppercase tracking-wide mb-2">
                         {t('lessonStyleGroup')}
                       </span>
-                      <p className="text-slate-600 text-xs sm:text-sm font-medium leading-normal pr-2">
+                      <p className="text-slate-600 text-xs sm:text-sm font-medium leading-normal pr-6">
                         {t('formulaGroup')}
                       </p>
                     </div>
@@ -919,134 +998,134 @@ export const PriceQuotePage = () => {
                 </div>
               </div>
 
-              {/* CHOOSE YOUR PREFERRED TEACHER */}
+              {/* ─── TEACHER SECTION ─── */}
               <div
-                ref={teacherRef}
-                className={`border rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white transition-all duration-300 ${
-                  highlightMissing.teachers ? 'border-red-400 ring-2 ring-red-300/40' : 'border-slate-100'
-                }`}
+                ref={teacherSectionRef}
               >
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className={`text-base font-extrabold flex items-center gap-2 ${
-                    highlightMissing.teachers ? 'text-red-500' : 'text-slate-800'
-                  }`}>
-                    {t('selectTeacherTitle')}
-                  </h2>
-                  <div className="flex gap-1.5">
-                    <button
-                      onClick={() => handleScroll('left')}
-                      className="w-8 h-8 rounded-lg border border-slate-100 flex items-center justify-center hover:bg-slate-50 transition-colors active:scale-95"
-                    >
-                      <ChevronLeft size={16} className="text-slate-600" />
-                    </button>
-                    <button
-                      onClick={() => handleScroll('right')}
-                      className="w-8 h-8 rounded-lg border border-slate-100 flex items-center justify-center hover:bg-slate-50 transition-colors active:scale-95"
-                    >
-                      <ChevronRight size={16} className="text-slate-600" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Student Tabs */}
-                {quoteData.children_data && quoteData.children_data.length > 0 && (
-                  <div className="flex gap-2 mb-4 flex-wrap">
-                    {quoteData.children_data.map((child: any, idx: number) => (
-                      <button
-                        key={idx}
-                        onClick={() => setActiveChildIdx(idx)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all ${
-                          activeChildIdx === idx
-                            ? 'bg-brand-indigo text-white shadow-sm'
-                            : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                        }`}
-                      >
-                        {child.child_name || `Student ${idx + 1}`}
-                        {/* Dot indicator: red if not selected, green if selected */}
-                        <span className={`ml-1.5 inline-block w-1.5 h-1.5 rounded-full align-middle ${
-                          selectedTeacherIds[idx] !== undefined ? 'bg-emerald-400' : 'bg-red-400'
-                        }`} />
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Carousel */}
                 <div
-                  ref={scrollRef}
-                  className="flex gap-4 overflow-x-auto pb-2 scroll-smooth snap-x snap-mandatory custom-scrollbar"
-                  style={{ scrollbarWidth: 'thin' }}
+                  ref={teacherRef}
+                  className={`border rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white transition-all duration-300 ${
+                    teacherAnimating ? 'teacher-attention' : ''
+                  }`}
+                  style={{ borderColor: highlightMissing.teachers ? undefined : undefined }}
                 >
-                  {teachers.map((teacher) => {
-                    const isSelected = selectedTeacherIds[activeChildIdx] === teacher.id;
-                    const name = `${teacher.user?.firstName || 'Teacher'} ${teacher.user?.lastName || ''}`;
-                    const firstInitial = teacher.user?.firstName?.[0] || '';
-                    const lastInitial = teacher.user?.lastName?.[0] || '';
-                    const initials = `${firstInitial}${lastInitial}`.toUpperCase() || 'TR';
-                    return (
-                      <div
-                        key={teacher.id}
-                        onClick={() => {
-                          if (!isPending) return;
-                          setSelectedTeacherIds(prev => ({ ...prev, [activeChildIdx]: teacher.id }));
-                          setHighlightMissing(prev => ({ ...prev, teachers: false }));
-                        }}
-                        className={`snap-start shrink-0 w-[calc((100%-1rem)/1.15)] sm:w-[calc((100%-2rem)/2.2)] border rounded-2xl transition-all duration-300 flex flex-row items-stretch overflow-hidden relative ${
-                          isPending
-                            ? 'cursor-pointer hover:border-brand-indigo/40 hover:shadow-md hover:bg-slate-50/20'
-                            : 'cursor-default'
-                        } ${
-                          isSelected
-                            ? 'border-brand-indigo bg-indigo-50/20 shadow-sm ring-1 ring-brand-indigo/10'
-                            : 'border-slate-100 shadow-sm'
-                        }`}
-                      >
-                        {/* Left: Portrait / Initials — wider */}
-                        <div className={`w-24 sm:w-28 border-r shrink-0 flex items-center justify-center ${
-                          isSelected ? 'border-brand-indigo/30' : 'border-slate-100'
-                        }`}>
-                          {teacher.profile_pic ? (
-                            <img
-                              src={teacher.profile_pic}
-                              alt={name}
-                              className="w-full h-full object-cover"
-                              referrerPolicy="no-referrer"
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-slate-800 to-slate-900 text-slate-100 flex items-center justify-center font-black text-xl tracking-wider select-none">
-                              {initials}
-                            </div>
-                          )}
-                        </div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-base font-extrabold flex items-center gap-2 text-slate-800">
+                      {t('selectTeacherTitle')}
+                      {/* Prompt badge when style is selected but no teacher yet */}
+                      {isPending && selectedStyle && !selectedTeacherIds[activeChildIdx] && (
+                        <span className="inline-flex items-center gap-1 bg-indigo-50 text-brand-indigo text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-indigo-100 animate-pulse">
+                          <span className="w-1.5 h-1.5 bg-brand-indigo rounded-full inline-block" />
+                          {t('selectTeacherFirst')}
+                        </span>
+                      )}
+                    </h2>
+                    <div className="flex gap-1.5">
+                      <button onClick={() => handleScroll('left')} className="w-8 h-8 rounded-lg border border-slate-100 flex items-center justify-center hover:bg-slate-50 transition-colors active:scale-95">
+                        <ChevronLeft size={16} className="text-slate-600" />
+                      </button>
+                      <button onClick={() => handleScroll('right')} className="w-8 h-8 rounded-lg border border-slate-100 flex items-center justify-center hover:bg-slate-50 transition-colors active:scale-95">
+                        <ChevronRight size={16} className="text-slate-600" />
+                      </button>
+                    </div>
+                  </div>
 
-                        {/* Right: Details */}
-                        <div className="flex-1 p-4 flex flex-col justify-between min-w-0">
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-start gap-1.5">
-                              <div className="min-w-0">
-                                <h4 className="font-extrabold text-slate-800 text-sm leading-tight break-words">{name}</h4>
-                                <div className="flex items-center gap-1 text-slate-500 text-xs mt-1">
-                                  <MapPin size={11} className="text-brand-indigo/70 shrink-0" />
-                                  <span className="truncate font-semibold">{teacher.city || 'Europe'}</span>
+                  {/* Student Tabs */}
+                  {quoteData.children_data && quoteData.children_data.length > 0 && (
+                    <div className="flex gap-2 mb-4 flex-wrap">
+                      {quoteData.children_data.map((child: any, idx: number) => (
+                        <button
+                          key={idx}
+                          onClick={() => setActiveChildIdx(idx)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all ${
+                            activeChildIdx === idx
+                              ? 'bg-brand-indigo text-white shadow-sm'
+                              : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                          }`}
+                        >
+                          {child.child_name || `Student ${idx + 1}`}
+                          <span className={`ml-1.5 inline-block w-1.5 h-1.5 rounded-full align-middle ${
+                            selectedTeacherIds[idx] !== undefined ? 'bg-emerald-400' : 'bg-red-400'
+                          }`} />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Teacher Cards Carousel */}
+                  <div
+                    ref={scrollRef}
+                    className="flex gap-4 overflow-x-auto pb-2 scroll-smooth snap-x snap-mandatory custom-scrollbar"
+                    style={{ scrollbarWidth: 'thin' }}
+                  >
+                    {teachers.map((teacher) => {
+                      const isSelected = selectedTeacherIds[activeChildIdx] === teacher.id;
+                      const name = `${teacher.user?.firstName || 'Teacher'} ${teacher.user?.lastName || ''}`;
+                      const firstInitial = teacher.user?.firstName?.[0] || '';
+                      const lastInitial = teacher.user?.lastName?.[0] || '';
+                      const initials = `${firstInitial}${lastInitial}`.toUpperCase() || 'TR';
+
+                      // Red border on individual card if teacher validation failed and this card is not selected
+                      const cardHighlight = highlightMissing.teachers && !isSelected;
+
+                      return (
+                        <div
+                          key={teacher.id}
+                          onClick={() => handleSelectTeacher(activeChildIdx, teacher.id)}
+                          className={`snap-start shrink-0 w-[calc((100%-1rem)/1.15)] sm:w-[calc((100%-2rem)/2.2)] rounded-2xl transition-all duration-300 flex flex-row items-stretch overflow-hidden relative ${
+                            isPending
+                              ? 'cursor-pointer hover:shadow-md hover:bg-slate-50/20'
+                              : 'cursor-default'
+                          } ${
+                            isSelected
+                              ? 'border-2 border-brand-indigo bg-indigo-50/20 shadow-sm ring-1 ring-brand-indigo/10'
+                              : cardHighlight
+                              ? 'border-2 border-red-400 shadow-sm'
+                              : 'border border-slate-100 shadow-sm hover:border-brand-indigo/40'
+                          }`}
+                        >
+                          {/* Left: Portrait / Initials */}
+                          <div className={`w-24 sm:w-28 border-r shrink-0 flex items-center justify-center ${
+                            isSelected ? 'border-brand-indigo/30' : 'border-slate-100'
+                          }`}>
+                            {teacher.profile_pic ? (
+                              <img src={teacher.profile_pic} alt={name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                            ) : (
+                              <div className="w-full h-full bg-gradient-to-br from-slate-800 to-slate-900 text-slate-100 flex items-center justify-center font-black text-xl tracking-wider select-none">
+                                {initials}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Right: Details */}
+                          <div className="flex-1 p-4 flex flex-col justify-between min-w-0">
+                            <div className="space-y-2">
+                              <div className="flex justify-between items-start gap-1.5">
+                                <div className="min-w-0">
+                                  <h4 className="font-extrabold text-slate-800 text-sm leading-tight break-words">{name}</h4>
+                                  <div className="flex items-center gap-1 text-slate-500 text-xs mt-1">
+                                    <MapPin size={11} className="text-brand-indigo/70 shrink-0" />
+                                    <span className="truncate font-semibold">{teacher.city || 'Europe'}</span>
+                                  </div>
+                                </div>
+                                {/* Radio circle */}
+                                <div className={`w-5 h-5 rounded-full flex items-center justify-center border-2 shrink-0 transition-all select-none ${
+                                  isSelected
+                                    ? 'bg-brand-indigo border-brand-indigo text-white shadow-sm'
+                                    : 'border-slate-300 bg-white'
+                                }`}>
+                                  {isSelected && <Check size={10} strokeWidth={3.5} />}
                                 </div>
                               </div>
-                              {/* Only circle indicator, no label */}
-                              <div className={`w-5 h-5 rounded-full flex items-center justify-center border-2 shrink-0 transition-all select-none ${
-                                isSelected
-                                  ? 'bg-brand-indigo border-brand-indigo text-white shadow-sm'
-                                  : 'border-slate-300 bg-white'
-                              }`}>
-                                {isSelected && <Check size={10} strokeWidth={3.5} />}
-                              </div>
+                              <p className="text-slate-500 italic text-[11px] sm:text-xs leading-relaxed line-clamp-4 pt-2.5 border-t border-slate-100/80">
+                                " {teacher.about_me} "
+                              </p>
                             </div>
-                            <p className="text-slate-500 italic text-[11px] sm:text-xs leading-relaxed line-clamp-4 pt-2.5 border-t border-slate-100/80">
-                              " {teacher.about_me} "
-                            </p>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1057,11 +1136,9 @@ export const PriceQuotePage = () => {
               {/* LESSON SCHEDULES */}
               <div className="border border-slate-100 rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white space-y-4">
                 <h3 className="text-sm font-black uppercase text-slate-600 tracking-wider flex items-center gap-2 border-b border-slate-50 pb-2.5">
-                  <CalendarIcon className="text-brand-purple shrink-0" size={16} />
                   {language === 'fr' ? 'PLANNINGS DES COURS' : 'LESSON SCHEDULES'}
                 </h3>
 
-                {/* Validation: evaluation in edit mode */}
                 {validationError && editingChildIdx !== null && (
                   <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2 flex items-center gap-2">
                     <X size={13} className="text-red-500 shrink-0" />
@@ -1075,10 +1152,7 @@ export const PriceQuotePage = () => {
                       {quoteData.children_data.map((child: any, idx: number) => (
                         <button
                           key={idx}
-                          onClick={() => {
-                            setActiveScheduleChildIdx(idx);
-                            setEditingChildIdx(null);
-                          }}
+                          onClick={() => { setActiveScheduleChildIdx(idx); setEditingChildIdx(null); }}
                           className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
                             activeScheduleChildIdx === idx
                               ? 'bg-brand-indigo text-white shadow-sm'
@@ -1136,14 +1210,12 @@ export const PriceQuotePage = () => {
                                   <button
                                     onClick={() => handleSaveEvaluation(activeScheduleChildIdx)}
                                     className="text-white bg-emerald-500 hover:bg-emerald-600 p-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center shadow-sm flex-1 sm:flex-none"
-                                    title="Save"
                                   >
                                     <Check size={14} strokeWidth={3} className="mx-auto" />
                                   </button>
                                   <button
                                     onClick={() => setEditingChildIdx(null)}
                                     className="text-slate-500 bg-slate-200 hover:bg-slate-300 p-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center flex-1 sm:flex-none"
-                                    title="Cancel"
                                   >
                                     <X size={14} strokeWidth={3} className="mx-auto" />
                                   </button>
@@ -1160,9 +1232,7 @@ export const PriceQuotePage = () => {
                               {scheduleEntries.map(([day, val]: [string, any]) => (
                                 <div key={day} className="flex flex-wrap justify-between items-center gap-1.5 text-xs bg-slate-50/50 p-2 rounded-lg border border-slate-100/20">
                                   <span className="font-bold text-slate-700 capitalize">{day}</span>
-                                  <span className="font-medium text-slate-600 font-mono shrink-0">
-                                    {val.start_time} - {val.end_time}
-                                  </span>
+                                  <span className="font-medium text-slate-600 font-mono shrink-0">{val.start_time} - {val.end_time}</span>
                                 </div>
                               ))}
                             </div>
@@ -1178,18 +1248,25 @@ export const PriceQuotePage = () => {
                 )}
               </div>
 
-              {/* SELECT SCHOOL VACATION PREFERENCE */}
+              {/* ─── VACATION PREFERENCE ─── */}
               <div
                 ref={vacationRef}
                 className={`border rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white transition-all duration-300 ${
                   highlightMissing.vacation ? 'border-red-400 ring-2 ring-red-300/40' : 'border-slate-100'
-                }`}
+                } ${vacationAnimating ? 'vacation-attention' : ''}`}
               >
-                <h2 className={`text-base font-extrabold mb-4 ${
-                  highlightMissing.vacation ? 'text-red-500' : 'text-slate-800'
-                }`}>
+                <h2 className={`text-base font-extrabold mb-1 ${highlightMissing.vacation ? 'text-red-500' : 'text-slate-800'}`}>
                   {t('vacationTitle')}
                 </h2>
+                {/* Prompt badge */}
+                {isPending && !vacationPreference && selectedStyle && (
+                  <div className="mb-3 inline-flex items-center gap-1 bg-indigo-50 text-brand-indigo text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-indigo-100 animate-pulse">
+                    <span className="w-1.5 h-1.5 bg-brand-indigo rounded-full inline-block" />
+                    {t('selectFirst')}
+                  </div>
+                )}
+                {!(!vacationPreference && selectedStyle) && <div className="mb-3" />}
+
                 <div className="grid grid-cols-1 gap-4">
                   <div
                     onClick={() => {
@@ -1250,7 +1327,7 @@ export const PriceQuotePage = () => {
                 </div>
               </div>
 
-              {/* Validation error for evaluation edit mode (shown in sidebar too, near actions) */}
+              {/* Validation error */}
               {validationError && editingChildIdx === null && (
                 <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2 flex items-center gap-2">
                   <X size={13} className="text-red-500 shrink-0" />
@@ -1258,7 +1335,7 @@ export const PriceQuotePage = () => {
                 </div>
               )}
 
-              {/* Action Buttons — desktop only (hidden on mobile, shown in sticky footer) */}
+              {/* Action Buttons — desktop */}
               <div className="hidden lg:block space-y-3">
                 {isPending ? (
                   <>
@@ -1346,35 +1423,22 @@ export const PriceQuotePage = () => {
 
       {/* ─── MOBILE STICKY FOOTER ─── */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40">
-        {/* Subtle blur backdrop */}
         <div className="bg-white/95 backdrop-blur-md border-t border-slate-100 shadow-[0_-4px_24px_rgba(0,0,0,0.08)] px-4 pt-3 pb-4">
-
-          {/* Validation error shown above buttons on mobile */}
           {validationError && (
             <div className="mb-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2 flex items-center gap-2">
               <X size={12} className="text-red-500 shrink-0" />
               <p className="text-red-600 text-[11px] font-semibold">{validationError}</p>
             </div>
           )}
-
           {isPending ? (
             <div className="flex flex-col gap-2">
-              {/* Primary Accept button — full width */}
               <button
                 onClick={handleApprove}
                 disabled={isSubmitting || isRejecting}
                 className="w-full bloom-gradient text-white font-extrabold text-sm py-3.5 px-6 rounded-xl shadow-md shadow-indigo-100/50 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? (
-                  <Loader2 className="animate-spin w-5 h-5" />
-                ) : (
-                  <>
-                    <CheckCircle2 size={16} />
-                    <span>{t('acceptQuoteBtn')}</span>
-                  </>
-                )}
+                {isSubmitting ? <Loader2 className="animate-spin w-5 h-5" /> : <><CheckCircle2 size={16} /><span>{t('acceptQuoteBtn')}</span></>}
               </button>
-              {/* Secondary row: Request New + Reject */}
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => {
@@ -1401,8 +1465,7 @@ export const PriceQuotePage = () => {
           ) : quoteData.status === 'Approved' ? (
             <div className="flex gap-2">
               <div className="flex-1 py-3.5 px-4 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-xl font-black text-center text-sm flex items-center justify-center gap-2 select-none">
-                <CheckCircle2 size={15} />
-                <span>{language === 'fr' ? 'APPROUVÉ' : 'APPROVED'}</span>
+                <CheckCircle2 size={15} /><span>{language === 'fr' ? 'APPROUVÉ' : 'APPROVED'}</span>
               </div>
               <button
                 onClick={() => {
@@ -1420,8 +1483,7 @@ export const PriceQuotePage = () => {
           ) : (
             <div className="flex gap-2">
               <div className="flex-1 py-3.5 px-4 bg-red-50 border border-red-100 text-red-600 rounded-xl font-black text-center text-sm flex items-center justify-center gap-2 select-none">
-                <X size={15} />
-                <span>{language === 'fr' ? 'REFUSÉ' : 'REFUSED'}</span>
+                <X size={15} /><span>{language === 'fr' ? 'REFUSÉ' : 'REFUSED'}</span>
               </div>
               <button
                 onClick={() => {
@@ -1442,46 +1504,28 @@ export const PriceQuotePage = () => {
 
       {/* ─── MODALS ─── */}
 
-      {/* SUCCESS MODAL */}
+      {/* SUCCESS */}
       <AnimatePresence>
         {showSuccess && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
-          >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
             <Confetti />
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className="bg-white rounded-2xl sm:rounded-[2rem] p-5 sm:p-6 md:p-7 max-w-md w-full shadow-2xl relative border border-slate-100/80 overflow-hidden my-auto mx-auto"
-            >
+            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-2xl sm:rounded-[2rem] p-5 sm:p-6 md:p-7 max-w-md w-full shadow-2xl relative border border-slate-100/80 overflow-hidden my-auto mx-auto">
               <div className="w-12 h-12 sm:w-14 sm:h-14 bg-green-50 text-green-500 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
                 <CheckCircle2 className="w-6 h-6 sm:w-8 sm:h-8" />
               </div>
-              <h2 className="text-lg sm:text-xl md:text-2xl font-black text-slate-800 text-center mb-1.5 leading-tight">
-                {t('successTitle')}
-              </h2>
-              <p className="text-slate-400 text-center font-medium max-w-sm mx-auto mb-4 sm:mb-5 text-[11px] sm:text-xs">
-                {t('successSubtitle')}
-              </p>
+              <h2 className="text-lg sm:text-xl md:text-2xl font-black text-slate-800 text-center mb-1.5 leading-tight">{t('successTitle')}</h2>
+              <p className="text-slate-400 text-center font-medium max-w-sm mx-auto mb-4 sm:mb-5 text-[11px] sm:text-xs">{t('successSubtitle')}</p>
               <div className="bg-slate-50/50 p-3 sm:p-4 rounded-xl border border-slate-100/60 mb-4 sm:mb-5 space-y-2 sm:space-y-2.5 text-[11px] sm:text-xs">
-                <h4 className="font-extrabold text-slate-700 border-b border-slate-200/60 pb-1.5 mb-2">
-                  {t('successRecap')}
-                </h4>
+                <h4 className="font-extrabold text-slate-700 border-b border-slate-200/60 pb-1.5 mb-2">{t('successRecap')}</h4>
                 <div className="flex justify-between items-center gap-4">
                   <span className="text-slate-400 font-bold">{t('selectStyleTitle')}</span>
-                  <span className="text-slate-700 font-black text-right truncate">
-                    {selectedStyle === '1to1' ? t('lessonStyle1to1') : t('lessonStyleGroup')}
-                  </span>
+                  <span className="text-slate-700 font-black text-right truncate">{selectedStyle === '1to1' ? t('lessonStyle1to1') : t('lessonStyleGroup')}</span>
                 </div>
                 <div className="flex justify-between items-center gap-4">
                   <span className="text-slate-400 font-bold">{t('vacation')}</span>
-                  <span className="text-slate-700 font-black text-right truncate">
-                    {vacationPreference === 'included' ? t('vacationIncluded') : t('vacationExcluded')}
-                  </span>
+                  <span className="text-slate-700 font-black text-right truncate">{vacationPreference === 'included' ? t('vacationIncluded') : t('vacationExcluded')}</span>
                 </div>
                 {quoteData.children_data?.map((child: any, idx: number) => {
                   const childTeacherId = selectedTeacherIds[idx];
@@ -1489,17 +1533,13 @@ export const PriceQuotePage = () => {
                   return childTeacher ? (
                     <div key={idx} className="flex justify-between items-center gap-4">
                       <span className="text-slate-400 font-bold">{t('class.teacher')} ({child.child_name || `Student ${idx + 1}`})</span>
-                      <span className="text-brand-indigo font-black text-right truncate">
-                        {childTeacher.user?.firstName} {childTeacher.user?.lastName}
-                      </span>
+                      <span className="text-brand-indigo font-black text-right truncate">{childTeacher.user?.firstName} {childTeacher.user?.lastName}</span>
                     </div>
                   ) : null;
                 })}
                 <div className="flex justify-between items-center gap-4 pt-2 border-t border-slate-200/60">
                   <span className="text-slate-400 font-bold">{t('monthlyCost')}</span>
-                  <span className="text-brand-purple font-black text-xs sm:text-sm text-right">
-                    {formatNumber(currentMonthlyCost)} €
-                  </span>
+                  <span className="text-brand-purple font-black text-xs sm:text-sm text-right">{formatNumber(currentMonthlyCost)} €</span>
                 </div>
               </div>
               <div className="bg-indigo-50/20 p-3 sm:p-4 rounded-xl border border-indigo-100/10 mb-4 sm:mb-5 text-[11px] sm:text-xs">
@@ -1511,10 +1551,7 @@ export const PriceQuotePage = () => {
                   {t('successNextStepsDesc').replace('{phone}', quoteData.parent?.phone || '')}
                 </p>
               </div>
-              <Link
-                to="/"
-                className="w-full inline-flex justify-center items-center gap-2 bloom-gradient text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-extrabold text-xs sm:text-sm shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all"
-              >
+              <Link to="/" className="w-full inline-flex justify-center items-center gap-2 bloom-gradient text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-extrabold text-xs sm:text-sm shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all">
                 <Home size={14} className="shrink-0" />
                 <span>{t('successDoneBtn')}</span>
               </Link>
@@ -1523,37 +1560,23 @@ export const PriceQuotePage = () => {
         )}
       </AnimatePresence>
 
-      {/* REJECT SUCCESS MODAL */}
+      {/* REJECT SUCCESS */}
       <AnimatePresence>
         {showReject && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
-          >
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className="bg-white rounded-2xl sm:rounded-[2rem] p-5 sm:p-6 max-w-md w-full shadow-2xl relative border border-slate-100/80 overflow-hidden text-center my-auto mx-auto"
-            >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-2xl sm:rounded-[2rem] p-5 sm:p-6 max-w-md w-full shadow-2xl relative border border-slate-100/80 overflow-hidden text-center my-auto mx-auto">
               <div className="w-12 h-12 sm:w-14 sm:h-14 bg-red-50 text-red-500 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
                 <X className="w-6 h-6 sm:w-8 sm:h-8" />
               </div>
-              <h2 className="text-lg sm:text-xl md:text-2xl font-black text-slate-800 mb-1.5 leading-tight">
-                {t('rejectTitle')}
-              </h2>
-              <p className="text-slate-400 font-medium max-w-sm mx-auto mb-4 sm:mb-5 text-[11px] sm:text-xs">
-                {t('rejectSubtitle')}
-              </p>
+              <h2 className="text-lg sm:text-xl md:text-2xl font-black text-slate-800 mb-1.5 leading-tight">{t('rejectTitle')}</h2>
+              <p className="text-slate-400 font-medium max-w-sm mx-auto mb-4 sm:mb-5 text-[11px] sm:text-xs">{t('rejectSubtitle')}</p>
               <div className="bg-slate-50/50 p-3 sm:p-4 rounded-xl border border-slate-100/60 mb-4 sm:mb-5 text-[11px] sm:text-xs leading-relaxed text-slate-500 font-medium">
                 <p>{t('rejectNextSteps')}</p>
               </div>
-              <button
-                onClick={() => setShowReject(false)}
-                className="w-full inline-flex justify-center items-center gap-2 bloom-gradient text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-extrabold text-xs sm:text-sm shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
-              >
+              <button onClick={() => setShowReject(false)}
+                className="w-full inline-flex justify-center items-center gap-2 bloom-gradient text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-extrabold text-xs sm:text-sm shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer">
                 <span>{t('successDoneBtn')}</span>
               </button>
             </motion.div>
@@ -1561,57 +1584,31 @@ export const PriceQuotePage = () => {
         )}
       </AnimatePresence>
 
-      {/* REQUEST NEW FORM MODAL */}
+      {/* REQUEST NEW FORM */}
       <AnimatePresence>
         {showRequestNewForm && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
-          >
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className="bg-white rounded-2xl sm:rounded-[2rem] p-5 sm:p-6 max-w-md w-full shadow-2xl relative border border-slate-100/80 overflow-hidden my-auto mx-auto"
-            >
-              <button
-                onClick={() => setShowRequestNewForm(false)}
-                className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer"
-              >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-2xl sm:rounded-[2rem] p-5 sm:p-6 max-w-md w-full shadow-2xl relative border border-slate-100/80 overflow-hidden my-auto mx-auto">
+              <button onClick={() => setShowRequestNewForm(false)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer">
                 <X size={16} />
               </button>
-              <h2 className="text-lg sm:text-xl font-black text-slate-800 mb-1.5 pr-6 leading-tight">
-                {t('requestNewTitle')}
-              </h2>
-              <p className="text-slate-400 text-[10px] sm:text-[11px] font-semibold mb-4 sm:mb-5">
-                {t('requestNewDesc')}
-              </p>
+              <h2 className="text-lg sm:text-xl font-black text-slate-800 mb-1.5 pr-6 leading-tight">{t('requestNewTitle')}</h2>
+              <p className="text-slate-400 text-[10px] sm:text-[11px] font-semibold mb-4 sm:mb-5">{t('requestNewDesc')}</p>
               <form onSubmit={handleRequestNewSubmit} className="space-y-3.5">
                 <div>
                   <label className="block text-slate-400 font-bold uppercase tracking-wider text-[9px] mb-1.5">
                     {language === 'fr' ? 'Vos commentaires / Besoins' : 'Your comments / Requirements'}
                   </label>
-                  <textarea
-                    required
-                    value={requestNotes}
-                    onChange={(e) => setRequestNotes(e.target.value)}
-                    rows={3}
-                    placeholder={language === 'fr' ? "Ex. Je préfère commencer à 16h au lieu de 17h, ou avoir 15 heures par semaine..." : "E.g. I prefer to start at 04:00 PM instead of 05:00 PM, or have 15 weekly hours..."}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs font-medium text-slate-800 placeholder-slate-400 focus:border-brand-indigo focus:bg-white focus:outline-none transition-all resize-none"
-                  />
+                  <textarea required value={requestNotes} onChange={(e) => setRequestNotes(e.target.value)} rows={3}
+                    placeholder={language === 'fr' ? "Ex. Je préfère commencer à 16h au lieu de 17h..." : "E.g. I prefer to start at 04:00 PM instead of 05:00 PM..."}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs font-medium text-slate-800 placeholder-slate-400 focus:border-brand-indigo focus:bg-white focus:outline-none transition-all resize-none" />
                 </div>
-                <button
-                  type="submit"
-                  disabled={isRequesting}
-                  className="w-full inline-flex justify-center items-center gap-2 bloom-gradient text-white py-2.5 sm:py-3 px-6 rounded-lg sm:rounded-xl font-extrabold text-xs sm:text-sm shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer disabled:opacity-50"
-                >
-                  {isRequesting ? (
-                    <Loader2 className="animate-spin w-4 h-4" />
-                  ) : (
-                    <span>{t('submitRequestBtn')}</span>
-                  )}
+                <button type="submit" disabled={isRequesting}
+                  className="w-full inline-flex justify-center items-center gap-2 bloom-gradient text-white py-2.5 sm:py-3 px-6 rounded-lg sm:rounded-xl font-extrabold text-xs sm:text-sm shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer disabled:opacity-50">
+                  {isRequesting ? <Loader2 className="animate-spin w-4 h-4" /> : <span>{t('submitRequestBtn')}</span>}
                 </button>
               </form>
             </motion.div>
@@ -1619,34 +1616,20 @@ export const PriceQuotePage = () => {
         )}
       </AnimatePresence>
 
-      {/* REQUEST SUCCESS MODAL */}
+      {/* REQUEST SUCCESS */}
       <AnimatePresence>
         {showRequestSuccess && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
-          >
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className="bg-white rounded-2xl sm:rounded-[2rem] p-5 sm:p-6 max-w-md w-full shadow-2xl relative border border-slate-100/80 overflow-hidden text-center my-auto mx-auto"
-            >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-2xl sm:rounded-[2rem] p-5 sm:p-6 max-w-md w-full shadow-2xl relative border border-slate-100/80 overflow-hidden text-center my-auto mx-auto">
               <div className="w-12 h-12 sm:w-14 sm:h-14 bg-indigo-50 text-brand-indigo rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
                 <CheckCircle2 className="w-6 h-6 sm:w-8 sm:h-8" />
               </div>
-              <h2 className="text-lg sm:text-xl md:text-2xl font-black text-slate-800 mb-1.5 leading-tight">
-                {t('requestSuccessTitle')}
-              </h2>
-              <p className="text-slate-400 font-medium max-w-sm mx-auto mb-4 sm:mb-5 text-[11px] sm:text-xs">
-                {t('requestSuccessSubtitle')}
-              </p>
-              <button
-                onClick={() => setShowRequestSuccess(false)}
-                className="w-full inline-flex justify-center items-center gap-2 bloom-gradient text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-extrabold text-xs sm:text-sm shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
-              >
+              <h2 className="text-lg sm:text-xl md:text-2xl font-black text-slate-800 mb-1.5 leading-tight">{t('requestSuccessTitle')}</h2>
+              <p className="text-slate-400 font-medium max-w-sm mx-auto mb-4 sm:mb-5 text-[11px] sm:text-xs">{t('requestSuccessSubtitle')}</p>
+              <button onClick={() => setShowRequestSuccess(false)}
+                className="w-full inline-flex justify-center items-center gap-2 bloom-gradient text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-extrabold text-xs sm:text-sm shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer">
                 <span>{t('successDoneBtn')}</span>
               </button>
             </motion.div>
@@ -1654,41 +1637,25 @@ export const PriceQuotePage = () => {
         )}
       </AnimatePresence>
 
-      {/* APPROVE CONFIRMATION MODAL */}
+      {/* APPROVE CONFIRM */}
       <AnimatePresence>
         {showApproveConfirm && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
-          >
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className="bg-white rounded-2xl sm:rounded-[2rem] p-5 sm:p-6 max-w-md w-full shadow-2xl relative border border-slate-100/80 overflow-hidden text-center my-auto mx-auto"
-            >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-2xl sm:rounded-[2rem] p-5 sm:p-6 max-w-md w-full shadow-2xl relative border border-slate-100/80 overflow-hidden text-center my-auto mx-auto">
               <div className="w-12 h-12 sm:w-14 sm:h-14 bg-indigo-50 text-brand-indigo rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
                 <CheckCircle2 className="w-6 h-6 sm:w-8 sm:h-8" />
               </div>
-              <h2 className="text-lg sm:text-xl font-black text-slate-800 mb-1.5 leading-tight">
-                {t('confirmApproveTitle')}
-              </h2>
-              <p className="text-slate-400 font-medium max-w-sm mx-auto mb-5 text-[11px] sm:text-xs">
-                {t('confirmApproveDesc')}
-              </p>
+              <h2 className="text-lg sm:text-xl font-black text-slate-800 mb-1.5 leading-tight">{t('confirmApproveTitle')}</h2>
+              <p className="text-slate-400 font-medium max-w-sm mx-auto mb-5 text-[11px] sm:text-xs">{t('confirmApproveDesc')}</p>
               <div className="grid grid-cols-2 gap-3 mt-4">
-                <button
-                  onClick={() => setShowApproveConfirm(false)}
-                  className="py-3 px-4 border border-slate-200 hover:bg-slate-50 text-slate-700 font-extrabold rounded-xl text-xs transition-all active:scale-[0.98] cursor-pointer"
-                >
+                <button onClick={() => setShowApproveConfirm(false)}
+                  className="py-3 px-4 border border-slate-200 hover:bg-slate-50 text-slate-700 font-extrabold rounded-xl text-xs transition-all active:scale-[0.98] cursor-pointer">
                   {t('cancelBtn')}
                 </button>
-                <button
-                  onClick={submitApprove}
-                  className="py-3 px-4 bloom-gradient text-white font-extrabold rounded-xl text-xs transition-all active:scale-[0.98] shadow-md hover:scale-[1.01] cursor-pointer"
-                >
+                <button onClick={submitApprove}
+                  className="py-3 px-4 bloom-gradient text-white font-extrabold rounded-xl text-xs transition-all active:scale-[0.98] shadow-md hover:scale-[1.01] cursor-pointer">
                   {t('confirmBtnYesApprove')}
                 </button>
               </div>
@@ -1697,41 +1664,25 @@ export const PriceQuotePage = () => {
         )}
       </AnimatePresence>
 
-      {/* REJECT CONFIRMATION MODAL */}
+      {/* REJECT CONFIRM */}
       <AnimatePresence>
         {showRejectConfirm && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
-          >
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className="bg-white rounded-2xl sm:rounded-[2rem] p-5 sm:p-6 max-w-md w-full shadow-2xl relative border border-slate-100/80 overflow-hidden text-center my-auto mx-auto"
-            >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-2xl sm:rounded-[2rem] p-5 sm:p-6 max-w-md w-full shadow-2xl relative border border-slate-100/80 overflow-hidden text-center my-auto mx-auto">
               <div className="w-12 h-12 sm:w-14 sm:h-14 bg-red-50 text-red-500 rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
                 <X className="w-6 h-6 sm:w-8 sm:h-8" />
               </div>
-              <h2 className="text-lg sm:text-xl font-black text-slate-800 mb-1.5 leading-tight">
-                {t('confirmRejectTitle')}
-              </h2>
-              <p className="text-slate-400 font-medium max-w-sm mx-auto mb-5 text-[11px] sm:text-xs">
-                {t('confirmRejectDesc')}
-              </p>
+              <h2 className="text-lg sm:text-xl font-black text-slate-800 mb-1.5 leading-tight">{t('confirmRejectTitle')}</h2>
+              <p className="text-slate-400 font-medium max-w-sm mx-auto mb-5 text-[11px] sm:text-xs">{t('confirmRejectDesc')}</p>
               <div className="grid grid-cols-2 gap-3 mt-4">
-                <button
-                  onClick={() => setShowRejectConfirm(false)}
-                  className="py-3 px-4 border border-slate-200 hover:bg-slate-50 text-slate-700 font-extrabold rounded-xl text-xs transition-all active:scale-[0.98] cursor-pointer"
-                >
+                <button onClick={() => setShowRejectConfirm(false)}
+                  className="py-3 px-4 border border-slate-200 hover:bg-slate-50 text-slate-700 font-extrabold rounded-xl text-xs transition-all active:scale-[0.98] cursor-pointer">
                   {t('cancelBtn')}
                 </button>
-                <button
-                  onClick={handleReject}
-                  className="py-3 px-4 bg-red-500 hover:bg-red-600 text-white font-extrabold rounded-xl text-xs transition-all active:scale-[0.98] shadow-md hover:scale-[1.01] cursor-pointer"
-                >
+                <button onClick={handleReject}
+                  className="py-3 px-4 bg-red-500 hover:bg-red-600 text-white font-extrabold rounded-xl text-xs transition-all active:scale-[0.98] shadow-md hover:scale-[1.01] cursor-pointer">
                   {t('confirmBtnYesReject')}
                 </button>
               </div>
