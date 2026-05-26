@@ -756,7 +756,7 @@ export const PriceQuotePage = () => {
         <div className="bg-white rounded-[1.25rem] sm:rounded-[2.5rem] border border-slate-100/80 p-3.5 sm:p-6 md:p-10 soft-shadow">
 
           {/* Header Row */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-6 border-b border-slate-100 mb-8">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-2 md:pb-6 border-b border-slate-100 mb-2 md:mb-8">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full md:w-auto">
               <img src={logo} alt="Bloom Buddies Academy" className="w-48 sm:w-56 h-auto" />
               <div className="sm:ml-2">
