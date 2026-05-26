@@ -81,6 +81,11 @@ export default function App() {
         setUser(parsedUser);
         setRole(parsedUser.role);
         setIsLoggedIn(true);
+        // Sync language from saved logged-in user profile
+        const userLang = parsedUser.language;
+        if (userLang === 'fr' || userLang === 'en') {
+          setLanguage(userLang);
+        }
         // Fetch classes on reload
         setIsLoadingClasses(true);
         apiService.getMyClasses().then(classes => {
@@ -103,6 +108,11 @@ export default function App() {
     setUser(userData);
     setIsLoggedIn(true);
     localStorage.setItem('auth_user', JSON.stringify(userData));
+    // Sync language from logged-in user profile on login
+    const userLang = (userData as any).language;
+    if (userLang === 'fr' || userLang === 'en') {
+      setLanguage(userLang);
+    }
     // Fetch classes after login
     setIsLoadingClasses(true);
     apiService.getMyClasses().then(classes => {
