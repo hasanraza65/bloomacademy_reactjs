@@ -78,7 +78,7 @@ const calendarLabel =
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col h-screen overflow-y-auto">
+      <main className={cn("flex-1 flex flex-col h-screen", activeTab === 'calendar' ? "overflow-hidden" : "overflow-y-auto")}>
         {/* Header */}
         <header className="bg-white/80 backdrop-blur-md sticky top-0 z-10 px-4 md:px-8 py-4 md:py-5 border-b border-slate-100 flex items-center justify-between">
           <div>
@@ -229,7 +229,7 @@ const calendarLabel =
                )}
             </section>
           ) : (
-            <CalendarView />
+            <CalendarView user={user} />
           )}
         </div>
       </main>

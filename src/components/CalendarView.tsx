@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   ChevronLeft, 
@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { cn } from '@/src/lib/utils';
+import { User } from '@/src/types';
 
 interface TimeSlot {
   id: string;
@@ -22,6 +23,7 @@ interface TimeSlot {
   timeEnd: string;
   title: string;
   teacher?: string;
+  student?: string;
   status: 'booked' | 'available';
   color: 'indigo' | 'emerald' | 'orange' | 'rose' | 'purple' | 'slate';
   students?: string;
@@ -35,21 +37,14 @@ const generateSlotsForDate = (date: Date): TimeSlot[] => {
     return [
       {
         id: `slot-${date.getTime()}-1`,
-        timeStart: '10:30',
-        timeEnd: '11:15',
+        timeStart: '10:00',
+        timeEnd: '11:00',
         title: 'Special Reading Session',
         teacher: 'Emma Robert',
+        student: 'Liam Smith',
         status: 'booked',
         color: 'purple',
         students: '4/5 Students'
-      },
-      {
-        id: `slot-${date.getTime()}-2`,
-        timeStart: '11:30',
-        timeEnd: '12:00',
-        title: 'Available Slot',
-        status: 'available',
-        color: 'slate'
       }
     ];
   }
@@ -58,45 +53,32 @@ const generateSlotsForDate = (date: Date): TimeSlot[] => {
     {
       id: `slot-${date.getTime()}-1`,
       timeStart: '09:00',
-      timeEnd: '09:30',
+      timeEnd: '10:00',
       title: 'Creative Writing Class',
       teacher: 'Sarah Connor',
+      student: 'Emma Watson',
       status: 'booked',
       color: 'indigo',
       students: '5/5 Students'
     },
     {
-      id: `slot-${date.getTime()}-2`,
-      timeStart: '09:40',
-      timeEnd: '10:20',
-      title: 'Available Slot',
-      status: 'available',
-      color: 'slate'
-    },
-    {
       id: `slot-${date.getTime()}-3`,
-      timeStart: '10:30',
-      timeEnd: '11:15',
+      timeStart: '10:00',
+      timeEnd: '11:00',
       title: 'Interactive English',
       teacher: 'David Miller',
+      student: 'Lucas Brown',
       status: 'booked',
       color: 'emerald',
       students: '3/5 Students'
     },
     {
-      id: `slot-${date.getTime()}-4`,
-      timeStart: '11:30',
-      timeEnd: '12:00',
-      title: 'Available Slot',
-      status: 'available',
-      color: 'slate'
-    },
-    {
       id: `slot-${date.getTime()}-5`,
-      timeStart: '12:15',
+      timeStart: '12:00',
       timeEnd: '13:00',
       title: 'Public Speaking',
       teacher: 'Sophia Loren',
+      student: 'Olivia Jones',
       status: 'booked',
       color: 'orange',
       students: '2/5 Students'
@@ -104,29 +86,22 @@ const generateSlotsForDate = (date: Date): TimeSlot[] => {
     {
       id: `slot-${date.getTime()}-6`,
       timeStart: '14:00',
-      timeEnd: '14:45',
+      timeEnd: '15:00',
       title: 'Maths Wizards',
       teacher: 'James Bond',
+      student: 'Ethan Hunt',
       status: 'booked',
       color: 'rose',
       students: '5/5 Students'
-    },
-    {
-      id: `slot-${date.getTime()}-7`,
-      timeStart: '15:00',
-      timeEnd: '15:30',
-      title: 'Available Slot',
-      status: 'available',
-      color: 'slate'
     }
   ];
 
   // Vary items dynamically so every day doesn't look identical
   const dayOfMonth = date.getDate();
   if (dayOfMonth % 3 === 0) {
-    return baseSlots.filter((_, i) => i !== 2 && i !== 5);
+    return baseSlots.filter((_, i) => i !== 1 && i !== 3);
   } else if (dayOfMonth % 3 === 1) {
-    return baseSlots.filter((_, i) => i !== 1 && i !== 4);
+    return baseSlots.filter((_, i) => i !== 0 && i !== 2);
   }
   return baseSlots;
 };
@@ -178,19 +153,28 @@ const getColorClasses = (color: string) => {
   }
 };
 
-export const CalendarView: React.FC = () => {
+interface CalendarViewProps {
+  user?: User;
+}
+
+export const CalendarView: React.FC<CalendarViewProps> = ({ user }) => {
   const { t, language } = useLanguage();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
-  const timeRanges = useMemo(() => [
-    '09:00 - 09:30',
-    '09:40 - 10:20',
-    '10:30 - 11:15',
-    '11:30 - 12:00',
-    '12:15 - 13:00',
-    '14:00 - 14:45',
-    '15:00 - 15:30'
-  ], []);
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      // Auto-scroll to 09:00 (index 9 * 155px per row)
+      scrollContainerRef.current.scrollTop = 9 * 155;
+    }
+  }, []);
+  
+  const timeRanges = useMemo(() => {
+    return Array.from({ length: 24 }, (_, i) => {
+      const startHour = i.toString().padStart(2, '0');
+      const endHour = (i + 1).toString().padStart(2, '0');
+      return `${startHour}:00 - ${endHour}:00`;
+    });
+  }, []);
   
   // State for search, filter and selected slots for simulated booking
   const [searchQuery, setSearchQuery] = useState('');
@@ -264,6 +248,7 @@ export const CalendarView: React.FC = () => {
             ...s,
             title: language === 'fr' ? 'Cours réservé (Simulé)' : 'Booked Class (Simulated)',
             teacher: 'Karwish',
+            student: user ? `${user.firstName} ${user.lastName}` : 'You (Student)',
             status: 'booked' as const,
             color: 'indigo' as const,
             students: '1/5 Students'
@@ -508,8 +493,8 @@ export const CalendarView: React.FC = () => {
                        !(slot.teacher && slot.teacher.toLowerCase().includes(searchQuery.toLowerCase())))
                     );
 
-                    const displaySlot = isFiltered ? null : slot;
-                    const isAvailable = displaySlot && displaySlot.status === 'available';
+                    const displaySlot = (isFiltered || (slot && slot.status === 'available')) ? null : slot;
+                    const isAvailable = false;
 
                     return (
                       <div key={`${key}-${range}`} className="w-[280px] h-[155px] p-2 shrink-0 flex items-stretch">
@@ -540,16 +525,19 @@ export const CalendarView: React.FC = () => {
                                     </h5>
                                     {displaySlot.teacher && (
                                       <p className={cn("text-[10px] font-bold mt-0.5 opacity-80", colorStyles.sub)}>
+                                        <span className="font-extrabold">{language === 'fr' ? 'Enseignant : ' : 'Teacher: '}</span>
                                         {displaySlot.teacher}
+                                      </p>
+                                    )}
+                                    {displaySlot.student && (
+                                      <p className={cn("text-[10px] font-bold mt-0.5 opacity-80", colorStyles.sub)}>
+                                        <span className="font-extrabold">{language === 'fr' ? 'Élève : ' : 'Student: '}</span>
+                                        {displaySlot.student}
                                       </p>
                                     )}
                                   </div>
 
-                                  <div className="flex items-center justify-between border-t border-slate-100/10 pt-2 mt-1">
-                                    <span className={cn("text-[9px] font-black uppercase px-2 py-0.5 rounded-md", colorStyles.badge)}>
-                                      {displaySlot.students}
-                                    </span>
-                                    
+                                  <div className="flex items-center justify-end border-t border-slate-100/10 pt-2 mt-1">
                                     <button 
                                       onClick={(e) => {
                                         e.stopPropagation();
