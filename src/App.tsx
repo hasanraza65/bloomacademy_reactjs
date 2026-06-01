@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Navbar, 
   Hero, 
@@ -25,15 +25,18 @@ import { useLanguage } from './context/LanguageContext';
 
 const GOOGLE_MAPS_API_KEY = (import.meta as any).env.VITE_GOOGLE_MAPS_API_KEY;
 
-function LandingPage({ 
-  isLoggedIn, 
-  onLogout, 
-  openAuth 
-}: { 
-  isLoggedIn: boolean, 
-  onLogout: () => void, 
-  openAuth: (mode: AuthMode) => void 
-}) {
+function LandingPage({ isLoggedIn, onLogout, openAuth }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (location.state?.openAuth) {
+      openAuth('login', location.state.redirectTo); // 👈 pass redirectTo
+
+      // 👇 clear the state so modal doesn't reopen on next visit
+      navigate('/', { replace: true, state: {} });
+    }
+  }, []);
 
   return (
     <div className="min-h-screen">
@@ -100,8 +103,17 @@ export default function App() {
     setIsInitialized(true);
   }, []);
 
-  const openAuth = (mode: AuthMode) => setAuthModal({ isOpen: true, mode });
-  const closeAuth = () => setAuthModal(prev => ({ ...prev, isOpen: false }));
+  const [redirectAfterLogin, setRedirectAfterLogin] = useState<string | null>(null);
+
+  const openAuth = (mode: AuthMode, redirectTo?: string) => {
+    setAuthModal({ isOpen: true, mode });
+    if (redirectTo) setRedirectAfterLogin(redirectTo);
+  };
+
+  const closeAuth = () => {
+    setAuthModal(prev => ({ ...prev, isOpen: false }));
+    setRedirectAfterLogin(null);
+  };
 
   const handleAuthComplete = (userRole: UserRole, userData: User) => {
     setRole(userRole);
@@ -192,17 +204,14 @@ export default function App() {
           path="/classroom/:channelName" 
           element={
             isLoggedIn && user ? (
-              <Classroom user={user} onExit={
-                () => {
-                  let oldLang = window.localStorage.getItem('language');
-                  if(oldLang === 'fr') {
-                    setLanguage('fr');
-                  }
-                  window.location.href = '/dashboard'
-                }
-              } />
+              <Classroom user={user} onExit={() => {
+                let oldLang = window.localStorage.getItem('language');
+                if(oldLang === 'fr') setLanguage('fr');
+                window.location.href = '/dashboard';
+              }} />
             ) : (
-              <Navigate to="/" replace />
+              // Change this line - pass the intended URL so modal can redirect after login
+              <Navigate to="/" state={{ openAuth: true, redirectTo: window.location.pathname }} replace />
             )
           } 
         />
@@ -217,11 +226,12 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
-      <AuthModal 
-        isOpen={authModal.isOpen} 
+      <AuthModal
+        isOpen={authModal.isOpen}
         initialMode={authModal.mode} 
-        onClose={closeAuth} 
+        onClose={closeAuth}
         onComplete={handleAuthComplete}
+        redirectAfterLogin={redirectAfterLogin} // 👈 add this one line
       />
       
       <NavigationHandler isLoggedIn={isLoggedIn} />

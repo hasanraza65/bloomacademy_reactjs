@@ -25,6 +25,24 @@ export const apiService = {
     });
     return response.json();
   },
+  
+  async sendOtp(email: string) {
+  const response = await fetch(`${BASE_URL}parent/send-otp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  return response.json();
+},
+
+async verifyOtp(email: string, otp: string) {
+  const response = await fetch(`${BASE_URL}parent/verify-otp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, otp }),
+  });
+  return response.json();
+},
 
   async signupTeacher(payload: any): Promise<LoginResponse> {
     const response = await fetch(`${BASE_URL}signup/teacher`, {

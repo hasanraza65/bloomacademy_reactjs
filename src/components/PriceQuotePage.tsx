@@ -95,14 +95,15 @@ const translations = {
     priceDetails: "Price Quote Details",
     statusAccepted: "Accepted Option",
     statusNotAccepted: "Select Option",
-    selectStyleTitle: "Select Lesson Type",
+    selectStyleTitle: "Lesson Type",
+    selectStyleTitleAnimated: "Select a lesson type",
     lessonStyle1to1: "1:1 Private Lessons",
     lessonStyleGroup: "Group of 4 Lessons",
     monthlyRate: "euros / month",
     hourlyRate: "euros / hour",
     formula1to1: "1:1 Private tutoring (Full focus & speed)",
     formulaGroup: "Group learning (Collaborative study - 15 €/hour per student)",
-    vacationTitle: "School Vacation Preference",
+    vacationTitle: "VACATION PREFERENCE",
     vacationIncluded: "School Vacation Included",
     vacationIncludedDesc: "My child will have lessons during school vacations & public holidays",
     vacationExcluded: "School Vacation Excluded",
@@ -171,8 +172,10 @@ const translations = {
     cancelBtn: "Cancel",
     selectTeacherBtnShort: "Select",
     validationSaveEvaluation: "Please save the evaluation date/time before approving.",
-    selectFirst: "Select one to continue",
+    selectFirst: "Select one",
     selectTeacherFirst: "Select a teacher to continue",
+    selectTeacherFirst1: "Select a professor for your child",
+    selectTeacherFirstMany: "Select professors for each of your children",
   },
   fr: {
     title: "Votre Proposition Personnalisée",
@@ -180,14 +183,15 @@ const translations = {
     priceDetails: "Détails de la proposition",
     statusAccepted: "Option Sélectionnée",
     statusNotAccepted: "Sélectionner cette Option",
-    selectStyleTitle: "Sélectionner le Type de Cours",
+    selectStyleTitle: "Type de leçon",
+    selectStyleTitleAnimated: "SÉLECTIONNEZ UN TYPE DE COURS",
     lessonStyle1to1: "Cours Particuliers 1:1",
     lessonStyleGroup: "Cours en Groupe de 4",
     monthlyRate: "euros / mois",
     hourlyRate: "euros / heure",
     formula1to1: "Cours individuels 1:1 (Focus complet et rythme adapté)",
     formulaGroup: "Cours en groupe (Apprentissage collaboratif - 15 €/heure par élève)",
-    vacationTitle: "Préférence pour les Vacances Scolaires",
+    vacationTitle: "PRÉFÉRENCE DE VACANCES",
     vacationIncluded: "Vacances Scolaires Incluses",
     vacationIncludedDesc: "Mon enfant aura cours pendant les vacances scolaires et les jours fériés",
     vacationExcluded: "Vacances Scolaires Exclues",
@@ -256,8 +260,10 @@ const translations = {
     cancelBtn: "Annuler",
     selectTeacherBtnShort: "Choisir",
     validationSaveEvaluation: "Veuillez enregistrer la date/l'heure d'évaluation avant d'approuver.",
-    selectFirst: "Sélectionnez pour continuer",
+    selectFirst: "Sélectionnez-en un",
     selectTeacherFirst: "Choisissez un professeur pour continuer",
+    selectTeacherFirst1: "Sélectionnez un professeur pour votre enfant",
+    selectTeacherFirstMany: "Sélectionnez un professeur pour chacun de vos enfants",
   }
 };
 
@@ -891,16 +897,16 @@ export const PriceQuotePage = () => {
             <div className="lg:col-span-8 space-y-6">
 
               {/* ─── LESSON STYLE SECTION ─── */}
-              <div ref={styleRef}>
-                <h3 className={`text-sm font-black uppercase tracking-wider flex items-center gap-2 mb-3 ${
+              <div ref={styleRef} className="border border-slate-100 rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white">
+  <h3 className={`text-sm font-black tracking-wider flex items-center gap-2 mb-3 ${
                   highlightMissing.style ? 'text-red-500' : 'text-slate-600'
                 }`}>
-                  {t('selectStyleTitle')}
+                 <span className="uppercase">{t('selectStyleTitle')}</span> 
                   {/* Step indicator badge */}
                   {isPending && !selectedStyle && (
                     <span className="ml-auto inline-flex items-center gap-1 bg-indigo-50 text-brand-indigo text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-indigo-100 animate-pulse">
-                      <span className="w-1.5 h-1.5 bg-brand-indigo rounded-full inline-block" />
-                      {t('selectFirst')}
+                      <span className="capitalize w-1.5 h-1.5 bg-brand-indigo rounded-full inline-block" />
+                      {t('selectStyleTitleAnimated')}
                     </span>
                   )}
                 </h3>
@@ -1003,32 +1009,27 @@ export const PriceQuotePage = () => {
                 ref={teacherSectionRef}
               >
                 <div
-                  ref={teacherRef}
-                  className={`border rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white transition-all duration-300 ${
-                    teacherAnimating ? 'teacher-attention' : ''
-                  }`}
-                  style={{ borderColor: highlightMissing.teachers ? undefined : undefined }}
-                >
+  ref={teacherRef}
+  className={`border rounded-xl sm:rounded-3xl p-3.5 sm:p-5 md:p-6 bg-white transition-all duration-300 ${
+    teacherAnimating ? 'teacher-attention' : ''
+  } ${
+    highlightMissing.teachers ? 'border-red-400 ring-2 ring-red-300/40' : 'border-slate-100'
+  }`}
+>
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-base font-extrabold flex items-center gap-2 text-slate-800">
-                      {t('selectTeacherTitle')}
-                      {/* Prompt badge when style is selected but no teacher yet */}
-                      {isPending && selectedStyle && !selectedTeacherIds[activeChildIdx] && (
-                        <span className="inline-flex items-center gap-1 bg-indigo-50 text-brand-indigo text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-indigo-100 animate-pulse">
-                          <span className="w-1.5 h-1.5 bg-brand-indigo rounded-full inline-block" />
-                          {t('selectTeacherFirst')}
-                        </span>
-                      )}
-                    </h2>
-                    <div className="flex gap-1.5">
-                      <button onClick={() => handleScroll('left')} className="w-8 h-8 rounded-lg border border-slate-100 flex items-center justify-center hover:bg-slate-50 transition-colors active:scale-95">
-                        <ChevronLeft size={16} className="text-slate-600" />
-                      </button>
-                      <button onClick={() => handleScroll('right')} className="w-8 h-8 rounded-lg border border-slate-100 flex items-center justify-center hover:bg-slate-50 transition-colors active:scale-95">
-                        <ChevronRight size={16} className="text-slate-600" />
-                      </button>
-                    </div>
-                  </div>
+  <h2 className="text-sm font-black uppercase tracking-wider flex items-center gap-2 mb-3 text-slate-600">
+    {childrenCount === 1
+? (language === 'fr' ? 'PROFESSEUR' : 'PROFESSOR')
+  : (language === 'fr' ? 'PROFESSEURS' : 'PROFESSORS')
+    }
+  </h2>
+  {isPending && selectedStyle && !selectedTeacherIds[activeChildIdx] && (
+    <span className="inline-flex items-center gap-1 bg-indigo-50 text-brand-indigo text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-indigo-100 animate-pulse">
+      <span className="w-1.5 h-1.5 bg-brand-indigo rounded-full inline-block" />
+      {childrenCount === 1 ? t('selectTeacherFirst1') : t('selectTeacherFirstMany')}
+    </span>
+  )}
+</div>
 
                   {/* Student Tabs */}
                   {quoteData.children_data && quoteData.children_data.length > 0 && (
@@ -1053,11 +1054,15 @@ export const PriceQuotePage = () => {
                   )}
 
                   {/* Teacher Cards Carousel */}
-                  <div
-                    ref={scrollRef}
-                    className="flex gap-4 overflow-x-auto pb-2 scroll-smooth snap-x snap-mandatory custom-scrollbar"
-                    style={{ scrollbarWidth: 'thin' }}
-                  >
+                  <div className="relative flex items-stretch gap-2 -mx-3">
+<button onClick={() => handleScroll('left')} className="shrink-0 w-6 h-6 rounded-full border border-slate-200 bg-white flex items-center justify-center hover:bg-slate-50 hover:border-slate-300 transition-colors active:scale-95 shadow-sm self-center">
+  <ChevronLeft size={12} className="text-slate-500" />
+</button>
+  <div
+    ref={scrollRef}
+    className="flex flex-1 gap-4 overflow-x-auto pb-2 scroll-smooth snap-x snap-mandatory custom-scrollbar"
+    style={{ scrollbarWidth: 'thin' }}
+  >
                     {teachers.map((teacher) => {
                       const isSelected = selectedTeacherIds[activeChildIdx] === teacher.id;
                       const name = `${teacher.user?.firstName || 'Teacher'} ${teacher.user?.lastName || ''}`;
@@ -1121,13 +1126,17 @@ export const PriceQuotePage = () => {
                                 " {teacher.about_me} "
                               </p>
                             </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                           </div>
                 </div>
-              </div>
+              );
+            })}
+          </div>
+      <button onClick={() => handleScroll('right')} className="shrink-0 w-6 h-6 rounded-full border border-slate-200 bg-white flex items-center justify-center hover:bg-slate-50 hover:border-slate-300 transition-colors active:scale-95 shadow-sm self-center">
+  <ChevronRight size={12} className="text-slate-500" />
+</button>
+        </div>
+      </div>
+    </div>
             </div>
 
             {/* RIGHT 4-COLUMN SIDEBAR */}
@@ -1255,17 +1264,18 @@ export const PriceQuotePage = () => {
                   highlightMissing.vacation ? 'border-red-400 ring-2 ring-red-300/40' : 'border-slate-100'
                 } ${vacationAnimating ? 'vacation-attention' : ''}`}
               >
-                <h2 className={`text-base font-extrabold mb-1 ${highlightMissing.vacation ? 'text-red-500' : 'text-slate-800'}`}>
-                  {t('vacationTitle')}
-                </h2>
-                {/* Prompt badge */}
-                {isPending && !vacationPreference && selectedStyle && (
-                  <div className="mb-3 inline-flex items-center gap-1 bg-indigo-50 text-brand-indigo text-[10px] font-extrabold px-2.5 py-1 rounded-full border border-indigo-100 animate-pulse">
-                    <span className="w-1.5 h-1.5 bg-brand-indigo rounded-full inline-block" />
-                    {t('selectFirst')}
-                  </div>
-                )}
-                {!(!vacationPreference && selectedStyle) && <div className="mb-3" />}
+                <h2 className={`text-sm font-black  tracking-wider flex items-center gap-2 mb-3 ${highlightMissing.vacation ? 'text-red-500' : 'text-slate-600'}`}>
+  {t('vacationTitle')}
+ {isPending && !vacationPreference && selectedStyle && (
+<span className={`ml-auto inline-flex items-center justify-center gap-1 bg-indigo-50 text-brand-indigo text-[10px] font-extrabold px-4 py-1 rounded-full border border-indigo-100 animate-pulse ${
+  language === 'fr' ? 'min-w-[148px]' : 'min-w-[70px]'
+}`}>
+  <span className="w-1.5 h-1.5 bg-brand-indigo rounded-full inline-block" />
+  {t('selectFirst')}
+</span>
+  )}
+</h2>
+{!(!vacationPreference && selectedStyle) && <div className="mb-3" />}
 
                 <div className="grid grid-cols-1 gap-4">
                   <div

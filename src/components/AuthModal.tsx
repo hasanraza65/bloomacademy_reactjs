@@ -1,6 +1,10 @@
 import React, { useState, useRef, useEffect, forwardRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useMapsLibrary } from "@vis.gl/react-google-maps";
+
+
+import { useLocation } from 'react-router-dom';
+import { ArrowRight, ArrowLeft } from 'lucide-react';
 // @ts-ignore
 import tzlookup from "tz-lookup";
 
@@ -334,6 +338,7 @@ interface AuthModalProps {
   onClose: () => void;
   initialMode: AuthMode;
   onComplete: (role: UserRole, user: UserType) => void;
+  redirectAfterLogin?: string | null; // 👈 add this
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
@@ -341,6 +346,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   initialMode,
   onComplete,
+  redirectAfterLogin, // 👈 add this
 }) => {
   const [mode, setMode] = useState<AuthMode>(initialMode);
 
@@ -352,7 +358,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     switch (mode) {
       case "login":
         return (
-          <LoginView onSwitch={(m) => setMode(m)} onComplete={onComplete} />
+          <LoginView onSwitch={(m) => setMode(m)} onComplete={onComplete} redirectAfterLogin={redirectAfterLogin}/>
         );
       case "signup-parent":
         return (
@@ -416,42 +422,171 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 };
 
 // --- Login View ---
+// Replace the entire LoginView component with this:
+
+type LoginStep = 'email' | 'otp' | 'password';
+
 const LoginView = ({
   onSwitch,
   onComplete,
+  redirectAfterLogin,
 }: {
   onSwitch: (m: AuthMode) => void;
   onComplete: (role: UserRole, user: UserType) => void;
+  redirectAfterLogin?: string | null; // 👈 added
 }) => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [step, setStep] = useState<LoginStep>('email');
+  const [email, setEmail] = useState('');
+  const [otp, setOtp] = useState(['', '', '', '', '', '']); // 6 digits
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [resendTimer, setResendTimer] = useState(0);
   const { t } = useLanguage();
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const location = useLocation();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Start resend countdown
+  const startResendTimer = () => {
+    setResendTimer(60);
+    const interval = setInterval(() => {
+      setResendTimer(prev => {
+        if (prev <= 1) { clearInterval(interval); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  // Step 1: Email submitted — detect if parent or not
+  const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    setSuccess(null);
+    try {
+      // Try to send OTP — if success they're a parent, if "Parent not found" they're not
+      const response = await apiService.sendOtp(email);
+      if (response.success) {
+        // Is a parent — go to OTP step
+        setStep('otp');
+        startResendTimer();
+        setSuccess('OTP sent to your email');
+        setTimeout(() => setSuccess(null), 3000);
+      } else if (response.message === 'Parent not found') {
+        // Not a parent — go to password step
+        setStep('password');
+      } else {
+        setError(response.message || 'Something went wrong');
+      }
+    } catch {
+      setError(t('auth.errorUnexpected'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // OTP input handlers — auto-advance to next box
+  const handleOtpChange = (index: number, value: string) => {
+    if (!/^\d*$/.test(value)) return; // digits only
+    const newOtp = [...otp];
+    newOtp[index] = value.slice(-1); // only last character
+    setOtp(newOtp);
+    if (value && index < 5) {
+      otpRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    const newOtp = [...otp];
+    pasted.split('').forEach((char, i) => { newOtp[i] = char; });
+    setOtp(newOtp);
+    otpRefs.current[Math.min(pasted.length, 5)]?.focus();
+  };
+
+  // Step 2a: Verify OTP
+  const handleOtpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const otpString = otp.join('');
+    if (otpString.length < 6) { setError('Please enter the complete 6-digit OTP'); return; }
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await apiService.verifyOtp(email, otpString);
+      if (response.success && response.user) {
+        if (response.token) localStorage.setItem('auth_token', response.token);
+        localStorage.setItem('auth_user', JSON.stringify(response.user)); // 👈 add this line
+        setSuccess('Login successful! Welcome back 🎉');
+        setTimeout(() => {
+        if (redirectAfterLogin) {
+          window.location.href = redirectAfterLogin; // 👈 use prop
+        } else {
+          // @ts-ignore
+          onComplete(response.user.role, response.user);
+        }
+      }, 1200);
+      } else {
+        setError(response.message || 'Invalid OTP');
+      }
+    } catch {
+      setError(t('auth.errorUnexpected'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Resend OTP
+  const handleResendOtp = async () => {
+    if (resendTimer > 0) return;
+    setLoading(true);
+    try {
+      const response = await apiService.sendOtp(email);
+      if (response.success) {
+        setSuccess('New OTP sent!');
+        setOtp(['', '', '', '', '', '']);
+        startResendTimer();
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(response.message || 'Could not resend OTP');
+      }
+    } catch {
+      setError(t('auth.errorUnexpected'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Step 2b: Password login (teachers/admins)
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
     try {
       const response = await apiService.login({ email, password });
       if (response.success && response.user) {
-        if (response.token) {
-          localStorage.setItem("auth_token", response.token);
-        }
-        setSuccess(response.message || t("auth.loginSuccess"));
+        if (response.token) localStorage.setItem('auth_token', response.token);
+        setSuccess(response.message || t('auth.loginSuccess'));
         setTimeout(() => {
-          // @ts-ignore
-          onComplete(response.user.role, response.user);
-        }, 1500);
+          if (redirectAfterLogin) {
+            window.location.href = redirectAfterLogin; // 👈 use prop
+          } else {
+            // @ts-ignore
+            onComplete(response.user.role, response.user);
+          }
+        }, 1200);
       } else {
-        setError(response.message || t("auth.loginFailed"));
+        setError(response.message || t('auth.loginFailed'));
       }
-    } catch (err) {
-      setError(t("auth.errorUnexpected"));
+    } catch {
+      setError(t('auth.errorUnexpected'));
     } finally {
       setLoading(false);
     }
@@ -459,114 +594,212 @@ const LoginView = ({
 
   return (
     <div className="flex flex-col h-full p-10 md:p-14 justify-center">
+      {/* Logo */}
       <div className="mb-6 md:mb-10 text-center">
         <div className="flex items-center justify-center gap-2 mb-4">
-          {/* <div className="w-10 h-10 bloom-gradient rounded-xl flex items-center justify-center text-white font-bold">
-            B
-          </div>
-          <span className="text-2xl font-bold tracking-tight text-brand-slate-ink">
-            Bloom Buddies Academy
-          </span> */}
           <img src={Logo} alt="Bloom Buddies Academy" className="w-84 h-auto pointer-events-none" />
         </div>
         <h2 className="text-3xl font-extrabold text-brand-slate-ink">
-          {t("auth.welcome")}
+          {t('auth.welcome')}
         </h2>
+        {/* Step indicator */}
+        {step !== 'email' && (
+          <p className="text-sm text-slate-400 mt-1">
+            {step === 'otp' ? `OTP sent to ${email}` : `Signing in as ${email}`}
+          </p>
+        )}
       </div>
 
-      <form className="space-y-6" onSubmit={handleSubmit}>
-        {error && (
-          <div className="p-4 bg-red-50 text-red-600 rounded-2xl text-sm font-bold border border-red-100 animate-shake">
-            {error}
-          </div>
-        )}
-        {success && (
-          <div className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl text-sm font-bold border border-emerald-100 flex items-center gap-2">
-            <Sparkles size={16} />
-            {success}
-          </div>
-        )}
+      {/* Error / Success banners */}
+      {error && (
+        <div className="p-4 bg-red-50 text-red-600 rounded-2xl text-sm font-bold border border-red-100 animate-shake mb-4">
+          {error}
+        </div>
+      )}
+      {success && (
+        <div className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl text-sm font-bold border border-emerald-100 flex items-center gap-2 mb-4">
+          <Sparkles size={16} /> {success}
+        </div>
+      )}
 
-        <FormInput
-          label={t("auth.email")}
-          icon={Mail}
-          type="email"
-          required
-          className="h-13 text-base"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="name@example.com"
-        />
+      {/* ── STEP 1: EMAIL ── */}
+      {step === 'email' && (
+        <form className="space-y-6" onSubmit={handleEmailSubmit}>
+          <FormInput
+            label={t('auth.email')}
+            icon={Mail}
+            type="email"
+            required
+            className="h-13 text-base"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="name@example.com"
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bloom-gradient text-white font-bold py-3 md:py-5 rounded-2xl shadow-xl shadow-indigo-100 text-lg hover:scale-[1.01] active:scale-95 transition-all mt-4 disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Checking...</>
+            ) : (
+              <>Continue <ArrowRight size={18} /></>
+            )}
+          </button>
+        </form>
+      )}
 
-        <div className="space-y-2">
-          <div className="flex justify-between items-center px-1">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-              {t("auth.password")}
+      {/* ── STEP 2a: OTP ── */}
+      {step === 'otp' && (
+        <form className="space-y-6" onSubmit={handleOtpSubmit}>
+          <div className="space-y-2">
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest px-1 block">
+              Enter 6-digit OTP
             </label>
+            {/* 6 OTP boxes */}
+            <div className="flex gap-2 justify-between" onPaste={handleOtpPaste}>
+              {otp.map((digit, i) => (
+                <input
+                  key={i}
+                  ref={el => otpRefs.current[i] = el}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={digit}
+                  onChange={e => handleOtpChange(i, e.target.value)}
+                  onKeyDown={e => handleOtpKeyDown(i, e)}
+                  className="w-12 h-14 text-center text-xl font-bold border-2 border-slate-200 rounded-2xl focus:border-brand-indigo focus:outline-none transition-colors bg-white text-brand-slate-ink"
+                />
+              ))}
+            </div>
+            {/* Resend */}
+            <div className="text-center pt-1">
+              {resendTimer > 0 ? (
+                <span className="text-xs text-slate-400">Resend OTP in {resendTimer}s</span>
+              ) : (
+                <button type="button" onClick={handleResendOtp} className="text-xs font-bold text-brand-indigo hover:underline">
+                  Resend OTP
+                </button>
+              )}
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bloom-gradient text-white font-bold py-3 md:py-5 rounded-2xl shadow-xl shadow-indigo-100 text-lg hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Verifying...</>
+            ) : (
+              <>Verify OTP <Sparkles size={18} /></>
+            )}
+          </button>
+
+          {/* Options below */}
+          <div className="flex flex-col items-center gap-3 pt-2">
             <button
               type="button"
-              onClick={() => onSwitch("forgot-password")}
-              className="text-[11px] font-bold text-brand-indigo hover:underline"
+              onClick={() => { setStep('password'); setError(null); }}
+              className="text-xs font-bold text-slate-500 hover:text-brand-indigo transition-colors flex items-center gap-1"
             >
-              {t("auth.forgot")}
+              <Lock size={13} /> Login with Password instead
+            </button>
+            <button
+              type="button"
+              onClick={() => { setStep('email'); setError(null); }}
+              className="text-xs text-slate-400 hover:text-slate-600 transition-colors flex items-center gap-1"
+            >
+              <ArrowLeft size={13} /> Change email
             </button>
           </div>
-          <div className="relative group">
-            <Lock
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-brand-indigo transition-colors"
-              size={18}
-            />
-            <input
-              type={showPassword ? "text" : "password"}
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="input-field !pl-14 !pr-12 h-13 text-base"
-              placeholder="••••••••"
-            />
+        </form>
+      )}
+
+      {/* ── STEP 2b: PASSWORD ── */}
+      {step === 'password' && (
+        <form className="space-y-6" onSubmit={handlePasswordSubmit}>
+          {/* Email shown as read-only chip */}
+          <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3">
+            <Mail size={16} className="text-slate-400 shrink-0" />
+            <span className="text-sm text-slate-600 font-medium flex-1 truncate">{email}</span>
             <button
               type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
+              onClick={() => { setStep('email'); setError(null); }}
+              className="text-[11px] font-bold text-brand-indigo hover:underline shrink-0"
             >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              Change
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex justify-between items-center px-1">
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                {t('auth.password')}
+              </label>
+              <button
+                type="button"
+                onClick={() => onSwitch('forgot-password')}
+                className="text-[11px] font-bold text-brand-indigo hover:underline"
+              >
+                {t('auth.forgot')}
+              </button>
+            </div>
+            <div className="relative group">
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-brand-indigo transition-colors" size={18} />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                required
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                className="input-field !pl-14 !pr-12 h-13 text-base"
+                placeholder="••••••••"
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bloom-gradient text-white font-bold py-3 md:py-5 rounded-2xl shadow-xl shadow-indigo-100 text-lg hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> {t('auth.loading')}</>
+            ) : (
+              t('auth.login')
+            )}
+          </button>
+        </form>
+      )}
+
+      {/* Sign up links — only on email step */}
+      {step === 'email' && (
+        <div className="mt-2 md:mt-4 pt-8 border-t border-slate-100 flex flex-col items-center gap-4">
+          <p className="text-sm text-slate-500">{t('auth.noAccount')}</p>
+          <div className="flex gap-4">
+            <button
+              onClick={() => onSwitch('signup-parent')}
+              className="text-xs font-bold text-brand-indigo bg-indigo-50 px-4 py-2 rounded-full hover:bg-brand-indigo hover:text-white transition-all capitalize"
+            >
+              {t('nav.signupParent')}
+            </button>
+            <button
+              onClick={() => onSwitch('signup-teacher')}
+              className="text-xs font-bold text-brand-purple bg-purple-50 px-4 py-2 rounded-full hover:bg-brand-purple hover:text-white transition-all capitalize"
+            >
+              {t('nav.signupTeacher')}
             </button>
           </div>
         </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bloom-gradient text-white font-bold py-3 md:py-5 rounded-2xl shadow-xl shadow-indigo-100 text-lg hover:scale-[1.01] active:scale-95 transition-all mt-4 disabled:opacity-50 flex items-center justify-center gap-2"
-        >
-          {loading ? (
-            <>
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              {t("auth.loading")}
-            </>
-          ) : (
-            t("auth.login")
-          )}
-        </button>
-      </form>
-
-      <div className="mt-2 md:mt-4 pt-8 border-t border-slate-100 flex flex-col items-center gap-4">
-        <p className="text-sm text-slate-500">{t("auth.noAccount")}</p>
-        <div className="flex gap-4">
-          <button
-            onClick={() => onSwitch("signup-parent")}
-            className="text-xs font-bold text-brand-indigo bg-indigo-50 px-4 py-2 rounded-full hover:bg-brand-indigo hover:text-white transition-all capitalize"
-          >
-            {t("nav.signupParent")}
-          </button>
-          <button
-            onClick={() => onSwitch("signup-teacher")}
-            className="text-xs font-bold text-brand-purple bg-purple-50 px-4 py-2 rounded-full hover:bg-brand-purple hover:text-white transition-all capitalize"
-          >
-            {t("nav.signupTeacher")}
-          </button>
-        </div>
-      </div>
+      )}
     </div>
   );
 };
