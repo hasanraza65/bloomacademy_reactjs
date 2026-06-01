@@ -10,12 +10,14 @@ import {
   User as UserIcon,
   Loader2,
   BookOpen,
+  Calendar,
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { UserRole, User, ClassroomData } from '@/src/types';
 import { useLanguage } from '../context/LanguageContext';
 import { LanguageSwitcher } from './LanguageSwitcher';
-import Logo from '../public/images/logo.png'
+import Logo from '../public/images/logo.png';
+import { CalendarView } from './CalendarView';
 
 interface DashboardProps {
   role: UserRole;
@@ -27,12 +29,18 @@ interface DashboardProps {
 
 export const Dashboard: React.FC<DashboardProps> = ({ role, user, myClasses, isLoading, onLogout }) => {
   const { t, language, setLanguage } = useLanguage();
+  const [activeTab, setActiveTab] = React.useState<'classes' | 'calendar'>('classes');
   const roleName = role === 3 ? t('nav.signupParent') : t('nav.signupTeacher');
 
 const myClassesLabel =
   language === 'en'
     ? t('dash.myClasses').replace(/\b\w/g, char => char.toUpperCase())
     : t('dash.myClasses');
+
+const calendarLabel =
+  language === 'en'
+    ? t('dash.calendar').replace(/\b\w/g, char => char.toUpperCase())
+    : t('dash.calendar');
 
   return (
     <div className="min-h-screen bg-brand-slate-bg flex">
@@ -46,7 +54,18 @@ const myClassesLabel =
 
 
             <nav className="space-y-2 flex-1">
-              <NavItem icon={GraduationCap} label={myClassesLabel} active={true} />
+              <NavItem 
+                icon={GraduationCap} 
+                label={myClassesLabel} 
+                active={activeTab === 'classes'} 
+                onClick={() => setActiveTab('classes')}
+              />
+              <NavItem 
+                icon={Calendar} 
+                label={calendarLabel} 
+                active={activeTab === 'calendar'} 
+                onClick={() => setActiveTab('calendar')}
+              />
             </nav>
 
         <button 
@@ -98,134 +117,133 @@ const myClassesLabel =
 
         {/* Dashboard Content */}
         <div className="p-4 md:p-8 max-w-6xl w-full mx-auto space-y-6 md:space-y-10">
-          {/* Classes Section */}
-          <section>
-             {isLoading ? (
-               <div className="flex flex-col items-center justify-center py-20 space-y-4">
-                  <div className="relative">
-                    <Loader2 size={48} className="text-brand-indigo animate-spin" />
-                    <div className="absolute inset-0 blur-xl bg-brand-indigo/20 animate-pulse rounded-full" />
+          {/* Mobile Tab Selector */}
+          <div className="lg:hidden flex bg-white p-1 rounded-2xl border border-slate-100 soft-shadow">
+            <button
+              onClick={() => setActiveTab('classes')}
+              className={cn(
+                "flex-1 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2",
+                activeTab === 'classes'
+                  ? "bg-indigo-50 text-brand-indigo shadow-sm"
+                  : "text-slate-400 hover:text-slate-600"
+              )}
+            >
+              <GraduationCap size={18} />
+              <span>{myClassesLabel}</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('calendar')}
+              className={cn(
+                "flex-1 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2",
+                activeTab === 'calendar'
+                  ? "bg-indigo-50 text-brand-indigo shadow-sm"
+                  : "text-slate-400 hover:text-slate-600"
+              )}
+            >
+              <Calendar size={18} />
+              <span>{calendarLabel}</span>
+            </button>
+          </div>
+
+          {activeTab === 'classes' ? (
+            <section>
+               {isLoading ? (
+                 <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                    <div className="relative">
+                      <Loader2 size={48} className="text-brand-indigo animate-spin" />
+                      <div className="absolute inset-0 blur-xl bg-brand-indigo/20 animate-pulse rounded-full" />
+                    </div>
+                    <p className="text-slate-400 font-bold animate-pulse tracking-wide uppercase text-xs">
+                      {t('dash.fetching')}
+                    </p>
+                 </div>
+               ) : myClasses.length > 0 ? (
+                 <div className="grid grid-cols-1 gap-8">
+                   {myClasses.map((classroom, idx) => (
+                     <motion.div 
+                       key={classroom.id}
+                       initial={{ opacity: 0, y: 20 }}
+                       animate={{ opacity: 1, y: 0 }}
+                       transition={{ delay: idx * 0.1 }}
+                       className="bloom-gradient rounded-xl p-6 text-white soft-shadow flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden group h-full"
+                     >
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 blur-[80px] rounded-full translate-x-1/3 -translate-y-1/2" />
+                        
+                        <div className="relative z-10 flex-1">
+                           <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+                              {role === 3 ? (
+                                classroom.teacher && (
+                                  <div className="flex items-center gap-3 opacity-90">
+                                     <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30">
+                                        <BookOpen size={20} />
+                                     </div>
+                                     <div className="text-left">
+                                         <p className="text-[12px] font-black uppercase tracking-widest leading-none mb-1 ">{t("class.child")}</p>
+                                        <p className="text-4xl font-bold uppercase leading-none transform -translate-x-.5">{classroom.child.child_name}</p>
+                                        <p className="text-[12px] font-black uppercase tracking-widest leading-none mb-1 mt-3">{t("class.teacher")}</p>
+                                        <p className="text-4xl font-bold uppercase leading-none transform -translate-x-.5">{classroom.teacher.firstName}</p>
+                                     </div>
+                                  </div>
+                                )
+                              ) : (
+                                classroom.child && (
+                                  <div className="flex items-center gap-3 opacity-90">
+                                     <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30">
+                                        <UserIcon size={20} />
+                                     </div>
+                                     <div className="text-left">
+                                        <p className="text-[12px] font-black uppercase tracking-widest leading-none mb-1">{t("class.student")}</p>
+                                        <p className="text-4xl font-bold uppercase leading-none transform -translate-x-.5">{classroom.child.child_name || "Assigned Student"}</p>
+                                     </div>
+                                  </div>
+                                )
+                              )}
+
+                              <Link 
+                                to={`/classroom/${classroom.channel_name}`}
+                                className="inline-flex bg-white text-brand-indigo px-6 py-3 rounded-lg font-extrabold text-lg items-center gap-3 hover:scale-105 active:scale-95 transition-all soft-shadow group/btn"
+                              >
+                                 <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-brand-indigo group-hover/btn:bg-brand-indigo group-hover/btn:text-white transition-colors">
+                                   <Play fill="currentColor" size={20} className="ml-1" />
+                                 </div>
+                                 {
+                                  language === 'en' ?
+                                  <span className="capitalize">{t('class.enterclass')}</span> :
+                                  <span>{t('class.enterclass')}</span>
+                                 }
+                              </Link>
+                           </div>
+                        </div>
+                     </motion.div>
+                   ))}
+                 </div>
+               ) : (
+                <div>
+                  <div className="flex items-center justify-center gap-2 my-4 text-md text-slate-600">
+                    {t('dash.noclassesavailable')}
                   </div>
-                  <p className="text-slate-400 font-bold animate-pulse tracking-wide uppercase text-xs">
-                    {t('dash.fetching')}
-                  </p>
-               </div>
-             ) : myClasses.length > 0 ? (
-               <div className="grid grid-cols-1 gap-8">
-                 {myClasses.map((classroom, idx) => (
-                   <motion.div 
-                     key={classroom.id}
-                     initial={{ opacity: 0, y: 20 }}
-                     animate={{ opacity: 1, y: 0 }}
-                     transition={{ delay: idx * 0.1 }}
-                     className="bloom-gradient rounded-xl p-6 text-white soft-shadow flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden group h-full"
-                   >
-                      <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 blur-[80px] rounded-full translate-x-1/3 -translate-y-1/2" />
-                      
-                      <div className="relative z-10 flex-1">
-                         {/* <div className="flex items-center gap-2 mb-4">
-                            <Sparkles size={20} className="text-amber-300" />
-                            <span className="text-sm font-bold uppercase tracking-widest opacity-80 font-mono">
-                              {role === 3 
-                                ? `${classroom.child?.child_name || 'Child'} • ${t('dash.currentSession')}`
-                                : `${classroom.child?.child_name || 'Student Session'} • ${t('dash.currentSession')}`
-                              }
-                            </span>
-                         </div> */}
-                         {/* <h2 className="text-3xl md:text-4xl font-extrabold mb-10 leading-tight">
-                           {t('dash.creativeWriting')}
-                         </h2> */}
-                         
-                         <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-                            {role === 3 ? (
-                              classroom.teacher && (
-                                <div className="flex items-center gap-3 opacity-90">
-                                   <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30">
-                                      <BookOpen size={20} />
-                                   </div>
-                                   <div className="text-left">
-
-                                       <p className="text-[12px] font-black uppercase tracking-widest leading-none mb-1 ">{t("class.child")}</p>
-                                      <p className="text-4xl font-bold uppercase leading-none transform -translate-x-.5">{classroom.child.child_name}</p>
-
-                                      <p className="text-[12px] font-black uppercase tracking-widest leading-none mb-1 mt-3">{t("class.teacher")}</p>
-                                      <p className="text-4xl font-bold uppercase leading-none transform -translate-x-.5">{classroom.teacher.firstName}</p>
-                                     
-                                   </div>
-                                </div>
-                              )
-                            ) : (
-                              classroom.child && (
-                                <div className="flex items-center gap-3 opacity-90">
-                                   <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30">
-                                      <UserIcon size={20} />
-                                   </div>
-                                   <div className="text-left">
-                                      <p className="text-[12px] font-black uppercase tracking-widest leading-none mb-1">{t("class.student")}</p>
-                                      <p className="text-4xl font-bold uppercase leading-none transform -translate-x-.5">{classroom.child.child_name || "Assigned Student"}</p>
-                                   </div>
-                                </div>
-                              )
-                            )}
-
-                            <Link 
-                              to={`/classroom/${classroom.channel_name}`}
-                              className="inline-flex bg-white text-brand-indigo px-6 py-3 rounded-lg font-extrabold text-lg items-center gap-3 hover:scale-105 active:scale-95 transition-all soft-shadow group/btn"
-                            >
-                               <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-brand-indigo group-hover/btn:bg-brand-indigo group-hover/btn:text-white transition-colors">
-                                 <Play fill="currentColor" size={20} className="ml-1" />
-                               </div>
-                               {
-                                language === 'en' ?
-                                <span className="capitalize">{t('class.enterclass')}</span> :
-                                <span>{t('class.enterclass')}</span>
-                               }
-                            </Link>
-                         </div>
-                      </div>
-                   </motion.div>
-                 ))}
-               </div>
-             ) : (
-              <div>
-                <div className="flex items-center justify-center gap-2 my-4 text-md text-slate-600">
-                  {t('dash.noclassesavailable')}
                 </div>
-              </div>
-              //  <div className="bloom-gradient rounded-[2.5rem] p-10 text-white soft-shadow flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden group">
-              //     <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 blur-[80px] rounded-full translate-x-1/3 -translate-y-1/2" />
-              //     <div className="relative z-10 flex-1">
-              //        <div className="flex items-center gap-2 mb-4">
-              //           <Sparkles size={20} className="text-amber-300" />
-              //           <span className="text-sm font-bold uppercase tracking-widest opacity-80 font-mono">{t('dash.currentSession')}</span>
-              //        </div>
-              //        <h2 className="text-4xl md:text-5xl font-extrabold mb-10 leading-tight">{t('dash.creativeWriting')}</h2>
-              //        <Link 
-              //          to={role === 3 ? "/classroom/demo" : `/classroom/${user.teacher?.channel_name || 'demo'}`}
-              //          className="inline-flex bg-white text-brand-indigo px-10 py-5 rounded-2xl font-extrabold text-lg items-center gap-3 hover:scale-105 active:scale-95 transition-all soft-shadow group/btn"
-              //        >
-              //           <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-brand-indigo group-hover/btn:bg-brand-indigo group-hover/btn:text-white transition-colors">
-              //             <Play fill="currentColor" size={20} className="ml-1" />
-              //           </div>
-              //           {role === 3 ? t('dash.joinClass') : t('class.manageClass')}
-              //        </Link>
-              //     </div>
-              //  </div>
-             )}
-          </section>
+               )}
+            </section>
+          ) : (
+            <CalendarView />
+          )}
         </div>
       </main>
     </div>
   );
 };
 
-const NavItem = ({ icon: Icon, label, active = false }: { icon: any, label: string, active?: boolean }) => (
-  <button className={cn(
-    "w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl font-bold transition-all group",
-    active 
-      ? "bg-indigo-50 text-brand-indigo" 
-      : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
-  )}>
+const NavItem = ({ icon: Icon, label, active = false, onClick }: { icon: any, label: string, active?: boolean, onClick?: () => void }) => (
+  <button 
+    onClick={onClick}
+    className={cn(
+      "w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl font-bold transition-all group",
+      active 
+        ? "bg-indigo-50 text-brand-indigo" 
+        : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+    )}
+  >
     <Icon size={20} className={cn("transition-transform group-hover:scale-110", active ? "text-brand-indigo" : "text-slate-400")} />
     <span>{label}</span>
   </button>
