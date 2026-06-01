@@ -444,13 +444,13 @@ export const CalendarView: React.FC = () => {
       {/* Calendar Grid Container */}
       <div 
         ref={scrollContainerRef}
-        className="overflow-auto max-h-[580px] border border-slate-100 rounded-[24px] bg-white soft-shadow custom-scrollbar relative"
+        className="overflow-auto h-[calc(100vh-250px)] lg:h-[calc(100vh-230px)] min-h-[600px] border border-slate-100 rounded-[24px] bg-white soft-shadow custom-scrollbar relative w-full"
       >
         <div className="flex flex-col min-w-max">
           {/* Header Row (Top Axis) */}
           <div className="flex sticky top-0 z-20 bg-slate-50 border-b border-slate-100">
             {/* Corner Time Header */}
-            <div className="sticky left-0 bg-slate-50 border-r border-slate-100 z-30 w-32 h-16 shrink-0 flex items-center justify-center font-black text-[10px] text-slate-400 uppercase tracking-widest">
+            <div className="sticky left-0 bg-slate-50 border-r border-slate-100 z-30 w-36 h-16 shrink-0 flex items-center justify-center font-black text-[10px] text-slate-400 uppercase tracking-widest">
               {language === 'fr' ? 'Heure' : 'Time'}
             </div>
             
@@ -462,7 +462,7 @@ export const CalendarView: React.FC = () => {
                   <div 
                     key={key}
                     className={cn(
-                      "w-[240px] h-16 shrink-0 flex flex-col justify-center px-5 relative",
+                      "w-[280px] h-16 shrink-0 flex flex-col justify-center px-5 relative",
                       isToday ? "bg-indigo-50/20" : ""
                     )}
                   >
@@ -489,7 +489,7 @@ export const CalendarView: React.FC = () => {
               return (
                 <div key={range} className="flex divide-x divide-slate-100">
                   {/* Time Axis Cell (Sticky Left) */}
-                  <div className="sticky left-0 bg-white border-r border-slate-100 z-10 w-32 h-[155px] shrink-0 flex flex-col justify-center items-center text-center">
+                  <div className="sticky left-0 bg-white border-r border-slate-100 z-10 w-36 h-[155px] shrink-0 flex flex-col justify-center items-center text-center">
                     <span className="text-xs font-black text-slate-700">{range.split(' - ')[0]}</span>
                     <span className="text-[10px] font-bold text-slate-400 my-0.5">{language === 'fr' ? 'à' : 'to'}</span>
                     <span className="text-xs font-black text-slate-700">{range.split(' - ')[1]}</span>
@@ -512,7 +512,7 @@ export const CalendarView: React.FC = () => {
                     const isAvailable = displaySlot && displaySlot.status === 'available';
 
                     return (
-                      <div key={`${key}-${range}`} className="w-[240px] h-[155px] p-2 shrink-0 flex items-stretch">
+                      <div key={`${key}-${range}`} className="w-[280px] h-[155px] p-2 shrink-0 flex items-stretch">
                         {displaySlot ? (
                           isAvailable ? (
                             <div

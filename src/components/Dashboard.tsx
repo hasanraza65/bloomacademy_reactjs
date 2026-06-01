@@ -116,7 +116,10 @@ const calendarLabel =
         </header>
 
         {/* Dashboard Content */}
-        <div className="p-4 md:p-8 max-w-6xl w-full mx-auto space-y-6 md:space-y-10">
+        <div className={cn(
+          "p-4 md:p-8 w-full mx-auto space-y-6 md:space-y-10 transition-all duration-300",
+          activeTab === 'calendar' ? "max-w-none px-4 md:px-8 lg:px-12" : "max-w-6xl"
+        )}>
           {/* Mobile Tab Selector */}
           <div className="lg:hidden flex bg-white p-1 rounded-2xl border border-slate-100 soft-shadow">
             <button
