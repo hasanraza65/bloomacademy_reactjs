@@ -424,7 +424,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 // --- Login View ---
 // Replace the entire LoginView component with this:
 
-type LoginStep = 'email' | 'otp' | 'password';
+type LoginStep = 'email' | 'otp';
 
 const LoginView = ({
   onSwitch,
@@ -433,14 +433,15 @@ const LoginView = ({
 }: {
   onSwitch: (m: AuthMode) => void;
   onComplete: (role: UserRole, user: UserType) => void;
-  redirectAfterLogin?: string | null; // 👈 added
+  redirectAfterLogin?: string | null;
 }) => {
   const [step, setStep] = useState<LoginStep>('email');
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']); // 6 digits
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loadingType, setLoadingType] = useState<'none' | 'password' | 'otp'>('none');
+  const loading = loadingType !== 'none';
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [resendTimer, setResendTimer] = useState(0);
@@ -459,30 +460,29 @@ const LoginView = ({
     }, 1000);
   };
 
-  // Step 1: Email submitted — detect if parent or not
-  const handleEmailSubmit = async (e: React.FormEvent) => {
+  // OTP Login button clicked on the email screen
+  const handleOtpLoginClick = async (e: React.MouseEvent) => {
     e.preventDefault();
-    setLoading(true);
+    if (!email.trim()) {
+      setError('Please enter your email address first.');
+      return;
+    }
+    setLoadingType('otp');
     setError(null);
     try {
-      // Try to send OTP — if success they're a parent, if "Parent not found" they're not
       const response = await apiService.sendOtp(email);
       if (response.success) {
-        // Is a parent — go to OTP step
         setStep('otp');
         startResendTimer();
         setSuccess('OTP sent to your email');
         setTimeout(() => setSuccess(null), 3000);
-      } else if (response.message === 'Parent not found') {
-        // Not a parent — go to password step
-        setStep('password');
       } else {
         setError(response.message || 'Something went wrong');
       }
     } catch {
       setError(t('auth.errorUnexpected'));
     } finally {
-      setLoading(false);
+      setLoadingType('none');
     }
   };
 
@@ -512,41 +512,41 @@ const LoginView = ({
     otpRefs.current[Math.min(pasted.length, 5)]?.focus();
   };
 
-  // Step 2a: Verify OTP
+  // Verify OTP
   const handleOtpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const otpString = otp.join('');
     if (otpString.length < 6) { setError('Please enter the complete 6-digit OTP'); return; }
-    setLoading(true);
+    setLoadingType('otp');
     setError(null);
     try {
       const response = await apiService.verifyOtp(email, otpString);
       if (response.success && response.user) {
         if (response.token) localStorage.setItem('auth_token', response.token);
-        localStorage.setItem('auth_user', JSON.stringify(response.user)); // 👈 add this line
+        localStorage.setItem('auth_user', JSON.stringify(response.user));
         setSuccess('Login successful! Welcome back 🎉');
         setTimeout(() => {
-        if (redirectAfterLogin) {
-          window.location.href = redirectAfterLogin; // 👈 use prop
-        } else {
-          // @ts-ignore
-          onComplete(response.user.role, response.user);
-        }
-      }, 1200);
+          if (redirectAfterLogin) {
+            window.location.href = redirectAfterLogin;
+          } else {
+            // @ts-ignore
+            onComplete(response.user.role, response.user);
+          }
+        }, 1200);
       } else {
         setError(response.message || 'Invalid OTP');
       }
     } catch {
       setError(t('auth.errorUnexpected'));
     } finally {
-      setLoading(false);
+      setLoadingType('none');
     }
   };
 
   // Resend OTP
   const handleResendOtp = async () => {
     if (resendTimer > 0) return;
-    setLoading(true);
+    setLoadingType('otp');
     try {
       const response = await apiService.sendOtp(email);
       if (response.success) {
@@ -560,23 +560,28 @@ const LoginView = ({
     } catch {
       setError(t('auth.errorUnexpected'));
     } finally {
-      setLoading(false);
+      setLoadingType('none');
     }
   };
 
-  // Step 2b: Password login (teachers/admins)
+  // Password login
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    if (!email.trim() || !password) {
+      setError('Please fill in both email and password.');
+      return;
+    }
+    setLoadingType('password');
     setError(null);
     try {
       const response = await apiService.login({ email, password });
       if (response.success && response.user) {
         if (response.token) localStorage.setItem('auth_token', response.token);
+        localStorage.setItem('auth_user', JSON.stringify(response.user));
         setSuccess(response.message || t('auth.loginSuccess'));
         setTimeout(() => {
           if (redirectAfterLogin) {
-            window.location.href = redirectAfterLogin; // 👈 use prop
+            window.location.href = redirectAfterLogin;
           } else {
             // @ts-ignore
             onComplete(response.user.role, response.user);
@@ -588,7 +593,7 @@ const LoginView = ({
     } catch {
       setError(t('auth.errorUnexpected'));
     } finally {
-      setLoading(false);
+      setLoadingType('none');
     }
   };
 
@@ -622,9 +627,9 @@ const LoginView = ({
         </div>
       )}
 
-      {/* ── STEP 1: EMAIL ── */}
+      {/* ── STEP 1: EMAIL & PASSWORD ── */}
       {step === 'email' && (
-        <form className="space-y-6" onSubmit={handleEmailSubmit}>
+        <form className="space-y-6" onSubmit={handlePasswordSubmit}>
           <FormInput
             label={t('auth.email')}
             icon={Mail}
@@ -635,21 +640,69 @@ const LoginView = ({
             onChange={(e) => setEmail(e.target.value)}
             placeholder="name@example.com"
           />
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bloom-gradient text-white font-bold py-3 md:py-5 rounded-2xl shadow-xl shadow-indigo-100 text-lg hover:scale-[1.01] active:scale-95 transition-all mt-4 disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {loading ? (
-              <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Checking...</>
-            ) : (
-              <>Continue <ArrowRight size={18} /></>
-            )}
-          </button>
+
+          <div className="space-y-2">
+            <div className="flex justify-between items-center px-1">
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                {t('auth.password')}
+              </label>
+              <button
+                type="button"
+                onClick={() => onSwitch('forgot-password')}
+                className="text-[11px] font-bold text-brand-indigo hover:underline"
+              >
+                {t('auth.forgot')}
+              </button>
+            </div>
+            <div className="relative group">
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-brand-indigo transition-colors" size={18} />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                className="input-field !pl-14 !pr-12 h-13 text-base"
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-4 pt-2">
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bloom-gradient text-white font-bold py-3 md:py-5 rounded-2xl shadow-xl shadow-indigo-100 text-lg hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {loadingType === 'password' ? (
+                <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> {t('auth.loading')}</>
+              ) : (
+                <>{t('auth.loginWithPassword')} <ArrowRight size={18} /></>
+              )}
+            </button>
+
+            <button
+              type="button"
+              disabled={loading}
+              onClick={(e) => handleOtpLoginClick(e)}
+              className="w-full border-2 border-slate-200 text-slate-700 font-bold py-3 md:py-5 rounded-2xl text-lg hover:bg-slate-50 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {loadingType === 'otp' ? (
+                <><div className="w-5 h-5 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" /> {t('auth.loading')}</>
+              ) : (
+                <>{t('auth.loginWithOtp')} <Sparkles size={18} className="text-brand-purple" /></>
+              )}
+            </button>
+          </div>
         </form>
       )}
 
-      {/* ── STEP 2a: OTP ── */}
+      {/* ── STEP 2: OTP ── */}
       {step === 'otp' && (
         <form className="space-y-6" onSubmit={handleOtpSubmit}>
           <div className="space-y-2">
@@ -661,7 +714,7 @@ const LoginView = ({
               {otp.map((digit, i) => (
                 <input
                   key={i}
-                  ref={el => otpRefs.current[i] = el}
+                  ref={el => { otpRefs.current[i] = el; }}
                   type="text"
                   inputMode="numeric"
                   maxLength={1}
@@ -689,7 +742,7 @@ const LoginView = ({
             disabled={loading}
             className="w-full bloom-gradient text-white font-bold py-3 md:py-5 rounded-2xl shadow-xl shadow-indigo-100 text-lg hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {loading ? (
+            {loadingType === 'otp' ? (
               <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Verifying...</>
             ) : (
               <>Verify OTP <Sparkles size={18} /></>
@@ -700,7 +753,7 @@ const LoginView = ({
           <div className="flex flex-col items-center gap-3 pt-2">
             <button
               type="button"
-              onClick={() => { setStep('password'); setError(null); }}
+              onClick={() => { setStep('email'); setError(null); }}
               className="text-xs font-bold text-slate-500 hover:text-brand-indigo transition-colors flex items-center gap-1"
             >
               <Lock size={13} /> Login with Password instead
@@ -713,70 +766,6 @@ const LoginView = ({
               <ArrowLeft size={13} /> Change email
             </button>
           </div>
-        </form>
-      )}
-
-      {/* ── STEP 2b: PASSWORD ── */}
-      {step === 'password' && (
-        <form className="space-y-6" onSubmit={handlePasswordSubmit}>
-          {/* Email shown as read-only chip */}
-          <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3">
-            <Mail size={16} className="text-slate-400 shrink-0" />
-            <span className="text-sm text-slate-600 font-medium flex-1 truncate">{email}</span>
-            <button
-              type="button"
-              onClick={() => { setStep('email'); setError(null); }}
-              className="text-[11px] font-bold text-brand-indigo hover:underline shrink-0"
-            >
-              Change
-            </button>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex justify-between items-center px-1">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                {t('auth.password')}
-              </label>
-              <button
-                type="button"
-                onClick={() => onSwitch('forgot-password')}
-                className="text-[11px] font-bold text-brand-indigo hover:underline"
-              >
-                {t('auth.forgot')}
-              </button>
-            </div>
-            <div className="relative group">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-brand-indigo transition-colors" size={18} />
-              <input
-                type={showPassword ? 'text' : 'password'}
-                required
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="input-field !pl-14 !pr-12 h-13 text-base"
-                placeholder="••••••••"
-                autoFocus
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bloom-gradient text-white font-bold py-3 md:py-5 rounded-2xl shadow-xl shadow-indigo-100 text-lg hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {loading ? (
-              <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> {t('auth.loading')}</>
-            ) : (
-              t('auth.login')
-            )}
-          </button>
         </form>
       )}
 

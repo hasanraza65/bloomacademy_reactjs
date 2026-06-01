@@ -11,7 +11,7 @@ import AgoraRTC, {
 AgoraRTC.setLogLevel(4);
 
 import { Sparkles, Loader2, AlertCircle, Mic, MicOff, Video, VideoOff, Monitor, MonitorPlay, Pencil, BookOpen, X, RefreshCw, Star } from 'lucide-react';
-import { ClassroomConnection, AgoraParticipant, User } from '@/src/types';
+import { ClassroomConnection, AgoraParticipant, User, AuthMode } from '@/src/types';
 import { apiService } from '@/src/services/apiService';
 import { BASE_URL, SITE_ROOT, getFileUrl } from '@/src/lib/config';
 import { VideoTile } from './VideoTile';
@@ -28,13 +28,22 @@ import { MessageSquare } from 'lucide-react';
 import { useLanguage } from '@/src/context/LanguageContext';
 
 interface ClassroomProps {
-  user: User;
+  user: User | null;
+  isLoggedIn?: boolean;
+  openAuth?: (mode: AuthMode) => void;
   onExit: () => void;
 }
 
 export type ClassroomMode = 'whiteboard' | 'pdf' | 'none';
 
-export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
+export const Classroom: React.FC<ClassroomProps> = ({ user: propUser, isLoggedIn, openAuth, onExit }) => {
+  const user = propUser || {
+    id: 0,
+    firstName: 'Guest',
+    lastName: '',
+    role: 3,
+    email: '',
+  };
   const { t, language, setLanguage } = useLanguage();
   const location = useLocation();
   const { channelName } = useParams<{ channelName: string }>();
@@ -730,6 +739,14 @@ export const Classroom: React.FC<ClassroomProps> = ({ user, onExit }) => {
   }, [isInClass, user.role, showWhiteboard, setupWhiteboard]);
 
   const handleJoinClass = async () => {
+    if (!isLoggedIn || !propUser) {
+      if (openAuth) {
+        openAuth('login');
+      } else {
+        setError("Please login to enter the classroom.");
+      }
+      return;
+    }
     setIsLoading(true);
     setError(null);
 

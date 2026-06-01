@@ -203,16 +203,16 @@ export default function App() {
         <Route 
           path="/classroom/:channelName" 
           element={
-            isLoggedIn && user ? (
-              <Classroom user={user} onExit={() => {
+            <Classroom 
+              user={user} 
+              isLoggedIn={isLoggedIn}
+              openAuth={openAuth}
+              onExit={() => {
                 let oldLang = window.localStorage.getItem('language');
                 if(oldLang === 'fr') setLanguage('fr');
                 window.location.href = '/dashboard';
-              }} />
-            ) : (
-              // Change this line - pass the intended URL so modal can redirect after login
-              <Navigate to="/" state={{ openAuth: true, redirectTo: window.location.pathname }} replace />
-            )
+              }} 
+            />
           } 
         />
         <Route 

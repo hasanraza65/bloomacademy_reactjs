@@ -211,6 +211,8 @@ const translations: Record<Language, Record<string, string>> = {
     'auth.failedReset': 'Échec de la réinitialisation du mot de passe',
     'auth.newSecurePassword': 'Créez un nouveau mot de passe',
     'auth.continue': 'Continuer',
+    'auth.loginWithPassword': 'Se connecter avec mot de passe',
+    'auth.loginWithOtp': 'Se connecter avec OTP',
 
     // Classroom
     'class.cameraOff': 'Caméra désactivée',
@@ -571,6 +573,8 @@ const translations: Record<Language, Record<string, string>> = {
     'auth.passwordMatch': 'Passwords do not match',
     'auth.failedReset': 'Failed to reset password',
     'auth.newSecurePassword': 'Create a new password',
+    'auth.loginWithPassword': 'Login with Password',
+    'auth.loginWithOtp': 'Login with OTP',
 
 
     // Classroom
