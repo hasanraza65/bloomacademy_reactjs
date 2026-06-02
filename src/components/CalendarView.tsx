@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   ChevronLeft, 
@@ -11,11 +12,13 @@ import {
   Filter,
   Search,
   Sparkles,
-  Info
+  Info,
+  Loader2
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { cn } from '@/src/lib/utils';
 import { User } from '@/src/types';
+import { apiService } from '../services/apiService';
 
 interface TimeSlot {
   id: string;
@@ -25,86 +28,10 @@ interface TimeSlot {
   teacher?: string;
   student?: string;
   status: 'booked' | 'available';
-  color: 'indigo' | 'emerald' | 'orange' | 'rose' | 'purple' | 'slate';
+  color: 'indigo' | 'emerald' | 'orange' | 'rose' | 'purple' | 'slate' | 'amber';
   students?: string;
+  channelName?: string;
 }
-
-const generateSlotsForDate = (date: Date): TimeSlot[] => {
-  const day = date.getDay(); // 0 = Sunday, 6 = Saturday
-  
-  if (day === 0) {
-    // Sunday - fewer slots
-    return [
-      {
-        id: `slot-${date.getTime()}-1`,
-        timeStart: '10:00',
-        timeEnd: '11:00',
-        title: 'Special Reading Session',
-        teacher: 'Emma Robert',
-        student: 'Liam Smith',
-        status: 'booked',
-        color: 'purple',
-        students: '4/5 Students'
-      }
-    ];
-  }
-
-  const baseSlots: TimeSlot[] = [
-    {
-      id: `slot-${date.getTime()}-1`,
-      timeStart: '09:00',
-      timeEnd: '10:00',
-      title: 'Creative Writing Class',
-      teacher: 'Sarah Connor',
-      student: 'Emma Watson',
-      status: 'booked',
-      color: 'indigo',
-      students: '5/5 Students'
-    },
-    {
-      id: `slot-${date.getTime()}-3`,
-      timeStart: '10:00',
-      timeEnd: '11:00',
-      title: 'Interactive English',
-      teacher: 'David Miller',
-      student: 'Lucas Brown',
-      status: 'booked',
-      color: 'emerald',
-      students: '3/5 Students'
-    },
-    {
-      id: `slot-${date.getTime()}-5`,
-      timeStart: '12:00',
-      timeEnd: '13:00',
-      title: 'Public Speaking',
-      teacher: 'Sophia Loren',
-      student: 'Olivia Jones',
-      status: 'booked',
-      color: 'orange',
-      students: '2/5 Students'
-    },
-    {
-      id: `slot-${date.getTime()}-6`,
-      timeStart: '14:00',
-      timeEnd: '15:00',
-      title: 'Maths Wizards',
-      teacher: 'James Bond',
-      student: 'Ethan Hunt',
-      status: 'booked',
-      color: 'rose',
-      students: '5/5 Students'
-    }
-  ];
-
-  // Vary items dynamically so every day doesn't look identical
-  const dayOfMonth = date.getDate();
-  if (dayOfMonth % 3 === 0) {
-    return baseSlots.filter((_, i) => i !== 1 && i !== 3);
-  } else if (dayOfMonth % 3 === 1) {
-    return baseSlots.filter((_, i) => i !== 0 && i !== 2);
-  }
-  return baseSlots;
-};
 
 const getColorClasses = (color: string) => {
   switch (color) {
@@ -143,6 +70,13 @@ const getColorClasses = (color: string) => {
         sub: 'text-purple-600',
         badge: 'bg-purple-100/70 text-purple-700'
       };
+    case 'amber':
+      return {
+        bg: 'bg-amber-50/70 border-amber-100/50 hover:bg-amber-50/90',
+        text: 'text-amber-950',
+        sub: 'text-amber-600',
+        badge: 'bg-amber-100/70 text-amber-700'
+      };
     default:
       return {
         bg: 'bg-slate-50/70 border-slate-100/50 hover:bg-slate-50/90',
@@ -159,15 +93,10 @@ interface CalendarViewProps {
 
 export const CalendarView: React.FC<CalendarViewProps> = ({ user }) => {
   const { t, language } = useLanguage();
+  const navigate = useNavigate();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
-  useEffect(() => {
-    if (scrollContainerRef.current) {
-      // Auto-scroll to 09:00 (index 9 * 155px per row)
-      scrollContainerRef.current.scrollTop = 9 * 155;
-    }
-  }, []);
-  
+
   const timeRanges = useMemo(() => {
     return Array.from({ length: 24 }, (_, i) => {
       const startHour = i.toString().padStart(2, '0');
@@ -182,26 +111,179 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ user }) => {
   const [bookingSlot, setBookingSlot] = useState<{ dateKey: string; slot: TimeSlot } | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Generate 30 days starting from today
+  const today = useMemo(() => new Date(), []);
+  const [selectedMonth, setSelectedMonth] = useState<number>(today.getMonth() + 1); // 1-12
+  const [selectedYear, setSelectedYear] = useState<number>(today.getFullYear());
+  const [hasSelected, setHasSelected] = useState<boolean>(false);
+
+  // Generate days for the selected month of the selected year
   const dates = useMemo(() => {
     const list: Date[] = [];
-    const today = new Date();
-    for (let i = 0; i < 30; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() + i);
-      list.push(d);
+    const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+    for (let i = 1; i <= daysInMonth; i++) {
+      list.push(new Date(selectedYear, selectedMonth - 1, i));
     }
     return list;
-  }, []);
+  }, [selectedMonth, selectedYear]);
 
-  // Initialize slots
-  const [slotsState, setSlotsState] = useState<{ [dateKey: string]: TimeSlot[] }>(() => {
-    const initial: { [dateKey: string]: TimeSlot[] } = {};
-    dates.forEach(d => {
-      initial[d.toDateString()] = generateSlotsForDate(d);
-    });
-    return initial;
-  });
+  const getLocalDateString = (date: Date): string => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  const getDeterministicColor = (id: number | string): 'indigo' | 'amber' | 'emerald' | 'rose' | 'purple' | 'slate' => {
+    const colors: ('indigo' | 'amber' | 'emerald' | 'rose' | 'purple' | 'slate')[] = [
+      'indigo',
+      'amber',
+      'emerald',
+      'rose',
+      'purple',
+      'slate'
+    ];
+    const numId = typeof id === 'number' ? id : parseInt(id, 10) || 0;
+    return colors[numId % colors.length];
+  };
+
+  const getSlotTiming = (slot: TimeSlot) => {
+    if (!slot.timeStart || !slot.timeEnd) return 'full';
+    const startMin = parseInt(slot.timeStart.split(':')[1], 10) || 0;
+    const endMin = parseInt(slot.timeEnd.split(':')[1], 10) || 0;
+    const startHour = parseInt(slot.timeStart.split(':')[0], 10) || 0;
+    const endHour = parseInt(slot.timeEnd.split(':')[0], 10) || 0;
+
+    const durationMinutes = (endHour * 60 + endMin) - (startHour * 60 + startMin);
+    if (durationMinutes <= 30) {
+      if (startMin < 15) {
+        return 'first-half';
+      } else {
+        return 'second-half';
+      }
+    }
+    return 'full';
+  };
+
+  // Initialize slots state and loading state
+  const [slotsState, setSlotsState] = useState<{ [dateKey: string]: TimeSlot[] }>({});
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!isLoading && scrollContainerRef.current) {
+      let earliestDateIndex = -1;
+      let earliestHour = 24;
+
+      // Loop through dates chronologically to find the first booked class
+      for (let i = 0; i < dates.length; i++) {
+        const dateKey = getLocalDateString(dates[i]);
+        const slots = slotsState[dateKey] || [];
+        const bookedSlots = slots.filter(slot => slot.status === 'booked' && slot.timeStart);
+        if (bookedSlots.length > 0) {
+          earliestDateIndex = i;
+          
+          let minHour = 24;
+          bookedSlots.forEach(slot => {
+            const hour = parseInt(slot.timeStart.split(':')[0], 10);
+            if (!isNaN(hour) && hour < minHour) {
+              minHour = hour;
+            }
+          });
+          earliestHour = minHour < 24 ? minHour : 9;
+          break;
+        }
+      }
+
+      // Scroll to earliest booked class if found, otherwise default to 09:00 (index 9)
+      const targetHour = earliestHour < 24 ? earliestHour : 9;
+      scrollContainerRef.current.scrollTop = targetHour * 155;
+
+      // Scroll horizontally to the earliest class date
+      if (earliestDateIndex !== -1) {
+        scrollContainerRef.current.scrollLeft = earliestDateIndex * 280;
+      } else {
+        scrollContainerRef.current.scrollLeft = 0;
+      }
+    }
+  }, [isLoading, slotsState, dates]);
+
+  // Fetch calendar data for all months covered by `dates`
+  useEffect(() => {
+    let active = true;
+    const fetchCalendarData = async () => {
+      setIsLoading(true);
+      try {
+        let results;
+        if (!hasSelected) {
+          // Default load: fetch calendar without parameters
+          results = [await apiService.getCalendar()];
+        } else {
+          // Custom select load: fetch calendar with month and year
+          const uniqueMonths = new Map<string, { month: number; year: number }>();
+          dates.forEach(d => {
+            const m = d.getMonth() + 1;
+            const y = d.getFullYear();
+            const key = `${y}-${m}`;
+            if (!uniqueMonths.has(key)) {
+              uniqueMonths.set(key, { month: m, year: y });
+            }
+          });
+
+          const fetchPromises = Array.from(uniqueMonths.values()).map(({ month, year }) =>
+            apiService.getCalendar(month, year)
+          );
+
+          results = await Promise.all(fetchPromises);
+        }
+        
+        if (!active) return;
+
+        const mergedSlots: { [dateKey: string]: TimeSlot[] } = {};
+
+        results.forEach(res => {
+          if (res && res.status && res.data) {
+            const dataObj = res.data;
+            Object.keys(dataObj).forEach(dateStr => {
+              const apiSlots = dataObj[dateStr];
+              if (Array.isArray(apiSlots)) {
+                mergedSlots[dateStr] = apiSlots.map((item: any, idx: number) => {
+                  const studentId = item.child?.id || item.classroom_id || item.pair_id || idx;
+                  const color = getDeterministicColor(studentId);
+                  const teacherName = item.teacher
+                    ? `${item.teacher.firstName || ''} ${item.teacher.lastName || ''}`.trim()
+                    : '';
+                  
+                  return {
+                    id: String(item.slot_id || `${item.pair_id || item.classroom_id}-${idx}`),
+                    timeStart: (item.start_time || '').substring(0, 5),
+                    timeEnd: (item.end_time || '').substring(0, 5),
+                    title: language === 'fr' ? 'Cours en direct' : 'Live Class',
+                    teacher: teacherName,
+                    student: item.child?.child_name || '',
+                    status: 'booked' as const,
+                    color,
+                    channelName: item.channel_name
+                  };
+                });
+              }
+            });
+          }
+        });
+
+        setSlotsState(mergedSlots);
+      } catch (error) {
+        console.error('Error fetching calendar data:', error);
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchCalendarData();
+    return () => {
+      active = false;
+    };
+  }, [dates, language, hasSelected]);
 
   // Handle horizontal scrolling
   const scroll = (direction: 'left' | 'right') => {
@@ -242,7 +324,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ user }) => {
     const { dateKey, slot } = bookingSlot;
     
     setSlotsState(prev => {
-      const updatedSlots = prev[dateKey].map(s => {
+      const updatedSlots = (prev[dateKey] || []).map(s => {
         if (s.id === slot.id) {
           return {
             ...s,
@@ -383,27 +465,46 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ user }) => {
             />
           </div>
 
-          {/* Filter Pill Tabs */}
-          <div className="flex bg-slate-100 p-1 rounded-xl">
-            {(['all', 'booked', 'available'] as const).map((filter) => (
-              <button
-                key={filter}
-                onClick={() => setStatusFilter(filter)}
-                className={cn(
-                  "px-3 py-1.5 rounded-lg text-xs font-black transition-all capitalize",
-                  statusFilter === filter
-                    ? "bg-white text-brand-indigo shadow-sm"
-                    : "text-slate-500 hover:text-slate-800"
-                )}
-              >
-                {filter === 'all' 
-                  ? (language === 'fr' ? 'Tout' : 'All')
-                  : filter === 'booked'
-                    ? (language === 'fr' ? 'Réservé' : 'Booked')
-                    : (language === 'fr' ? 'Disponible' : 'Available')
-                }
-              </button>
-            ))}
+          {/* Month & Year Pickers */}
+          <div className="flex items-center gap-2">
+            <select
+              value={selectedMonth}
+              onChange={(e) => {
+                setSelectedMonth(Number(e.target.value));
+                setHasSelected(true);
+              }}
+              className="bg-slate-50 border border-slate-200 focus:border-brand-indigo focus:bg-white rounded-xl px-3 py-2 text-sm font-extrabold text-slate-700 outline-none transition-all cursor-pointer"
+            >
+              {Array.from({ length: 12 }, (_, i) => {
+                const monthNum = i + 1;
+                const tempDate = new Date(2000, i, 1);
+                const locale = language === 'fr' ? 'fr-FR' : 'en-US';
+                const monthName = tempDate.toLocaleDateString(locale, { month: 'long' });
+                return (
+                  <option key={monthNum} value={monthNum} className="font-semibold text-slate-700">
+                    {monthName.charAt(0).toUpperCase() + monthName.slice(1)}
+                  </option>
+                );
+              })}
+            </select>
+
+            <select
+              value={selectedYear}
+              onChange={(e) => {
+                setSelectedYear(Number(e.target.value));
+                setHasSelected(true);
+              }}
+              className="bg-slate-50 border border-slate-200 focus:border-brand-indigo focus:bg-white rounded-xl px-3 py-2 text-sm font-extrabold text-slate-700 outline-none transition-all cursor-pointer"
+            >
+              {Array.from({ length: 6 }, (_, i) => {
+                const yearNum = 2025 + i;
+                return (
+                  <option key={yearNum} value={yearNum} className="font-semibold text-slate-700">
+                    {yearNum}
+                  </option>
+                );
+              })}
+            </select>
           </div>
 
           {/* Scroll Nav buttons */}
@@ -431,6 +532,16 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ user }) => {
         ref={scrollContainerRef}
         className="overflow-auto h-[calc(100vh-250px)] lg:h-[calc(100vh-230px)] min-h-[600px] border border-slate-100 rounded-[24px] bg-white soft-shadow custom-scrollbar relative w-full"
       >
+        {/* Loading Overlay */}
+        {isLoading && (
+          <div className="absolute inset-0 bg-white/70 backdrop-blur-xs flex flex-col items-center justify-center z-40 rounded-[24px]">
+            <Loader2 size={40} className="text-brand-indigo animate-spin mb-2" />
+            <p className="text-sm font-bold text-slate-500">
+              {language === 'fr' ? 'Chargement du calendrier...' : 'Loading calendar...'}
+            </p>
+          </div>
+        )}
+
         <div className="flex flex-col min-w-max">
           {/* Header Row (Top Axis) */}
           <div className="flex sticky top-0 z-20 bg-slate-50 border-b border-slate-100">
@@ -482,79 +593,166 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ user }) => {
 
                   {/* Date Grid Cells */}
                   {dates.map((date) => {
-                    const key = date.toDateString();
+                    const key = getLocalDateString(date);
                     const daySlots = slotsState[key] || [];
-                    const slot = daySlots.find(s => `${s.timeStart} - ${s.timeEnd}` === range);
+                    const startHour = range.split(' - ')[0].split(':')[0]; // e.g. "09"
                     
-                    // Apply filters locally per cell to hide if filtered
-                    const isFiltered = slot && (
-                      (statusFilter !== 'all' && slot.status !== statusFilter) ||
-                      (searchQuery && !slot.title.toLowerCase().includes(searchQuery.toLowerCase()) && 
-                       !(slot.teacher && slot.teacher.toLowerCase().includes(searchQuery.toLowerCase())))
-                    );
+                    const matchingSlots = daySlots.filter(s => (s.timeStart || '').startsWith(startHour));
+                    const displaySlots = matchingSlots.filter(slot => {
+                      const isFiltered = (
+                        (statusFilter !== 'all' && slot.status !== statusFilter) ||
+                        (searchQuery && !slot.title.toLowerCase().includes(searchQuery.toLowerCase()) && 
+                         !(slot.teacher && slot.teacher.toLowerCase().includes(searchQuery.toLowerCase())) &&
+                         !(slot.student && slot.student.toLowerCase().includes(searchQuery.toLowerCase())))
+                      );
+                      return !isFiltered && slot.status !== 'available';
+                    });
 
-                    const displaySlot = (isFiltered || (slot && slot.status === 'available')) ? null : slot;
-                    const isAvailable = false;
+                    const firstHalfSlots = displaySlots.filter(s => getSlotTiming(s) === 'first-half');
+                    const secondHalfSlots = displaySlots.filter(s => getSlotTiming(s) === 'second-half');
+                    const fullSlots = displaySlots.filter(s => getSlotTiming(s) === 'full');
+
+                    const renderFullCard = (displaySlot: TimeSlot, isHalf: boolean) => {
+                      const colorStyles = getColorClasses(displaySlot.color);
+                      if (isHalf) {
+                        return (
+                          <div
+                            key={displaySlot.id}
+                            onClick={() => {
+                              if (displaySlot.channelName) {
+                                navigate(`/classroom/${displaySlot.channelName}`);
+                              } else {
+                                showToast(language === 'fr' ? `Erreur: Aucun canal de classe` : `Error: No classroom channel`);
+                              }
+                            }}
+                            className={cn(
+                              "flex-1 p-2 rounded-[12px] border transition-all flex items-center justify-between cursor-pointer overflow-hidden relative group/card",
+                              colorStyles.bg
+                            )}
+                          >
+                            <div className="min-w-0 flex-1 pr-2">
+                              <h5 className={cn("text-[10px] font-black truncate leading-tight", colorStyles.text)} title={displaySlot.title}>
+                                {displaySlot.title}
+                              </h5>
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5 text-[8px] opacity-80 font-bold">
+                                {displaySlot.teacher && (
+                                  <span className={cn("truncate max-w-[80px]", colorStyles.sub)} title={displaySlot.teacher}>
+                                    T: {displaySlot.teacher.split(' ')[0]}
+                                  </span>
+                                )}
+                                {displaySlot.student && (
+                                  <span className={cn("truncate max-w-[80px]", colorStyles.sub)} title={displaySlot.student}>
+                                    S: {displaySlot.student}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (displaySlot.channelName) {
+                                  navigate(`/classroom/${displaySlot.channelName}`);
+                                } else {
+                                  showToast(language === 'fr' ? `Erreur: Aucun canal de classe` : `Error: No classroom channel`);
+                                }
+                              }}
+                              className={cn("text-[8px] font-black hover:underline flex items-center gap-0.5 shrink-0 border border-slate-100/10 px-1.5 py-0.5 rounded bg-white/20", colorStyles.sub)}
+                            >
+                              {language === 'fr' ? 'Rejoindre' : 'Join'}
+                              <ChevronRight size={8} />
+                            </button>
+                          </div>
+                        );
+                      }
+
+                      // Full size card
+                      return (
+                        <div
+                          key={displaySlot.id}
+                          onClick={() => {
+                            if (displaySlot.channelName) {
+                              navigate(`/classroom/${displaySlot.channelName}`);
+                            } else {
+                              showToast(language === 'fr' ? `Erreur: Aucun canal de classe` : `Error: No classroom channel`);
+                            }
+                          }}
+                          className={cn(
+                            "flex-1 p-3.5 rounded-[16px] border transition-all flex flex-col justify-between cursor-pointer",
+                            colorStyles.bg
+                          )}
+                        >
+                          <div>
+                            <h5 className={cn("text-xs font-extrabold leading-snug tracking-tight", colorStyles.text)}>
+                              {displaySlot.title}
+                            </h5>
+                            {displaySlot.teacher && (
+                              <p className={cn("text-[10px] font-bold mt-0.5 opacity-80", colorStyles.sub)}>
+                                <span className="font-extrabold">{language === 'fr' ? 'Enseignant : ' : 'Teacher: '}</span>
+                                {displaySlot.teacher}
+                              </p>
+                            )}
+                            {displaySlot.student && (
+                              <p className={cn("text-[10px] font-bold mt-0.5 opacity-80", colorStyles.sub)}>
+                                <span className="font-extrabold">{language === 'fr' ? 'Élève : ' : 'Student: '}</span>
+                                {displaySlot.student}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="flex items-center justify-end border-t border-slate-100/10 pt-2 mt-1">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (displaySlot.channelName) {
+                                  navigate(`/classroom/${displaySlot.channelName}`);
+                                } else {
+                                  showToast(language === 'fr' ? `Erreur: Aucun canal de classe` : `Error: No classroom channel`);
+                                }
+                              }}
+                              className={cn("text-[10px] font-bold hover:underline flex items-center gap-0.5 transition-all", colorStyles.sub)}
+                            >
+                              {language === 'fr' ? 'Rejoindre' : 'Join'}
+                              <ChevronRight size={10} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    };
 
                     return (
                       <div key={`${key}-${range}`} className="w-[280px] h-[155px] p-2 shrink-0 flex items-stretch">
-                        {displaySlot ? (
-                          isAvailable ? (
-                            <div
-                              className="flex-1 p-3 rounded-[16px] border border-dashed border-slate-200 bg-slate-50/20 hover:bg-slate-50/70 hover:border-brand-indigo/40 transition-all flex items-center justify-center cursor-pointer group"
-                              onClick={() => setBookingSlot({ dateKey: key, slot: displaySlot })}
-                            >
-                              <span className="text-[10px] font-black text-slate-400 group-hover:text-brand-indigo transition-colors flex items-center gap-1">
-                                <Plus size={12} />
-                                {language === 'fr' ? 'Réserver' : 'Book'}
-                              </span>
+                        {displaySlots.length > 0 ? (
+                          // If there are full-hour slots, render all matching slots as full height
+                          fullSlots.length > 0 ? (
+                            <div className="flex-1 flex gap-2">
+                              {displaySlots.map(slot => renderFullCard(slot, false))}
                             </div>
                           ) : (
-                            (() => {
-                              const colorStyles = getColorClasses(displaySlot.color);
-                              return (
-                                <div
-                                  className={cn(
-                                    "flex-1 p-3.5 rounded-[16px] border transition-all flex flex-col justify-between cursor-pointer",
-                                    colorStyles.bg
-                                  )}
-                                >
-                                  <div>
-                                    <h5 className={cn("text-xs font-extrabold leading-snug tracking-tight", colorStyles.text)}>
-                                      {displaySlot.title}
-                                    </h5>
-                                    {displaySlot.teacher && (
-                                      <p className={cn("text-[10px] font-bold mt-0.5 opacity-80", colorStyles.sub)}>
-                                        <span className="font-extrabold">{language === 'fr' ? 'Enseignant : ' : 'Teacher: '}</span>
-                                        {displaySlot.teacher}
-                                      </p>
-                                    )}
-                                    {displaySlot.student && (
-                                      <p className={cn("text-[10px] font-bold mt-0.5 opacity-80", colorStyles.sub)}>
-                                        <span className="font-extrabold">{language === 'fr' ? 'Élève : ' : 'Student: '}</span>
-                                        {displaySlot.student}
-                                      </p>
-                                    )}
-                                  </div>
-
-                                  <div className="flex items-center justify-end border-t border-slate-100/10 pt-2 mt-1">
-                                    <button 
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        showToast(language === 'fr' 
-                                          ? `Connexion...`
-                                          : `Joining...`
-                                        );
-                                      }}
-                                      className={cn("text-[10px] font-bold hover:underline flex items-center gap-0.5 transition-all", colorStyles.sub)}
-                                    >
-                                      {language === 'fr' ? 'Rejoindre' : 'Join'}
-                                      <ChevronRight size={10} />
-                                    </button>
-                                  </div>
+                            // Render split height: first-half vs second-half
+                            <div className="flex-1 flex flex-col justify-between">
+                              {/* Top Half */}
+                              {firstHalfSlots.length > 0 ? (
+                                <div className="h-[48%] flex gap-1.5 w-full items-stretch">
+                                  {firstHalfSlots.map(slot => renderFullCard(slot, true))}
                                 </div>
-                              );
-                            })()
+                              ) : (
+                                <div className="h-[48%] w-full border border-dashed border-slate-100/10 rounded-[12px] flex items-center justify-center text-[8px] text-slate-300 bg-slate-50/5">
+                                  -
+                                </div>
+                              )}
+
+                              {/* Bottom Half */}
+                              {secondHalfSlots.length > 0 ? (
+                                <div className="h-[48%] flex gap-1.5 w-full items-stretch">
+                                  {secondHalfSlots.map(slot => renderFullCard(slot, true))}
+                                </div>
+                              ) : (
+                                <div className="h-[48%] w-full border border-dashed border-slate-100/10 rounded-[12px] flex items-center justify-center text-[8px] text-slate-300 bg-slate-50/5">
+                                  -
+                                </div>
+                              )}
+                            </div>
                           )
                         ) : (
                           <div className="flex-1 rounded-[16px] bg-slate-50/10 border border-dashed border-slate-100/30 flex items-center justify-center text-slate-200 text-[10px] font-bold">

@@ -237,6 +237,22 @@ async verifyOtp(email: string, otp: string) {
     return response.json();
   },
 
+  async getCalendar(month?: string | number, year?: string | number): Promise<any> {
+    const token = localStorage.getItem('auth_token');
+    let url = `${BASE_URL}calendar`;
+    if (month !== undefined && year !== undefined) {
+      url += `?month=${month}&year=${year}`;
+    }
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+    });
+    return response.json();
+  },
+
     async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
     const response = await fetch(`${BASE_URL}forgot-password`, {
       method: 'POST',
