@@ -237,6 +237,18 @@ async verifyOtp(email: string, otp: string) {
     return response.json();
   },
 
+  async getClassroom(id: number | string): Promise<any> {
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(`${BASE_URL}classrooms/${id}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+    });
+    return response.json();
+  },
+
   async getCalendar(month?: string | number, year?: string | number): Promise<any> {
     const token = localStorage.getItem('auth_token');
     let url = `${BASE_URL}calendar`;

@@ -12,6 +12,7 @@ import {
 import { AuthModal } from './components/AuthModal';
 import { Dashboard } from './components/Dashboard';
 import { Classroom } from './components/classroom/Classroom';
+import { ClassroomLobby } from './components/classroom/ClassroomLobby';
 import { MenagePage } from './components/MenagePage';
 
 import { UserRole, AuthMode, User, ClassroomData } from './types';
@@ -214,6 +215,11 @@ export default function App() {
               }} 
             />
           } 
+        />
+
+        <Route 
+          path="/classroom-lobby/:classroomId" 
+          element={<ClassroomLobby />} 
         />
         <Route 
           path="/price-quote/:id" 

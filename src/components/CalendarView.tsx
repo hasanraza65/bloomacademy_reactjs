@@ -31,6 +31,7 @@ interface TimeSlot {
   color: 'indigo' | 'emerald' | 'orange' | 'rose' | 'purple' | 'slate' | 'amber';
   students?: string;
   channelName?: string;
+  classroomId?: string | number;
 }
 
 const getColorClasses = (color: string) => {
@@ -261,7 +262,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ user }) => {
                     student: item.child?.child_name || '',
                     status: 'booked' as const,
                     color,
-                    channelName: item.channel_name
+                    channelName: item.channel_name,
+                    classroomId: item.classroom_id || item.pair_id
                   };
                 });
               }
@@ -619,10 +621,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ user }) => {
                           <div
                             key={displaySlot.id}
                             onClick={() => {
-                              if (displaySlot.channelName) {
-                                navigate(`/classroom/${displaySlot.channelName}`);
+                              if (displaySlot.classroomId) {
+                                navigate(`/classroom-lobby/${displaySlot.classroomId}`);
                               } else {
-                                showToast(language === 'fr' ? `Erreur: Aucun canal de classe` : `Error: No classroom channel`);
+                                showToast(language === 'fr' ? `Erreur: Aucun ID de classe` : `Error: No classroom ID`);
                               }
                             }}
                             className={cn(
@@ -651,10 +653,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ user }) => {
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (displaySlot.channelName) {
-                                  navigate(`/classroom/${displaySlot.channelName}`);
+                                if (displaySlot.classroomId) {
+                                  navigate(`/classroom-lobby/${displaySlot.classroomId}`);
                                 } else {
-                                  showToast(language === 'fr' ? `Erreur: Aucun canal de classe` : `Error: No classroom channel`);
+                                  showToast(language === 'fr' ? `Erreur: Aucun ID de classe` : `Error: No classroom ID`);
                                 }
                               }}
                               className={cn("text-[8px] font-black hover:underline flex items-center gap-0.5 shrink-0 border border-slate-100/10 px-1.5 py-0.5 rounded bg-white/20", colorStyles.sub)}
@@ -671,10 +673,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ user }) => {
                         <div
                           key={displaySlot.id}
                           onClick={() => {
-                            if (displaySlot.channelName) {
-                              navigate(`/classroom/${displaySlot.channelName}`);
+                            if (displaySlot.classroomId) {
+                              navigate(`/classroom-lobby/${displaySlot.classroomId}`);
                             } else {
-                              showToast(language === 'fr' ? `Erreur: Aucun canal de classe` : `Error: No classroom channel`);
+                              showToast(language === 'fr' ? `Erreur: Aucun ID de classe` : `Error: No classroom ID`);
                             }
                           }}
                           className={cn(
@@ -704,10 +706,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ user }) => {
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (displaySlot.channelName) {
-                                  navigate(`/classroom/${displaySlot.channelName}`);
+                                if (displaySlot.classroomId) {
+                                  navigate(`/classroom-lobby/${displaySlot.classroomId}`);
                                 } else {
-                                  showToast(language === 'fr' ? `Erreur: Aucun canal de classe` : `Error: No classroom channel`);
+                                  showToast(language === 'fr' ? `Erreur: Aucun ID de classe` : `Error: No classroom ID`);
                                 }
                               }}
                               className={cn("text-[10px] font-bold hover:underline flex items-center gap-0.5 transition-all", colorStyles.sub)}

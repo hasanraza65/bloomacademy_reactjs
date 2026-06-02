@@ -203,7 +203,7 @@ const calendarLabel =
                               )}
 
                               <Link 
-                                to={`/classroom/${classroom.channel_name}`}
+                                to={`/classroom-lobby/${classroom.id}`}
                                 className="inline-flex bg-white text-brand-indigo px-6 py-3 rounded-lg font-extrabold text-lg items-center gap-3 hover:scale-105 active:scale-95 transition-all soft-shadow group/btn"
                               >
                                  <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-brand-indigo group-hover/btn:bg-brand-indigo group-hover/btn:text-white transition-colors">
@@ -228,14 +228,14 @@ const calendarLabel =
                 </div>
                )}
             </section>
-          ) : (
-            <CalendarView user={user} />
-          )}
-        </div>
-      </main>
-    </div>
-  );
-};
+           ) : (
+             <CalendarView user={user} />
+           )}
+         </div>
+       </main>
+     </div>
+   );
+ };
 
 const NavItem = ({ icon: Icon, label, active = false, onClick }: { icon: any, label: string, active?: boolean, onClick?: () => void }) => (
   <button 
